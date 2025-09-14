@@ -1,0 +1,9 @@
+# Ignore Python virtual environment folders
+env/
+venv/
+ENV/
+.venv/
+0_crud/
+1_FastAPI-Ecommerce-API/
+2_login_register/
+3_final_project - Copy
