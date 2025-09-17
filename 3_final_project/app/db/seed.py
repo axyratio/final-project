@@ -1,3 +1,4 @@
+
 from sqlalchemy.orm import Session
 from app.models.role import Role
 
@@ -8,5 +9,4 @@ def seed_roles(db: Session):
         existing = db.query(Role).filter(Role.role_name == role_name).first()
         if not existing:
             db.add(Role(role_name=role_name))
-            db.add(Role(is_active=True))  # Ensure the role is active
     db.commit()
