@@ -18,21 +18,18 @@ def register_service(db: Session, user_data):
         # 1) ตรวจ username
         username_user = user_repository.get_user_by_username(db, user_data.username)
 
-        if username_user.is_active == False:
-            return None, "User is not active"
-
+        
         if username_user:
-            if username_user.is_active == True:
-                return None, "Username already taken"
-            # ถ้ายัง pending ให้เช็คว่าอีเมลตรงกันไหม
-            if username_user.email != user_data.email:
-                return None, "Username already taken with different email"
+            if username_user.is_active:
+                return None, {"username": "Username already taken"}
+            else:
+                return None, {"username": "User is not active"}
+            
 
-        # 2) ตรวจ email
         email_user = user_repository.get_user_by_email(db, user_data.email)
         if email_user:
             if email_user.is_active == True:
-                return None, "Email already registered"
+                return None, {"email": "Email already registered"}
             # ถ้า pending ให้ reuse account เดิม
             target_user = email_user
         else:
@@ -102,9 +99,9 @@ def login_service(db: Session,  payload):
 
         user = user_repository.get_by_identity(db, identity)
         
-        print(f"password from db: {user.password}")
+        # print(f"password from db: {user.password}")
 
-        print(f"service get user: {user.username} {user.user_id}")
+        # print(f"service get user: {user.username} {user.user_id}")
 
 
         if not user:
