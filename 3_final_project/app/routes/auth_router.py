@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.db.database import get_db
+from app.core.authz import set_auth_cookies  # <--- เพิ่มบรรทัดนี้
 from app.schemas.otp import ResendRequestOtp, ResponseVerifyOtp, ResponseRequestOtp, ErrorResponseRequestOtp, ErrorResponseVerifyOtp, RegisterVerifyOtp
 from app.schemas.user import UserRegister, UserResponseRegister, ErrorResponseRegister, UserLogin, UserResponseLogin, ErrorResponseLogin
 from app.services.auth_service import (
@@ -20,6 +21,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     responses={400: {"model": ErrorResponseRegister}},
     summary="สมัครสมาชิกใหม่และส่งรหัส OTP",
 )
+
 def register(payload: UserRegister, db: Session = Depends(get_db)):
     print(f"router username: {payload.username}, email: {payload.email}, password: {payload.password}")
     res, err = register_service(db, payload)
@@ -39,6 +41,7 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
         # otp_code=res.get("otp_code"),  # จะมีเฉพาะตอน DEBUG=True
     )
 
+
 @router.post(
     "/login",
     response_model=UserResponseLogin,
@@ -48,21 +51,27 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 def login(payload: UserLogin, response: Response, db: Session = Depends(get_db)):
     print(f"router username: {payload.identity}, password: {payload.password}")
     res, err = login_service(db, payload)
-    print("user role:", res.get("user_role"))
+    
     if err:
         if isinstance(err, dict):
             return JSONResponse(status_code=400, content=err)
-        # fallback กรณีเป็น string ธรรมดา
         raise HTTPException(status_code=400, detail=err)
     
-    response.set_cookie(
-        key="access_token",
-        value=res.get("access_token"),
-        httponly=True,      # ป้องกัน JS อ่าน cookie
-        max_age=1800,       # อายุ 30 นาที
-        secure=False,       # ใช้ True ใน production (HTTPS)
-        samesite="lax"      # ป้องกัน CSRF
+    # ✅ เปลี่ยนมาใช้ฟังก์ชันกลาง (รองรับทั้ง Localhost และ Vercel/Production)
+    set_auth_cookies(
+        response=response, 
+        access_token=res.get("access_token")
     )
+    
+    # หมายเหตุ: โค้ดเก่าด้านล่างนี้ลบออกได้เลย เพราะย้ายไปอยู่ใน set_auth_cookies แล้ว
+    # response.set_cookie(
+    #     key="access_token",
+    #     value=res.get("access_token"),
+    #     httponly=True,      
+    #     max_age=1800,       
+    #     secure=False,       # <--- ตัวปัญหาถ้าขึ้น deploy แล้วไม่แก้
+    #     samesite="lax"      
+    # )
     
     return UserResponseLogin(
         message="Login Successful",
