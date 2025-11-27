@@ -34,7 +34,7 @@ router = APIRouter(prefix="/home", tags=["Home"])
 #   imageUrl?: string;
 # };
 
-@router.get("/")
+@router.get("")
 def get_home_data(db: Session = Depends(get_db)):
     """
     API สำหรับดึงข้อมูลทั้งหมดที่ต้องใช้ในหน้า Home

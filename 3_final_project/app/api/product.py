@@ -209,5 +209,5 @@ def get_product_detail_api(
 
     return success_response(
         "ดึงข้อมูลสินค้าเรียบร้อย",
-        detail_out.model_dump(),
+        detail_out.dict(),
     )
