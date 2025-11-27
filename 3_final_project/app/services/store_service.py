@@ -13,10 +13,17 @@ from app.utils.response_handler import success_response, error_response
 UPLOAD_DIR = "app/uploads/store/logo"
 base_url = os.getenv("BASE_URL", "http://localhost:8000")
 
-def create_store_and_connect_stripe(db, user_id: str, name: str, description: str, address: str, logo=None):
-    try:
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+def create_store_and_connect_stripe(
+    db: Session,
+    user_id: str,
+    name: str,
+    description: str,
+    address: str,
+    logo: UploadFile | None = None,
+):
+    try:
+        # ไม่ต้อง os.makedirs ตรงนี้แล้ว ให้ file_util จัดการเอง (เฉพาะ DISK mode)
 
         existing_store = db.query(Store).filter(Store.user_id == user_id).first()
         if existing_store:
@@ -37,17 +44,13 @@ def create_store_and_connect_stripe(db, user_id: str, name: str, description: st
             },
         )
 
-        # ✅ จัดการไฟล์โลโก้ (ถ้ามี)
+        # ✅ จัดการไฟล์โลโก้ผ่าน save_file (DISK/CLOUD เลือกตาม env)
         logo_path = None
         if logo:
-            file_ext = os.path.splitext(logo.filename)[1]
-            filename = f"{user_id}{file_ext}"
-            save_path = os.path.join(UPLOAD_DIR, filename)
-            with open(save_path, "wb") as f:
-                f.write(logo.file.read())
-            logo_path = f"/{UPLOAD_DIR}/{filename}"
+            filename = f"{user_id}_{uuid.uuid4().hex}"
+            logo_path = save_file(UPLOAD_DIR, logo, filename)
 
-        # ✅ บันทึกข้อมูลร้านในฐานข้อมูลก่อน เพื่อใช้ store_id ใน URL
+        # ✅ บันทึกข้อมูลร้าน
         store = Store(
             user_id=user_id,
             name=name,
@@ -58,16 +61,12 @@ def create_store_and_connect_stripe(db, user_id: str, name: str, description: st
             stripe_account_id=account.id,
         )
 
-        if (user):
-            user.role_id = 2
-
+        user.role_id = 2
 
         db.add(store)
         db.commit()
         db.refresh(store)
 
-        print(store.store_id, "store id")
-        # ✅ ใช้ store_id ที่เพิ่งสร้างมา สร้างลิงก์ onboarding แบบ dynamic
         onboarding_link = stripe.AccountLink.create(
             account=account.id,
             refresh_url=f"{base_url}/store/connect/refresh/{store.store_id}",
@@ -75,19 +74,22 @@ def create_store_and_connect_stripe(db, user_id: str, name: str, description: st
             type="account_onboarding",
         )
 
-        return success_response("Store created and Stripe connected", {
-            "store_id": str(store.store_id),
-            "stripe_account_id": account.id,
-            "onboarding_link": onboarding_link.url,
-            "logo_path": logo_path,
-            "user_role": user.role.role_name
-
-        })
+        return success_response(
+            "Store created and Stripe connected",
+            {
+                "store_id": str(store.store_id),
+                "stripe_account_id": account.id,
+                "onboarding_link": onboarding_link.url,
+                "logo_path": logo_path,
+                "user_role": user.role.role_name,
+            },
+        )
 
     except Exception as e:
         db.rollback()
-        return error_response("Failed to create store with Stripe connect", {"error": str(e)})
-
+        return error_response(
+            "Failed to create store with Stripe connect", {"error": str(e)}
+        )
 
 # ✅ สร้างร้านค้า
 def create_store_service(db: Session, auth_current_user, data: dict, logo: UploadFile = None):
@@ -230,8 +232,8 @@ def create_stripe_onboarding_link(db, user_id: str):
         # ✅ สร้างลิงก์ onboarding ใหม่จาก Stripe account เดิม
         onboarding_link = stripe.AccountLink.create(
             account=store.stripe_account_id,
-            refresh_url=f"http://localhost:8000/store/connect/refresh/{store.store_id}",
-            return_url=f"http://localhost:8000/store/connect/success/{store.store_id}",
+            refresh_url=f"{base_url}/store/connect/refresh/{store.store_id}",
+            return_url=f"{base_url}/store/connect/success/{store.store_id}",
             type="account_onboarding",
         )
 
