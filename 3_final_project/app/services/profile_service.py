@@ -86,8 +86,18 @@ def my_profile_user_service(db: Session, auth_current_user):
 
         if my_profile is None:
             return None, { "message": "ไม่มีพบโปรไฟล์" }
-        
-        return my_profile, None
+        # build a dict matching ResponseMyProfile schema and include role_name
+        profile_data = {
+            "first_name": my_profile.first_name,
+            "last_name": my_profile.last_name,
+            "username": my_profile.username,
+            "email": my_profile.email,
+            "birth_date": my_profile.birth_date,
+            "phone_number": my_profile.phone_number,
+            "user_role": getattr(getattr(my_profile, "role", None), "role_name", None)
+        }
+
+        return profile_data, None
     
     except Exception as e:
         db.rollback()
