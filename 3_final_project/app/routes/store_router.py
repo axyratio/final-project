@@ -17,13 +17,15 @@ from app.services.store_service import (
     delete_store_service
 )
 from app.repositories import store_repository
-from app.utils.file_util import update_file, delete_file
+from app.utils.file_util import USE_CLOUDINARY, strip_domain_from_url, update_file, delete_file
 from app.utils.response_handler import error_response, success_response
 
 router = APIRouter(prefix="/store", tags=["Store"])
 UPLOAD_DIR = "app/uploads/store/logo"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+if not USE_CLOUDINARY:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    
 @router.post("/create-with-stripe")
 def create_store(
     name: str = Form(...),
@@ -107,7 +109,13 @@ def get_store_logo(store_id: str, db: Session = Depends(get_db)):
     if not store or not store.logo_path:
         return error_response("ไม่พบโลโก้ของร้านนี้", {"logo": "ไม่พบไฟล์ในระบบ"}, 404)
 
-    file_path = store.logo_path.strip("/")
+    # CLOUDINARY → ให้ client ไปโหลดจาก Cloudinary โดยตรง (redirect)
+    if USE_CLOUDINARY:
+        return RedirectResponse(url=store.logo_path)
+
+    # DISK MODE → ใช้ path บนเครื่อง
+    # ถ้าใน DB บังเอิญเก็บเป็น full URL (มี domain) → ตัด domain ออก
+    file_path = strip_domain_from_url(store.logo_path).strip("/")
     if not os.path.exists(file_path):
         return error_response("ไม่พบไฟล์โลโก้ในระบบ", {"logo": "ไฟล์หาย"}, 404)
 
