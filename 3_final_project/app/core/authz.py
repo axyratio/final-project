@@ -16,6 +16,7 @@ def get_current_user_from_cookie(
 ) -> User:
     # ✅ 1. พยายามอ่าน token จาก cookie ก่อน
     token = request.cookies.get("access_token")
+    print(f"get token from cookie: {token}")
     if token:
         print(f"🍪 Token loaded from cookie: {token[:20]}...")
     else:
@@ -50,12 +51,21 @@ def get_current_user_from_cookie(
 
 
 def authenticate_token() -> Callable:
-    def checker(current_user: User = Depends(get_current_user_from_cookie)):
-        print(f"authenticat otken {current_user}")
+    # ✅ ประกาศฟังก์ชันซ้อนข้างใน
+    def wrapper(current_user: User = Depends(get_current_user_from_cookie)):
+        
+        # ใส่ Print เช็คตรงนี้
+        print(f"✅ authenticate_token wrapper working... User: {getattr(current_user, 'username', 'None')}")
+        
         if not current_user:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Not authenticated"
+            )
         return current_user
-    return checker
+        
+    # ✅ Return ฟังก์ชัน wrapper ออกไป (ห้ามมีวงเล็บตรงนี้)
+    return wrapper
 
 
 def authorize_role(required_roles: Sequence[str]) -> Callable:
@@ -79,11 +89,12 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str |
     
     # ถ้าอยู่บน Production (Vercel) ต้องเป็น True เสมอ เพราะเป็น HTTPS
     secure_flag = True if is_production else False
-    
     # ถ้า Frontend กับ Backend อยู่คนละโดเมน (Cross-site) ต้องใช้ 'none'
     # แต่ถ้าอยู่โดเมนเดียวกันเป๊ะๆ ใช้ 'lax' ได้
     # ส่วนใหญ่บน Vercel แนะนำ 'none' ไว้ก่อนถ้า Frontend แยกโปรเจกต์
     samesite_flag = "none" if is_production else "lax"
+
+    print(secure_flag, samesite_flag, access_token)
 
     response.set_cookie(
         key="access_token",
