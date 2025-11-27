@@ -3,6 +3,7 @@ env/
 venv/
 ENV/
 .venv/
+__pycache__/
 0_crud/
 1_FastAPI-Ecommerce-API/
 2_login_register/
