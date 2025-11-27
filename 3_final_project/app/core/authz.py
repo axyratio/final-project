@@ -1,4 +1,5 @@
 # app/core/authz.py
+import os
 from typing import Optional, Sequence, Callable
 from fastapi import Depends, HTTPException, status, Response, Request
 from jose import JWTError, jwt
@@ -6,6 +7,8 @@ from app.core.config import settings
 from app.db.database import get_db
 from sqlalchemy.orm import Session
 from app.models.user import User
+
+is_production = os.getenv("APP_ENV", "development") == "production"
 
 def get_current_user_from_cookie(
     request: Request,
@@ -67,48 +70,38 @@ def authorize_role(required_roles: Sequence[str]) -> Callable:
     return checker
 
 
-def set_auth_cookies(response: Response, access_token: str, refresh_token: str | None = None, *, cross_site: bool = False):
+def set_auth_cookies(response: Response, access_token: str, refresh_token: str | None = None):
     """
-    cross_site=True  -> ต้องการข้ามโดเมน: ใช้ HTTPS + SameSite=None + Secure=True
-    cross_site=False -> same-site ปกติสำหรับ dev
+    ปรับปรุงให้ set cookie ตาม Environment อัตโนมัติ
+    - Production (Vercel): Secure=True, SameSite=None (เพื่อให้ข้ามโดเมนได้ เช่น frontend แยกกับ backend)
+    - Development (Local): Secure=False, SameSite=Lax (เพื่อให้เทสผ่าน http://localhost ได้)
     """
-    if cross_site:
+    
+    # ถ้าอยู่บน Production (Vercel) ต้องเป็น True เสมอ เพราะเป็น HTTPS
+    secure_flag = True if is_production else False
+    
+    # ถ้า Frontend กับ Backend อยู่คนละโดเมน (Cross-site) ต้องใช้ 'none'
+    # แต่ถ้าอยู่โดเมนเดียวกันเป๊ะๆ ใช้ 'lax' ได้
+    # ส่วนใหญ่บน Vercel แนะนำ 'none' ไว้ก่อนถ้า Frontend แยกโปรเจกต์
+    samesite_flag = "none" if is_production else "lax"
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=secure_flag,    # ✅ สำคัญ: บน Vercel ต้องเป็น True
+        samesite=samesite_flag, # ✅ สำคัญ: บน Vercel ถ้าข้ามโดเมนต้องเป็น 'none'
+        max_age=1800,
+        path="/",
+    )
+    
+    if refresh_token:
         response.set_cookie(
-            key="access_token",
-            value=access_token,
+            key="refresh_token",
+            value=refresh_token,
             httponly=True,
-            secure=True,
-            samesite="none",
-            max_age=1800,
-            path="/",
+            secure=secure_flag,
+            samesite=samesite_flag,
+            max_age=60*60*24*7,
+            path="/auth/refresh",
         )
-        if refresh_token:
-            response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
-                httponly=True,
-                secure=True,
-                samesite="none",
-                max_age=60*60*24*7,
-                path="/auth/refresh",
-            )
-    else:
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=False,
-            samesite="lax",
-            max_age=1800,
-            path="/",
-        )
-        if refresh_token:
-            response.set_cookie(
-                key="refresh_token",
-                value=refresh_token,
-                httponly=True,
-                secure=False,
-                samesite="lax",
-                max_age=60*60*24*7,
-                path="/auth/refresh",
-            )
