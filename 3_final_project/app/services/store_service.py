@@ -11,7 +11,7 @@ from app.utils.file_util import save_file, update_file, delete_file, rollback_an
 from app.utils.response_handler import success_response, error_response
 
 UPLOAD_DIR = "app/uploads/store/logo"
-
+base_url = os.getenv("BASE_URL", "http://localhost:8000")
 
 def create_store_and_connect_stripe(db, user_id: str, name: str, description: str, address: str, logo=None):
     try:
@@ -70,8 +70,8 @@ def create_store_and_connect_stripe(db, user_id: str, name: str, description: st
         # ✅ ใช้ store_id ที่เพิ่งสร้างมา สร้างลิงก์ onboarding แบบ dynamic
         onboarding_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=f"http://localhost:8000/store/connect/refresh/{store.store_id}",
-            return_url=f"http://localhost:8000/store/connect/success/{store.store_id}",
+            refresh_url=f"{base_url}/store/connect/refresh/{store.store_id}",
+            return_url=f"{base_url}/store/connect/success/{store.store_id}",
             type="account_onboarding",
         )
 
