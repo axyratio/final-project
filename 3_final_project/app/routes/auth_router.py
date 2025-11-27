@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.schemas.otp import ResendRequestOtp, ResponseVerifyOtp, ResponseRequestOtp, ErrorResponseRequestOtp, ErrorResponseVerifyOtp, RegisterVerifyOtp
@@ -20,13 +21,20 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     summary="สมัครสมาชิกใหม่และส่งรหัส OTP",
 )
 def register(payload: UserRegister, db: Session = Depends(get_db)):
-    
+    print(f"router username: {payload.username}, email: {payload.email}, password: {payload.password}")
     res, err = register_service(db, payload)
+    print(res, err)
     if err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+        # ถ้า err เป็น dict → ส่งออกไปเลย
+        if isinstance(err, dict):
+            return JSONResponse(status_code=400, content=err)
+        # fallback กรณีเป็น string ธรรมดา
+        raise HTTPException(status_code=400, detail=err)
+        # ถ้ามี error (ซึ่งตอนนี้เป็น dict) ให้ส่งกลับไปเป็น JSONResponse โดยตรง
+        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content=err)
     return UserResponseRegister(
         message=res.get("message"),
-        username=res.get("username")
+        username=res.get("username"),
         # otp_token=res.get("otp_token"),
         # otp_code=res.get("otp_code"),  # จะมีเฉพาะตอน DEBUG=True
     )
@@ -40,8 +48,12 @@ def register(payload: UserRegister, db: Session = Depends(get_db)):
 def login(payload: UserLogin, response: Response, db: Session = Depends(get_db)):
     print(f"router username: {payload.identity}, password: {payload.password}")
     res, err = login_service(db, payload)
+    print("user role:", res.get("user_role"))
     if err:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err)
+        if isinstance(err, dict):
+            return JSONResponse(status_code=400, content=err)
+        # fallback กรณีเป็น string ธรรมดา
+        raise HTTPException(status_code=400, detail=err)
     
     response.set_cookie(
         key="access_token",
@@ -56,7 +68,8 @@ def login(payload: UserLogin, response: Response, db: Session = Depends(get_db))
         message="Login Successful",
         username=res.get("username"),
         access_token=res.get("access_token"),
-        token_type=res.get("token_type")
+        token_type=res.get("token_type"),
+        user_role=res.get("user_role")
     )
 
 
