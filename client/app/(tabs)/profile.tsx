@@ -1,7 +1,7 @@
 import { Avartar } from "@/components/avartar";
 import { CustomPressable } from "@/components/pressable";
 import { Colors } from "@/constants/theme";
-import { deleteToken, getToken } from "@/utils/secure-store";
+import { deleteToken, getToken, saveRole } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -50,6 +50,11 @@ export default function ProfileScreen() {
             username: res.data.username,
             image_url: res.data.image_url,
           });
+          
+          // Save user role to secure store
+          if (res.data.user_role) {
+            await saveRole(res.data.user_role);
+          }
         }
       } catch (err) {
         console.log(err);
