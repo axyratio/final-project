@@ -1,0 +1,223 @@
+import uuid
+import os
+from fastapi import APIRouter, Form, File, UploadFile, Depends
+from sqlalchemy.orm import Session
+from fastapi.responses import FileResponse, RedirectResponse
+import stripe
+from app.models.store import Store
+from app.schemas.store_schema import StoreCreate, StoreUpdate
+from app.db.database import get_db
+from app.core.authz import authenticate_token, authorize_role
+from app.services.store_service import (
+    create_store_and_connect_stripe,
+    create_store_service,
+    create_stripe_onboarding_link,
+    get_my_store_service,
+    update_store_service,
+    delete_store_service
+)
+from app.repositories import store_repository
+from app.utils.file_util import update_file, delete_file
+from app.utils.response_handler import error_response, success_response
+
+router = APIRouter(prefix="/store", tags=["Store"])
+UPLOAD_DIR = "app/uploads/store/logo"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@router.post("/create-with-stripe")
+def create_store(
+    name: str = Form(...),
+    description: str = Form(...),
+    address: str = Form(...),
+    logo: UploadFile = File(None),  # ✅ optional: สามารถไม่อัปโหลดก็ได้
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+):
+    """
+    เมื่อร้านใหม่ถูกสร้าง:
+    - ระบบจะสร้าง Stripe Connected Account (type=express)
+    - คืนลิงก์ Onboarding ให้ร้านกรอกข้อมูลธนาคาร
+    - รองรับการอัปโหลดโลโก้ร้าน (logo)
+    """
+    return create_store_and_connect_stripe(
+        db=db,
+        user_id=auth_current_user.user_id,
+        name=name,
+        description=description,
+        address=address,
+        logo=logo
+    )
+
+
+# ✅ สร้างร้านใหม่
+@router.post("/create")
+def create_store(
+    name: str = Form(...),
+    description: str = Form(None),
+    address: str = Form(None),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+    auth_role=Depends(authorize_role(["user"]))
+):
+    data = StoreCreate(name=name, description=description, address=address).dict()
+    return create_store_service(db, auth_current_user, data, logo)
+
+
+# ✅ ดึงร้านของฉัน
+@router.get("/me")
+def get_my_store(
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+    auth_role=Depends(authorize_role(["seller"])),
+):
+    return get_my_store_service(db, auth_current_user)
+
+
+# ✅ อัปเดตร้าน
+@router.patch("/update")
+def update_store(
+    name: str = Form(None),
+    description: str = Form(None),
+    address: str = Form(None),
+    logo: UploadFile = File(None),
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+    auth_role=Depends(authorize_role(["seller"])),
+):
+    data = StoreUpdate(name=name, description=description, address=address).dict()
+    print(name, "name of patch store")
+    return update_store_service(db, auth_current_user, data, logo)
+
+
+# ✅ ลบร้าน
+@router.delete("/delete")
+def delete_store(
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+    auth_role=Depends(authorize_role(["seller"])),
+):
+    return delete_store_service(db, auth_current_user)
+
+
+# ✅ ดึงโลโก้ร้าน
+@router.get("/{store_id}/logo")
+def get_store_logo(store_id: str, db: Session = Depends(get_db)):
+    store = store_repository.get_store_by_id(db, store_id)
+    if not store or not store.logo_path:
+        return error_response("ไม่พบโลโก้ของร้านนี้", {"logo": "ไม่พบไฟล์ในระบบ"}, 404)
+
+    file_path = store.logo_path.strip("/")
+    if not os.path.exists(file_path):
+        return error_response("ไม่พบไฟล์โลโก้ในระบบ", {"logo": "ไฟล์หาย"}, 404)
+
+    return FileResponse(file_path)
+
+
+# ✅ อัปเดตโลโก้
+@router.put("/{store_id}/logo")
+def update_store_logo(
+    store_id: str,
+    logo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+):
+    store = store_repository.get_store_by_id(db, store_id)
+    if not store:
+        return error_response("ไม่พบร้านค้า", {"store": "ไม่พบข้อมูลร้านค้า"}, 404)
+
+    if store.user_id != auth_current_user.user_id:
+        return error_response("คุณไม่มีสิทธิ์แก้ไขร้านนี้", {"auth": "Forbidden"}, 403)
+
+    filename = f"{uuid.uuid4()}_{logo.filename}"
+    new_logo_path = update_file(store.logo_path, UPLOAD_DIR, logo, filename)
+    store.logo_path = new_logo_path
+    db.commit()
+    db.refresh(store)
+
+    return success_response("อัปเดตโลโก้ร้านสำเร็จ", store)
+
+
+
+# ✅ ลบโลโก้
+@router.delete("/{store_id}/logo")
+def delete_store_logo(
+    store_id: str,
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token()),
+):
+    store = store_repository.get_store_by_id(db, store_id)
+    if not store:
+        return error_response("ไม่พบร้านค้า", {"store": "ไม่พบข้อมูลร้านค้า"}, 404)
+
+    if store.user_id != auth_current_user.user_id:
+        return error_response("คุณไม่มีสิทธิ์ลบโลโก้ร้านนี้", {"auth": "Forbidden"}, 403)
+
+    delete_file(store.logo_path)
+    store.logo_path = None
+    db.commit()
+    db.refresh(store)
+    return success_response("ลบโลโก้ร้านสำเร็จ", store)
+
+
+
+# ----------------------------
+
+@router.get("/connect/refresh-link")
+def refresh_onboarding_link(
+    db: Session = Depends(get_db),
+    auth_current_user=Depends(authenticate_token())
+):
+    """
+    สร้างลิงก์ Onboarding ใหม่ให้ร้าน (ใช้เมื่อยังไม่ได้กรอกข้อมูล KYC หรือหมดอายุ)
+    โดยจะค้นหาร้านจากผู้ใช้ที่ล็อกอินอยู่
+    """
+    return create_stripe_onboarding_link(db, auth_current_user.user_id)
+
+@router.get("/connect/refresh/{store_id}")
+def stripe_connect_refresh(store_id: str, db: Session = Depends(get_db)):
+    """
+    Stripe จะเรียก endpoint นี้เมื่อผู้ใช้รีเฟรชหรือใช้ลิงก์หมดอายุระหว่าง onboarding.
+    หน้าที่ของเราคือสร้าง AccountLink ใหม่ให้ร้านนี้ และ redirect ผู้ใช้กลับไปยัง Stripe.
+    """
+    try:
+        store = db.query(Store).filter(Store.store_id == store_id).first()
+        if not store or not store.stripe_account_id:
+            return error_response("Store not found or missing Stripe account ID", status_code=404)
+
+        onboarding_link = stripe.AccountLink.create(
+            account=store.stripe_account_id,
+            refresh_url=f"http://localhost:8000/store/connect/refresh/{store.store_id}",
+            return_url=f"http://localhost:8000/store/connect/success/{store.store_id}",
+            type="account_onboarding",
+        )
+
+        # redirect ผู้ใช้กลับไปหน้า Stripe
+        return RedirectResponse(url=onboarding_link.url)
+
+    except Exception as e:
+        return error_response("Failed to refresh Stripe onboarding link", {"error": str(e)})
+
+
+@router.get("/connect/success/{store_id}")
+def stripe_connect_success(store_id: str, db: Session = Depends(get_db)):
+    """
+    Stripe จะเรียก endpoint นี้เมื่อผู้ใช้กรอก onboarding เสร็จสมบูรณ์.
+    """
+    try:
+        store = db.query(Store).filter(Store.store_id == store_id).first()
+        if not store:
+            return error_response("Store not found", status_code=404)
+
+        # อัปเดตสถานะร้านให้ active
+        store.is_active = True
+        store.is_stripe_verified = True
+        db.commit()
+        return success_response("Stripe onboarding completed successfully", {
+            "store_id": str(store.store_id),
+            "stripe_account_id": store.stripe_account_id
+        })
+
+    except Exception as e:
+        db.rollback()
+        return error_response("Failed to finalize onboarding", {"error": str(e)}, status_code=500)
