@@ -11,35 +11,37 @@ def get_current_user_from_cookie(
     request: Request,
     db: Session = Depends(get_db),
 ) -> User:
+    # ✅ 1. พยายามอ่าน token จาก cookie ก่อน
     token = request.cookies.get("access_token")
-    print(f"token in authz====================: {token}")
+    if token:
+        print(f"🍪 Token loaded from cookie: {token[:20]}...")
+    else:
+        # ✅ 2. ถ้าไม่มี cookie ค่อยอ่านจาก Authorization header
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[len("Bearer "):]
+            print(f"🔐 Token loaded from header: {token[:20]}...")
+        else:
+            print("❌ No token found in cookie or header")
+
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
-    # กันกรณีคุกกี้เก็บเป็น "Bearer <token>"
-    if token.startswith("Bearer "):
-        token = token[len("Bearer "):]
-
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        print(payload)
         user_id: Optional[str] = payload.get("sub")
-        print("user_id sub in auth:", user_id)
         if not user_id:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
         user = db.query(User).filter(User.user_id == user_id).first()
-
-        if user.is_active == False:
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        if not user.is_active:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
 
-        print(f"show user in authz: {user.user_id}")
-        if not user.user_id:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-        print(f"show user all model from authz:{user.user_id, user.username, user.email, user.role.role_name, user.is_active}")
+        print(f"✅ Authenticated user: {user.username} ({user.role.role_name})")
         return user
-    
+
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
