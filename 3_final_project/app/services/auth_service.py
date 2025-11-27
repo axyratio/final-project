@@ -21,15 +21,15 @@ def register_service(db: Session, user_data):
         
         if username_user:
             if username_user.is_active:
-                return None, {"username": "Username already taken"}
+                return None, {"username": "ชื่อผู้ใช้ถูกใช้ไปแล้ว", "ok": False}
             else:
-                return None, {"username": "User is not active"}
+                return None, {"username": "ชื่อผู้ใช้ถูกใช้ไปแล้ว", "ok": False}
             
 
         email_user = user_repository.get_user_by_email(db, user_data.email)
         if email_user:
             if email_user.is_active == True:
-                return None, {"email": "Email already registered"}
+                return None, {"email": "อีเมลนี้ถูกใช้ไปแล้ว", "ok": False}
             # ถ้า pending ให้ reuse account เดิม
             target_user = email_user
         else:
@@ -105,10 +105,10 @@ def login_service(db: Session,  payload):
 
 
         if not user:
-            return None, "User not found"
+            return None, {"identity": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}
 
         if not verify_password(password, user.password):
-            return None, "Invalid password"
+            return None, {"password": "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง"}
         
         print(f"service user role: {user.role.role_name}")
 
@@ -128,112 +128,11 @@ def login_service(db: Session,  payload):
         db.refresh(user)
         return {
             "access_token": access_token,
+            "user_role": user.role.role_name,
             "token_type": "bearer",
             "username": user.username
         }, None
 
     except Exception as e:
+        db.rollback()
         return None, str(e)
-
-
-# def resend_register_otp_service(db: Session, identity):  # identity = username หรือ email
-#     """ตัวอย่างแยกฟังก์ชันขอ OTP ใหม่ โดยมี rate limit"""
-#     try:
-#         user = user_repository.get_by_identity(db, identity)
-#         if not user:
-#             return None, "User not found"
-#         if user.is_active or user.status == "active":
-#             return None, "User is already active"
-
-#         # ตรวจ rate limit + ถ้า OTP เดิมยังไม่หมดอายุ ให้รอ
-#         current_otp = otp_repository.get_latest_by_user_purpose(db, user.user_id, "register")
-#         now = now_utc()
-#         if current_otp and current_otp.expires_at and current_otp.expires_at > now:
-#             remaining_sec = int((current_otp.expires_at - now_utc()).total_seconds())
-#             return None, f"Please wait {remaining_sec} seconds before requesting a new OTP"
-#         otp_repository.ensure_can_request(db, user.user_id, purpose="register")  # เช็คจำนวนครั้ง/ช่วงเวลา
-
-#         # อัปเดต/สร้าง OTP ใหม่
-#         otp_code = generate_numeric_otp(6)
-#         expires_at = now + timedelta(minutes=OTP_EXPIRE_MINUTES)
-#         if current_otp:
-#             otp_repository.update_otp(db, current_otp.otp_id,
-#                                       otp_code=hash_otp(otp_code),
-#                                       expires_at=expires_at,
-#                                       verified_at=None)
-#             otp_id = current_otp.otp_id
-#         else:
-#             new_otp = otp_repository.create_otp(db, user.user_id, hash_otp(otp_code), "register", expires_at)
-#             otp_id = new_otp.otp_id
-
-#         otp_token = create_otp_token({
-#             "user_id": str(user.user_id),
-#             "otp_id": str(otp_id),
-#             "purpose": "register",
-#             "exp": int(expires_at.timestamp())
-#         })
-
-#         # send_meta = send_register_otp_notification(user, otp_code)
-
-#         # ส่ง OTP ภายนอกที่นี่
-#         db.commit()
-
-#         res = {
-#                 "message": "OTP re-sent", 
-#                 "otp_token": otp_token, 
-#                 "otp_code": otp_code, }
-#                 # "send_meta": send_meta }  # debug เท่านั้น}
-#         return res, None
-
-    # except Exception as e:
-    #     db.rollback()
-    #     return None, str(e)
-
-
-# def register_verify_otp_service(db: Session, data):
-#     try:
-#         payload = decode_otp_token(data.otp_token)
-#         if not payload or payload.get("purpose") != "register":
-#             return None, "Invalid or expired OTP token"
-
-#         user_id = payload.get("user_id")
-#         otp_id = payload.get("otp_id")
-#         if not user_id or not otp_id:
-#             return None, "Invalid token payload"
-
-#         # ดึง OTP แบบ lock แถว (ถ้ารองรับ) แล้วตรวจครบทุกเงื่อนไข
-#         otp_row = otp_repository.get_otp_by_id_for_update(db, otp_id)  # หรือ get_latest_by_user_purpose
-#         if not otp_row or str(otp_row.user_id) != str(user_id):
-#             return None, "Invalid OTP"
-
-#         now = now_utc()
-#         if otp_row.verified_at:
-#             return None, "OTP already used"
-#         if not otp_row.expires_at or otp_row.expires_at < now:
-#             return None, "OTP is expired"
-
-#         # ตรวจ OTP code (hash เทียบ)
-#         if not verify_otp_hash(data.otp_code, otp_row.otp_code):
-#             otp_repository.bump_failed_attempt(db, otp_row.otp_id)
-#             return None, "Invalid OTP"
-
-#         # สำเร็จ → active user + mark verified + ลบ OTP อื่น
-#         user = user_repository.get_user_by_user_id(db, user_id)
-#         if not user:
-#             return None, "User not found"
-
-#         user.is_active = True
-#         user.status = "active"
-
-#         otp_row.verified_at = now
-#         otp_row.is_delete = True
-#         otp_repository.delete_others_by_user_purpose(db, user_id, "register", keep_id=otp_row.otp_id)
-
-        
-
-#         db.commit()
-#         return {"message": "User registered successfully", "username": user.username}, None
-
-#     except Exception as e:
-#         db.rollback()
-#         return None, str(e)
