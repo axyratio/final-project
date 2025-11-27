@@ -14,14 +14,15 @@ from app.services.product_service import (
     update_product_service,
     delete_product_service,
 )
+from app.utils.file_util import USE_CLOUDINARY
 from app.utils.response_handler import error_response, success_response
 
 router = APIRouter(prefix="/products", tags=["Product"])
 UPLOAD_DIR = "app/uploads/product/images"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-# app/routers/product_router.py (เฉพาะส่วนที่เกี่ยว)
+if not USE_CLOUDINARY:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 # ---------- NEW: สร้างสินค้าพร้อม variant ทีเดียว ----------
