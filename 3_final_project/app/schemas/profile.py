@@ -9,6 +9,7 @@ class ResponseMyProfile(BaseModel):
     email: str
     birth_date: Optional[date] = None
     phone_number: str
+    user_role: Optional[str] = None
     
     class Config:
         orm_mode = True
