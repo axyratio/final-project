@@ -1,6 +1,17 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional
 from datetime import date
+
+class ResponseMyProfile(BaseModel):
+    first_name: str
+    last_name: str
+    username: str
+    email: str
+    birth_date: Optional[date] = None
+    phone_number: str
+    
+    class Config:
+        orm_mode = True
 
 class ChangeProfile(BaseModel):
     first_name: Optional[str]  = None
@@ -12,7 +23,7 @@ class ChangeProfile(BaseModel):
         orm_mode = True
 
 class ResponseChangeProfile(BaseModel):
-    messagae: str = "Profile updated successfully"
+    messagae: Optional[str] = None
     username: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -21,7 +32,16 @@ class ResponseChangeProfile(BaseModel):
     class Config:
         orm_mode = True
 
+class DeleteProfile(BaseModel):
+    password: str
+
 class ResponseDeleteProfile(BaseModel):
-    message: str = "Profile deleted successfully"
+    success: bool
+    message: str
+    deleted_user_id: int | None = None
     class Config:
         orm_mode = True
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str = Field(..., min_length=8)
+    new_password: str = Field(..., min_length=8)

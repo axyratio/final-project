@@ -32,6 +32,8 @@ class ResponseStoreApplication(BaseModel):
 
     class Config:
         orm_mode = True
+    
+
 class ResponseUpdateStoreApplication(BaseModel):
     message: str
     first_name: Optional[str] = None
