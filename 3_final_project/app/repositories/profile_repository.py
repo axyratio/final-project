@@ -2,7 +2,24 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.repositories.user_repository import get_user_by_user_id
+from app.core.security import hash_password
 
+
+def get_my_profile(db: Session, user_id):
+    user = db.query(User).filter(User.user_id == user_id).first()
+
+    if not user:
+        return None
+    
+    return user
+
+def change_user_password(db: Session, user_id: int, new_password: str) -> User | None:
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        return None
+    user.password = hash_password(new_password)
+    db.add(user)
+    return user
 
 def update_user(db: Session, user_id: str, update_data):
     print(f"repo update user: {update_data}")
