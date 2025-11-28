@@ -61,7 +61,7 @@ app.include_router(user_tryon_image_router.router)
 app.include_router(payment_router.router)
 app.include_router(ws_router.router)
 app.include_router(shipping_address_router.router)
-app.include_router(product_variant_router.router)
+# app.include_router(product_variant_router.router)
 app.include_router(store_dashboard_router.router)
 
 # api
