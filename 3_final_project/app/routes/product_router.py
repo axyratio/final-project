@@ -84,7 +84,7 @@ def get_product_variant(
 
             name = v.size or v.color or v.sku or "ตัวเลือก"
             base_price = product.base_price or 0
-            price_delta = (v.price or 0) - base_price
+            price_delta = (v.price or 0)
 
             options.append(
                 {
