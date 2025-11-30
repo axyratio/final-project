@@ -11,7 +11,7 @@ from app.models.user import User
 
 router = APIRouter(prefix="/shipping-address", tags=["Shipping Address"])
 
-@router.post("/", dependencies=[Depends(authenticate_token()), Depends(authorize_role(["user", "admin"]))])
+@router.post("/", dependencies=[Depends(authenticate_token()), Depends(authorize_role(["user", "admin", "seller"]))])
 def create_shipping_address(data: ShippingAddressCreate, db=Depends(get_db), current_user: User = Depends(authenticate_token())):
     try:
         addr = create_shipping_address_service(db, current_user.user_id, data)
