@@ -88,11 +88,14 @@ def create_product_with_variants_service(
         # -------------------------
         if variant_block and isinstance(variant_block, dict):
             options = variant_block.get("options") or []
+            base_price = product.base_price or 0
 
             for opt in options:
                 name = (opt.get("name_option") or "").strip()
                 if not name:
                     continue
+
+                price_delta = float(opt.get("price_delta", 0))
 
                 variant = ProductVariant(
                     product_id=product.product_id,
@@ -100,8 +103,7 @@ def create_product_with_variants_service(
                     color=None,
                     name_option=name,
                     sku=f"{product.product_id}-{name}",
-                    price=product.base_price
-                    + float(opt.get("price_delta", 0)),
+                    price=price_delta,  # ✅ คำนวณราคา = base_price + price_delta
                     stock=int(opt.get("stock", 0)),
                     is_active=True,
                 )
@@ -261,59 +263,55 @@ def update_product_service(
         db.refresh(product)
 
         # ─────────────────────────
-        # อัปเดตรูปของ Product หลัก จาก image_id
+        # อัปเดตรูปของ Product หลัก จาก image_id (เหมือนตอนสร้าง)
         # ─────────────────────────
-        images_data = data.get("images") or []
+        images_data = data.get("images", [])
         if images_data:
-            payload_ids = {
-                str(img["image_id"])
-                for img in images_data
-                if img.get("image_id")
-            }
+            try:
+                payload_ids = {
+                    str(img["image_id"]) for img in images_data if img.get("image_id")
+                }
 
-            existing_images: list[ProductImage] = (
-                db.query(ProductImage)
-                .filter(
-                    ProductImage.product_id == product.product_id,
-                    ProductImage.variant_id == None,
-                )
-                .all()
-            )
-
-            # ลบรูปที่ไม่ได้อยู่ใน payload แล้ว
-            for img in existing_images:
-                if str(img.image_id) not in payload_ids:
-                    db.delete(img)
-
-            db.commit()
-
-            # update / ผูกรูปตาม payload
-            for idx, img_data in enumerate(images_data):
-                img_id = img_data.get("image_id")
-                if not img_id:
-                    continue
-
-                image: ProductImage | None = (
+                existing_images: list[ProductImage] = (
                     db.query(ProductImage)
-                    .filter(ProductImage.image_id == img_id)
-                    .first()
-                )
-                if not image:
-                    continue
-
-                image.product_id = product.product_id
-                image.variant_id = None
-                image.image_type = ImageType(
-                    img_data.get("image_type", "NORMAL")
-                )
-                image.is_main = bool(
-                    img_data.get("is_main", idx == 0)
-                )
-                image.display_order = int(
-                    img_data.get("display_order", idx)
+                    .filter(
+                        ProductImage.product_id == product.product_id,
+                        ProductImage.variant_id == None,
+                    )
+                    .all()
                 )
 
-            db.commit()
+                # ลบรูปที่ไม่ได้อยู่ใน payload แล้ว
+                for img in existing_images:
+                    if str(img.image_id) not in payload_ids:
+                        db.delete(img)
+
+                # update / ผูกรูปตาม payload
+                for img_data in images_data:
+                    img_id = img_data.get("image_id")
+                    if not img_id:
+                        continue
+
+                    image: ProductImage | None = (
+                        db.query(ProductImage)
+                        .filter(ProductImage.image_id == img_id)
+                        .first()
+                    )
+                    if not image:
+                        continue
+
+                    # รูปของ product หลัก → variant_id = None
+                    image.product_id = product.product_id
+                    image.variant_id = None
+                    image.image_type = ImageType(img_data.get("image_type", "NORMAL"))
+                    image.is_main = bool(img_data.get("is_main", False))
+                    image.display_order = int(img_data.get("display_order", 0))
+                    db.add(image)
+
+                db.commit()
+            except Exception as e:
+                db.rollback()
+                return error_response("ผูกภาพสินค้าล้มเหลว", {"error": str(e)}, 500)
 
         # ─────────────────────────
         # แทนที่ variant + รูปของแต่ละ option จาก image_id
@@ -354,7 +352,7 @@ def update_product_service(
                     color=None,
                     name_option=name,  # <--- เพิ่มบรรทัดนี้เพื่อกำหนดค่าให้ name_option
                     sku=f"{product.product_id}-{name}",
-                    price=base_price + price_delta,
+                    price=price_delta,  # ✅ คำนวณราคา = base_price + price_delta
                     stock=stock,
                     is_active=True,
                 )
@@ -363,6 +361,7 @@ def update_product_service(
                 db.refresh(variant)
 
                 images_for_option = opt.get("images") or []
+                print(f"🎨 Variant '{name}' has {len(images_for_option)} images")
                 for idx, img_data in enumerate(images_for_option):
                     img_id = img_data.get("image_id")
                     if not img_id:
@@ -374,6 +373,7 @@ def update_product_service(
                         .first()
                     )
                     if not image:
+                        print(f"⚠️ Image {img_id} not found in database")
                         continue
 
                     image.product_id = product.product_id
@@ -387,8 +387,11 @@ def update_product_service(
                     image.display_order = int(
                         img_data.get("display_order", idx)
                     )
+                    db.add(image)
+                    print(f"✅ Update variant image {idx+1}: {img_id}")
 
                 db.commit()
+                print(f"💾 Committed {len(images_for_option)} variant images")
 
         return success_response(
             "อัปเดตสินค้าสำเร็จ",
