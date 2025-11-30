@@ -420,18 +420,22 @@ export default function AddProductScreen() {
   const localUri = result.assets[0].uri;
   console.log("[IMAGE] picked localUri:", localUri);
 
-  setProductImages((prev) => [
-    ...prev,
-    {
-      localUri,
-      remoteUrl: undefined,
-      imageId: undefined,
-    },
-  ]);
+  // Insert a placeholder entry and capture the index using functional updater
+  let addedIndex = -1;
+  setProductImages((prev) => {
+    addedIndex = prev.length;
+    return [
+      ...prev,
+      {
+        localUri,
+        remoteUrl: undefined,
+        imageId: undefined,
+      },
+    ];
+  });
   setIsDirty(true);
 
-  const newIndex = productImages.length;
-  console.log("[IMAGE] newIndex (before upload):", newIndex);
+  console.log("[IMAGE] addedIndex (captured):", addedIndex);
 
   try {
     console.log("[IMAGE] start uploadImageFile");
@@ -440,9 +444,18 @@ export default function AddProductScreen() {
 
     setProductImages((prev) => {
       const copy = [...prev];
-      if (!copy[newIndex]) return copy;
-      copy[newIndex] = {
-        ...copy[newIndex],
+
+      // Prefer the captured index; if it's invalid (concurrent changes),
+      // fallback to finding the entry by localUri.
+      let idx = addedIndex;
+      if (idx < 0 || idx >= copy.length || copy[idx].localUri !== localUri) {
+        idx = copy.findIndex((p) => p.localUri === localUri);
+      }
+
+      if (idx === -1 || !copy[idx]) return copy;
+
+      copy[idx] = {
+        ...copy[idx],
         remoteUrl: `${API_BASE_URL}${uploaded.url}`,
         imageId: uploaded.image_id,
       };
