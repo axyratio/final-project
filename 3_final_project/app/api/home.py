@@ -125,6 +125,7 @@ def get_category_page_data(db: Session = Depends(get_db)):
 
             # 🆕 เพิ่มหมวด “ชุดนอน”
             {"id": "sleepwear", "name": "ชุดนอน", "iconUrl": "/static/icons/pajama.svg"},
+            {"id": "longsleeve", "name": "เสื้อแขนยาว", "iconUrl": "/static/icons/longsleeve.svg"},
         ]
 
         # 2. Products (ดึงสินค้าทั้งหมดที่ active)
