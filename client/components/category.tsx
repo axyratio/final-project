@@ -17,9 +17,12 @@ type CategoryListProps = {
 const mockCategoryResponse: { categories: Category[] } = {
   categories: [
     { id: "tshirt",    name: "เสื้อยืด" },
+    { id: "shirt",     name: "เสื้อเชิ้ต" },
     { id: "formal",    name: "เสื้อทางการ" },
+    { id: "cute",      name: "เสื้อน่ารัก" },
     { id: "sport",     name: "เสื้อกีฬา" },
     { id: "sleepwear", name: "ชุดนอน" },
+    { id: "longsleeve", name: "เสื้อแขนยาว" },
   ],
 };
 
