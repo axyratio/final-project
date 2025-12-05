@@ -11,6 +11,7 @@ class OrderItem(Base):
     order_id = Column(UUID(as_uuid=True), ForeignKey('orders.order_id'), nullable=False)
     store_id = Column(UUID(as_uuid=True), ForeignKey('stores.store_id'), nullable=False) #อยู่ในนี้เพราะจะได้สั่งหลายร้านใน order เดียว
     product_id = Column(UUID(as_uuid=True), ForeignKey('products.product_id'), nullable=False)
+    variant_id = Column(UUID(as_uuid=True), ForeignKey('product_variants.variant_id'), nullable=True)
 
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
@@ -18,3 +19,4 @@ class OrderItem(Base):
     store = relationship("Store", back_populates="order_items")
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product", back_populates="order_items")
+    variant = relationship("ProductVariant")  # ถ้ามึงอยากให้มี

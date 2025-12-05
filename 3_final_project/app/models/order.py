@@ -12,6 +12,7 @@ class Order(Base):
     order_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.user_id'), nullable=False)
     ship_addr_id = Column(UUID(as_uuid=True), ForeignKey('shipping_addresses.ship_addr_id'), nullable=False)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.store_id"), nullable=True)
 
     is_locked = Column(Boolean, default=False)  # กันการซื้อซ้ำ
 
@@ -24,6 +25,7 @@ class Order(Base):
     total_price = Column(Float, nullable=False)
 
     # store = relationship("Store", back_populates="orders")
+    store = relationship("Store", back_populates="orders")   # 👈 แนะนำให้มี
     user = relationship('User', back_populates='orders')
     order_items = relationship("OrderItem", back_populates="order")
     payment = relationship("Payment", back_populates="order", uselist=False)

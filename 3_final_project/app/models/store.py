@@ -24,5 +24,5 @@ class Store(Base):
 
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.user_id'), unique=True)
     products = relationship("Product", back_populates="store", cascade="all, delete-orphan")
-    # orders = relationship("Order", back_populates="store")
+    orders = relationship("Order", back_populates="store")
     order_items = relationship('OrderItem', back_populates='store')

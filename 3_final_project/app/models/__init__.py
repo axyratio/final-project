@@ -21,6 +21,7 @@ from app.models.product import ProductImage
 from app.models.product import VTONMeta
 from app.models.product import UserTryOnImage
 from app.models.product import VTONSession
+from app.models.stock_reservation import StockReservation
 
 from sqlalchemy.orm import configure_mappers
 configure_mappers()
