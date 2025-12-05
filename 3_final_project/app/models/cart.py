@@ -34,7 +34,7 @@ class CartItem(Base):
     cart_item_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cart_id = Column(UUID(as_uuid=True), ForeignKey("carts.cart_id"), nullable=False)
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id"), nullable=False)
-    variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variants.variant_id"), nullable=False)
+    variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variants.variant_id"), nullable=False) # อันนี้กูเพิ่มนะอาจจะต้องเปลี่ยน
 
     quantity = Column(Integer, nullable=False, default=1)
     added_at = Column(DateTime, default=now_utc)
