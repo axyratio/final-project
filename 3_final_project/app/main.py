@@ -1,14 +1,15 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 import stripe
-from app.api import cart, home, product
+from app.api import cart, checkout, home, product
 import app.models 
 from app.db.database import Base, engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, shipping_address_router, store_application_router, store_dashboard_router, store_router, user_tryon_image_router, variant_router, vton_meta_router, ws_router
+from app.routes import auth_router, checkout_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, shipping_address_router, stock_reservation_router, store_application_router, store_dashboard_router, store_router, stripe_webhook_router, user_tryon_image_router, variant_router, vton_meta_router, ws_router
 from app.db.seed import seed_payment_methods, seed_roles
 
-from app.utils.exception_handler import validation_exception_handler 
+from app.utils.exception_handler import validation_exception_handler
+from app.utils.scheduler import start_scheduler 
 
 # สร้าง FastAPI app
 app = FastAPI()
@@ -34,8 +35,11 @@ def on_startup():
     # seed roles ถ้าต้องการ
     db = SessionLocal()
     try:
+        
         seed_roles(db)
         seed_payment_methods(db)
+        
+        start_scheduler()
 
         # charge = stripe.Charge.create(
         # amount=100000,  # 1000.00 SGD หรือ THB (หน่วยย่อย)
@@ -58,15 +62,21 @@ app.include_router(variant_router.router)
 app.include_router(preview_image_router.router)
 app.include_router(vton_meta_router.router)
 app.include_router(user_tryon_image_router.router)
-app.include_router(payment_router.router)
+# app.include_router(payment_router.router)
 app.include_router(ws_router.router)
 app.include_router(shipping_address_router.router)
 # app.include_router(product_variant_router.router)
 app.include_router(store_dashboard_router.router)
+app.include_router(checkout_router.router)
+app.include_router(stripe_webhook_router.router)
+app.include_router(stock_reservation_router.router)
+
+
+
 
 # api
 app.include_router(home.router)
 app.include_router(product.router)
 app.include_router(cart.router)
-
+app.include_router(checkout.router)    # validate checkout
 
