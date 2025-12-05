@@ -1,13 +1,13 @@
 // app/(customer)/product-detail.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { Box, Text } from "native-base";
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
-import { StatusBar } from "expo-status-bar";
 
-import { getProductDetail, ProductDetailDto, ProductVariantDto } from "@/api/products";
 import { addToCart, getCartSummary } from "@/api/cart";
+import { getProductDetail, ProductDetailDto, ProductVariantDto } from "@/api/products";
 import {
   ExpandableDescription,
   ProductHeader,
@@ -174,7 +174,7 @@ const handleConfirmVariant = async (payload: {
         <View style={{ flexDirection: "row" }}>
           <Pressable
             onPress={() =>
-              router.push({ pathname: "/(customer)/cart" } as any)
+              router.push({ pathname: "/(cart)/cart" } as any)
             }
             style={{
               width: 32,
@@ -188,7 +188,7 @@ const handleConfirmVariant = async (payload: {
           >
             <IconWithBadge
               count={cartCount}
-              icon={<Ionicons name="cart-outline" size={20} color="#fff" />}
+              icon={<Ionicons onPress={() => router.push("/(cart)/cart")} name="cart-outline" size={20} color="#fff" />}
             />
           </Pressable>
 
