@@ -20,6 +20,8 @@ class Settings:
 
     STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
     # OTP_SECRET_KEY = os.getenv("OTP_SECRET_KEY")
     # OTP_TOKEN_EXPIRE_MINUTES = int(os.getenv("OTP_TOKEN_EXPIRE_MINUTES"))
