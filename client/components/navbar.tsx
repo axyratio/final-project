@@ -44,6 +44,7 @@ export const AppBar = ({ onSave, title }: AppBarProps) => {
                 color="white"
               />
             }
+            accessibilityLabel="ย้อนกลับ"
             onPress={() => router.back()}
           />
           <Text color="white" fontSize="20" fontWeight="thin">
@@ -55,6 +56,7 @@ export const AppBar = ({ onSave, title }: AppBarProps) => {
             icon={
               <Icon size="lg" as={MaterialIcons} name="check" color="white" />
             }
+            accessibilityLabel="บันทึก"
             onPress={() => {
               onSave?.();
             }}
@@ -100,6 +102,7 @@ export const AppBarNoCheck = ({
                 color="white"
               />
             }
+            accessibilityLabel="ย้อนกลับ"
             onPress={handleBack}
           />
           <Text color="white" fontSize="20" fontWeight="thin">
@@ -142,6 +145,7 @@ export const AppBarMore = ({ onClick, title }: AppBarMoreProps) => {
                 color="white"
               />
             }
+            accessibilityLabel="ย้อนกลับ"
             onPress={() => router.back()}
           />
           <Text color="white" fontSize="20" fontWeight="thin">
@@ -175,7 +179,7 @@ export const HomeNavbar: React.FC<HomeNavbarProps> = ({
 
   const handlePressCart = () => {
     // ไปหน้า cart
-    router.push("/(customer)/cart" as any);
+    router.push("/(cart)/cart" as any);
   };
 
   const handlePressFilter = () => {
@@ -221,6 +225,7 @@ export const HomeNavbar: React.FC<HomeNavbarProps> = ({
           bg="white"
           borderRadius={999}
           onPress={handlePressFilter}
+          accessibilityLabel="ตัวกรอง"
           icon={
             <Icon
               as={Ionicons}
