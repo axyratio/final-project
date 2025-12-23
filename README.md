@@ -1,2 +1,2 @@
-03_final_project = backend
-client = frontend
+- 03_final_project = backend
+- client = frontend
