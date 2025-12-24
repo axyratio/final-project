@@ -1,3 +1,4 @@
+# app/models/order.py
 from sqlalchemy import Boolean, Column, Float, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -14,7 +15,10 @@ class Order(Base):
     ship_addr_id = Column(UUID(as_uuid=True), ForeignKey('shipping_addresses.ship_addr_id'), nullable=False)
     store_id = Column(UUID(as_uuid=True), ForeignKey("stores.store_id"), nullable=True)
 
-    is_locked = Column(Boolean, default=False)  # กันการซื้อซ้ำ
+    # 🆕 ผูกกับ Payment (1 payment ต่อหลาย order)
+    payment_id = Column(UUID(as_uuid=True), ForeignKey("payments.payment_id"), nullable=True)
+
+    is_locked = Column(Boolean, default=False)
 
     order_status = Column(String, nullable=False, default='PENDING')  # PENDING / SHIPPED / DELIVERED
     order_text_status = Column(String, nullable=False, default="กำลังจัดเตรียม")
@@ -23,22 +27,28 @@ class Order(Base):
     tracking_number = Column(String, nullable=True)
     courier_name = Column(String, nullable=True)
     total_price = Column(Float, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=now_utc)
+    updated_at = Column(DateTime(timezone=True), onupdate=now_utc, nullable=True)
 
-    # store = relationship("Store", back_populates="orders")
-    store = relationship("Store", back_populates="orders")   # 👈 แนะนำให้มี
+    store = relationship("Store", back_populates="orders")
     user = relationship('User', back_populates='orders')
     order_items = relationship("OrderItem", back_populates="order")
-    payment = relationship("Payment", back_populates="order", uselist=False)
+
+    # ❌ ของเดิมที่เป็น 1:1
+    # payment = relationship("Payment", back_populates="order", uselist=False)
+
+    # ✅ ของใหม่: N orders → 1 payment
+    payment = relationship("Payment", back_populates="orders")
+
     tracking_histories = relationship(
-    "TrackingHistory",
-    back_populates="order",
-    cascade="all, delete-orphan",
-    foreign_keys="[TrackingHistory.order_id]"   # ✅ บอกให้ใช้ order_id เท่านั้น
-)
+        "TrackingHistory",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        foreign_keys="[TrackingHistory.order_id]"
+    )
 
     shipping_address = relationship("ShippingAddress", back_populates="orders")
 
-    # ฟังก์ชันช่วยอัปเดตสถานะออเดอร์ตาม tracking ล่าสุด
     def update_status_from_tracking(self):
         if not self.tracking_histories:
             return
