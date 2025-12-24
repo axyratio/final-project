@@ -40,5 +40,5 @@ class User(Base):
     wishlists = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     shipping_addresses = relationship("ShippingAddress", back_populates="user", cascade="all, delete-orphan")
-
+    uploaded_backgrounds = relationship("VTONBackground", back_populates="user", cascade="all, delete-orphan")
 
