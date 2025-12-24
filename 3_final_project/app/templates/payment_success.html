@@ -1,212 +1,53 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ชำระเงินสำเร็จ</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @keyframes checkmark {
-            0% {
-                stroke-dashoffset: 100;
-            }
-            100% {
-                stroke-dashoffset: 0;
-            }
-        }
-        
-        @keyframes scaleIn {
-            0% {
-                transform: scale(0);
-                opacity: 0;
-            }
-            50% {
-                transform: scale(1.1);
-            }
-            100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-        
-        @keyframes fadeInUp {
-            0% {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            100% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .checkmark-circle {
-            animation: scaleIn 0.5s ease-out forwards;
-        }
-        
-        .checkmark-path {
-            stroke-dasharray: 100;
-            stroke-dashoffset: 100;
-            animation: checkmark 0.6s 0.3s ease-out forwards;
-        }
-        
-        .fade-in-up {
-            animation: fadeInUp 0.6s ease-out forwards;
-        }
-        
-        .confetti {
-            position: fixed;
-            width: 10px;
-            height: 10px;
-            background: #f0f;
-            position: absolute;
-            animation: confetti-fall 3s ease-out forwards;
-        }
-        
-        @keyframes confetti-fall {
-            to {
-                transform: translateY(100vh) rotate(360deg);
-                opacity: 0;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ชำระเงิน</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 min-h-screen flex items-center justify-center p-4">
-    <div class="max-w-md w-full">
-        <!-- Success Card -->
-        <div class="bg-white rounded-3xl shadow-2xl p-8 text-center fade-in-up">
-            <!-- Success Icon -->
-            <div class="mx-auto w-24 h-24 mb-6">
-                <svg class="w-full h-full" viewBox="0 0 100 100">
-                    <circle 
-                        class="checkmark-circle"
-                        cx="50" 
-                        cy="50" 
-                        r="45" 
-                        fill="#10b981" 
-                        opacity="0.2"
-                    />
-                    <circle 
-                        class="checkmark-circle"
-                        cx="50" 
-                        cy="50" 
-                        r="40" 
-                        fill="none" 
-                        stroke="#10b981" 
-                        stroke-width="3"
-                    />
-                    <path 
-                        class="checkmark-path"
-                        d="M30 50 L45 65 L70 35" 
-                        fill="none" 
-                        stroke="#10b981" 
-                        stroke-width="5" 
-                        stroke-linecap="round" 
-                        stroke-linejoin="round"
-                    />
-                </svg>
-            </div>
-            
-            <!-- Title -->
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">
-                ชำระเงินสำเร็จ!
-            </h1>
-            
-            <!-- Subtitle -->
-            <p class="text-gray-600 mb-6">
-                ขอบคุณสำหรับการสั่งซื้อของคุณ
-            </p>
-            
-            <!-- Info Box -->
-            <div class="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-6">
-                <div class="flex items-center justify-center space-x-2 mb-2">
-                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    <span class="text-green-800 font-semibold">การชำระเงินได้รับการยืนยันแล้ว</span>
-                </div>
-                <p class="text-sm text-green-700">
-                    เราได้รับข้อมูลการชำระเงินของคุณเรียบร้อยแล้ว<br>
-                    และกำลังดำเนินการจัดส่งสินค้าของคุณ
-                </p>
-            </div>
-            
-            <!-- Session ID Display -->
-            <div class="bg-gray-50 rounded-lg p-3 mb-6">
-                <p class="text-xs text-gray-500 mb-1">รหัสการชำระเงิน</p>
-                <p id="sessionId" class="text-sm font-mono text-gray-700"></p>
-            </div>
-            
-            <!-- Order Details -->
-            <div class="border-t border-gray-200 pt-6 mb-6">
-                <div class="flex items-center justify-center space-x-2 text-sm text-gray-600 mb-4">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                    </svg>
-                    <span>อีเมลยืนยันได้ถูกส่งไปยังกล่องจดหมายของคุณแล้ว</span>
-                </div>
-            </div>
-            
-            <!-- Action Buttons -->
-            <div class="space-y-3">
-                <button 
-                    onclick="window.location.href='client://orders'"
-                    class="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                >
-                    ดูรายการสั่งซื้อของฉัน
-                </button>
-                
-                <button 
-                    onclick="window.location.href='client://home'"
-                    class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-300"
-                >
-                    กลับหน้าหลัก
-                </button>
-            </div>
-            
-            <!-- Footer Note -->
-            <p class="text-xs text-gray-500 mt-6">
-                หากมีคำถามเกี่ยวกับคำสั่งซื้อของคุณ<br>
-                กรุณาติดต่อฝ่ายสนับสนุนลูกค้า
-            </p>
-        </div>
-        
-        <!-- Additional Info -->
-        <div class="text-center mt-6 text-sm text-gray-600">
-            <p>🎉 ขอบคุณที่ไว้วางใจเลือกซื้อกับเรา</p>
-        </div>
+<body class="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-md w-full">
+    <div class="bg-white rounded-3xl shadow-2xl p-8 text-center">
+      <h1 class="text-3xl font-bold text-gray-800 mb-2">สถานะการชำระเงิน</h1>
+      <p class="text-gray-600 mb-6" id="msg">กำลังตรวจสอบ...</p>
+
+      <div class="space-y-3">
+        <button onclick="window.location.href='/'"
+          class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-300">
+          กลับหน้าหลัก
+        </button>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-5 break-all">session_id: {{ session_id or "" }}</p>
     </div>
-    
-    <script>
-        // Get session_id from URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('session_id');
-        if (sessionId) {
-            document.getElementById('sessionId').textContent = sessionId;
-        }
-        
-        // Create confetti effect
-        function createConfetti() {
-            const colors = ['#10b981', '#34d399', '#6ee7b7', '#a7f3d0', '#fbbf24', '#f59e0b'];
-            for (let i = 0; i < 50; i++) {
-                setTimeout(() => {
-                    const confetti = document.createElement('div');
-                    confetti.className = 'confetti';
-                    confetti.style.left = Math.random() * 100 + '%';
-                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
-                    confetti.style.animationDuration = Math.random() * 2 + 2 + 's';
-                    document.body.appendChild(confetti);
-                    
-                    setTimeout(() => confetti.remove(), 3000);
-                }, i * 30);
-            }
-        }
-        
-        // Trigger confetti on load
-        window.addEventListener('load', () => {
-            setTimeout(createConfetti, 500);
-        });
-    </script>
+  </div>
+
+<script>
+(async function () {
+  const sessionId = "{{ session_id or '' }}";
+  const msg = document.getElementById("msg");
+
+  if (!sessionId) {
+    msg.textContent = "ไม่พบ session_id (อาจเข้าหน้านี้ตรง ๆ)";
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/payment/status-by-session/${sessionId}`);
+    if (!res.ok) {
+      msg.textContent = "ยังไม่เจอสถานะในระบบ (webhook อาจยังมาไม่ถึง)";
+      return;
+    }
+
+    const data = await res.json();
+    if (data.status === "SUCCESS") msg.textContent = "ชำระเงินสำเร็จ ✅";
+    else if (data.status === "FAILED") msg.textContent = "ชำระเงินไม่สำเร็จ ❌";
+    else msg.textContent = "ยังอยู่ระหว่างดำเนินการ...";
+  } catch (e) {
+    msg.textContent = "เช็คสถานะไม่สำเร็จ";
+  }
+})();
+</script>
 </body>
 </html>
