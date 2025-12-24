@@ -39,7 +39,7 @@ def on_startup():
         seed_roles(db)
         seed_payment_methods(db)
         
-        start_scheduler()
+        # start_scheduler()
 
         # charge = stripe.Charge.create(
         # amount=100000,  # 1000.00 SGD หรือ THB (หน่วยย่อย)
