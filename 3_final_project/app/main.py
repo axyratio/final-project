@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 import stripe
-from app.api import cart, checkout, home, product
+from app.api import cart, checkout, home, product, stripe_webhook
 import app.models 
 from app.db.database import Base, engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,4 +80,6 @@ app.include_router(product.router)
 app.include_router(cart.router)
 app.include_router(checkout.router)    # validate checkout
 app.include_router(payment_page_router.router)
+app.include_router(stripe_webhook.router)
+
 
