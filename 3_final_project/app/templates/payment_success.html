@@ -33,21 +33,25 @@
     return;
   }
 
-  try {
-    const res = await fetch(`/api/payment/status-by-session/${sessionId}`);
-    if (!res.ok) {
-      msg.textContent = "ยังไม่เจอสถานะในระบบ (webhook อาจยังมาไม่ถึง)";
-      return;
+  for (let attempt = 1; attempt <= 15; attempt++) {
+    try {
+      const res = await fetch(`/api/payment/status-by-session/${encodeURIComponent(sessionId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === "SUCCESS") { msg.textContent = "ชำระเงินสำเร็จ ✅"; return; }
+        if (data.status === "FAILED")  { msg.textContent = "ชำระเงินไม่สำเร็จ ❌"; return; }
+      }
+      msg.textContent = `กำลังรอผลยืนยันจากระบบ... (${attempt}/15)`;
+    } catch (e) {
+      msg.textContent = "เช็คสถานะไม่สำเร็จ กำลังลองใหม่...";
     }
 
-    const data = await res.json();
-    if (data.status === "SUCCESS") msg.textContent = "ชำระเงินสำเร็จ ✅";
-    else if (data.status === "FAILED") msg.textContent = "ชำระเงินไม่สำเร็จ ❌";
-    else msg.textContent = "ยังอยู่ระหว่างดำเนินการ...";
-  } catch (e) {
-    msg.textContent = "เช็คสถานะไม่สำเร็จ";
+    await new Promise(r => setTimeout(r, 1500));
   }
+
+  msg.textContent = "ระบบยังไม่ยืนยัน (webhook อาจมาช้า) กรุณากลับไปเช็คในออเดอร์";
 })();
 </script>
+
 </body>
 </html>
