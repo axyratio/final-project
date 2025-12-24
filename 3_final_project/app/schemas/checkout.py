@@ -1,4 +1,5 @@
 # app/schemas/checkout.py
+from datetime import datetime
 from pydantic import BaseModel, Field
 from typing import List, Optional, Literal
 from uuid import UUID
@@ -53,6 +54,7 @@ class CheckoutResponse(BaseModel):
     order_ids: List[UUID]
     stripe_session_id: str
     stripe_checkout_url: str
+    expires_at: datetime
 
     class Config:
         orm_mode = True
