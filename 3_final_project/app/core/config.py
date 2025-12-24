@@ -22,6 +22,8 @@ class Settings:
     STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
     
     BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+    
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
     # OTP_SECRET_KEY = os.getenv("OTP_SECRET_KEY")
     # OTP_TOKEN_EXPIRE_MINUTES = int(os.getenv("OTP_TOKEN_EXPIRE_MINUTES"))
