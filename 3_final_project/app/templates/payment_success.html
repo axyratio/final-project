@@ -27,30 +27,30 @@
 (async function () {
   const sessionId = "{{ session_id or '' }}";
   const msg = document.getElementById("msg");
-  console.log(sessionId, "session")
+  // console.log(sessionId, "session")
 
-  if (!sessionId) {
-    msg.textContent = "ไม่พบ session_id (อาจเข้าหน้านี้ตรง ๆ)";
-    return;
-  }
+  // if (!sessionId) {
+  //   msg.textContent = "ไม่พบ session_id (อาจเข้าหน้านี้ตรง ๆ)";
+  //   return;
+  // }
 
-  for (let attempt = 1; attempt <= 15; attempt++) {
-    try {
-      const res = await fetch(`/api/payment/status-by-session/${encodeURIComponent(sessionId)}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.status === "SUCCESS") { msg.textContent = "ชำระเงินสำเร็จ ✅"; return; }
-        if (data.status === "FAILED")  { msg.textContent = "ชำระเงินไม่สำเร็จ ❌"; return; }
-      }
-      msg.textContent = `กำลังรอผลยืนยันจากระบบ... (${attempt}/15)`;
-    } catch (e) {
-      msg.textContent = "เช็คสถานะไม่สำเร็จ กำลังลองใหม่...";
-    }
+  // for (let attempt = 1; attempt <= 15; attempt++) {
+  //   try {
+  //     const res = await fetch(`/api/payment/status-by-session/${encodeURIComponent(sessionId)}`);
+  //     if (res.ok) {
+  //       const data = await res.json();
+  //       if (data.status === "SUCCESS") { msg.textContent = "ชำระเงินสำเร็จ ✅"; return; }
+  //       if (data.status === "FAILED")  { msg.textContent = "ชำระเงินไม่สำเร็จ ❌"; return; }
+  //     }
+  //     msg.textContent = `กำลังรอผลยืนยันจากระบบ... (${attempt}/15)`;
+  //   } catch (e) {
+  //     msg.textContent = "เช็คสถานะไม่สำเร็จ กำลังลองใหม่...";
+  //   }
 
-    await new Promise(r => setTimeout(r, 1500));
-  }
+  //   await new Promise(r => setTimeout(r, 1500));
+  // }
 
-  msg.textContent = "ระบบยังไม่ยืนยัน (webhook อาจมาช้า) กรุณากลับไปเช็คในออเดอร์";
+  msg.textContent = "ชำระเงินสำเร็จ ✅ ระบบอาจใช้เวลาประมวลผลสักครู่ หากสถานะไม่เปลี่ยนแปลง กรุณาติดต่อฝ่ายบริการลูกค้า";
 })();
 </script>
 
