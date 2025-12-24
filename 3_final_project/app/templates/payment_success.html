@@ -34,6 +34,11 @@
   }
 
   try {
+    const res = await fetch(`/api/payment/status-by-session/${sessionId}`);
+    if (!res.ok) {
+      msg.textContent = "ยังไม่เจอสถานะในระบบ (webhook อาจยังมาไม่ถึง)";
+      return;
+    }
 
     const data = await res.json();
     if (data.status === "SUCCESS") msg.textContent = "ชำระเงินสำเร็จ ✅";
