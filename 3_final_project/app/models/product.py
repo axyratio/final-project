@@ -132,7 +132,7 @@ class VTONMeta(Base):
     __tablename__ = "vton_metadata"
 
     vton_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    image_id = Column(UUID(as_uuid=True), ForeignKey("product_images.image_id"), nullable=False, unique=True)
+    image_id = Column(UUID(as_uuid=True), ForeignKey("product_images.image_id"), nullable=False, unique=True) #id สินค้าของ Product เพื่อ query
 
     pose_angle = Column(String(50), nullable=True)       # มุมถ่ายภาพ เช่น 'front', 'side'
     clothing_type = Column(String(50), nullable=True)    # ประเภทเสื้อผ้า เช่น 'tshirt', 'dress'
@@ -171,8 +171,11 @@ class VTONSession(Base):
     result_image_url = Column(String(255), nullable=True)  # ผลลัพธ์ของการลองเสื้อ
     model_used = Column(String(100), nullable=True)        # AI model ที่ใช้ เช่น 'TryOn-GAN'
     generated_at = Column(DateTime, default=now_utc)
-
-    # ความสัมพันธ์
+    background_id = Column(UUID(as_uuid=True), ForeignKey("vton_backgrounds.background_id"), nullable=True)
+    # ... (relationships เดิม) ...
+    
+    # [เพิ่ม Relationship นี้]
+    background = relationship("VTONBackground", back_populates="sessions")
     user = relationship("User", back_populates="tryon_sessions")
     product = relationship("Product", back_populates="tryon_sessions")
     user_image = relationship("UserTryOnImage", back_populates="sessions")
