@@ -1,5 +1,5 @@
 # app/services/checkout_service.py
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Dict
 from uuid import UUID
 
@@ -22,9 +22,10 @@ from app.schemas.checkout import CheckoutRequest, CheckoutItem, CheckoutResponse
 from app.repositories.stock_reservation_repository import get_active_reserved_quantity
 from app.utils.now_utc import now_utc
 from app.core.config import settings
+from app.utils.order_task import check_order_timeout
 
 
-RESERVATION_MINUTES = 15
+RESERVATION_MINUTES = 1
 
 
 class CheckoutService:
@@ -36,10 +37,6 @@ class CheckoutService:
         cart_id: UUID,
         selected_cart_item_ids: Optional[list[UUID]],
     ) -> Tuple[List[dict], bool, UUID]:
-        """
-        ดึง items จาก Cart ตาม cart_id ของ user
-        และถ้ามี selected_cart_item_ids ให้ใช้เฉพาะรายการที่ user เลือก
-        """
         cart = (
             db.query(Cart)
             .filter(Cart.cart_id == cart_id, Cart.user_id == user.user_id)
@@ -51,14 +48,12 @@ class CheckoutService:
         if not cart.items:
             raise HTTPException(status_code=400, detail="Cart ว่างเปล่า")
 
-        # 👇 ใช้เฉพาะ item ที่ user เลือก
         if selected_cart_item_ids:
             selected_set = {UUID(str(x)) for x in selected_cart_item_ids}
             cart_items: List[CartItem] = [
                 ci for ci in cart.items if ci.cart_item_id in selected_set
             ]
         else:
-            # fallback: ถ้า frontend ไม่ส่งมาเลย ก็ถือว่าเลือกทั้งตะกร้า
             cart_items = list(cart.items)
 
         if not cart_items:
@@ -76,8 +71,8 @@ class CheckoutService:
                     "product": product,
                     "store": store,
                     "quantity": item.quantity,
-                    "unit_price": item.price_at_addition,  # ราคา snapshot ตอนหยิบลงตะกร้า
-                    "cart_item_id": item.cart_item_id,     # ใช้ตอนเคลียร์ cart หลังจ่ายสำเร็จ
+                    "unit_price": item.price_at_addition,
+                    "cart_item_id": item.cart_item_id,
                 }
             )
 
@@ -88,9 +83,6 @@ class CheckoutService:
         db: Session,
         payload_items: List[CheckoutItem],
     ) -> Tuple[List[dict], bool, None]:
-        """
-        DIRECT: ไม่มี cart ใช้รายการ variant ที่ client ส่งมาเลย
-        """
         if not payload_items:
             raise HTTPException(status_code=400, detail="items ห้ามว่างเมื่อ checkout_type=DIRECT")
 
@@ -126,9 +118,6 @@ class CheckoutService:
 
     @staticmethod
     def _validate_stock_only(db: Session, items: List[dict]) -> None:
-        """
-        เช็ค stock อย่างเดียว (ยังไม่สร้าง reservation)
-        """
         now = now_utc()
         for item in items:
             variant: ProductVariant = item["variant"]
@@ -144,13 +133,7 @@ class CheckoutService:
                 )
 
     @staticmethod
-    def _create_reservations(db: Session, items: List[dict]) -> None:
-        """
-        สร้าง StockReservation ให้ทุก item
-        ต้องเรียกหลังจากที่เราแนบ order เข้าไปใน item แล้ว (item['order'])
-        """
-        now = now_utc()
-        expires_at = now + timedelta(minutes=RESERVATION_MINUTES)
+    def _create_reservations(db: Session, items: List[dict], expires_at: datetime) -> None:
 
         for item in items:
             variant: ProductVariant = item["variant"]
@@ -168,15 +151,18 @@ class CheckoutService:
     @staticmethod
     def checkout(db: Session, user: User, payload: CheckoutRequest) -> CheckoutResponse:
         """
-        Shopee-style:
-        1) เตรียมรายการสินค้า (จาก cart หรือ direct)
-        2) validate stock (soft check)
-        3) group items ตาม store → สร้างหลาย Order (1 store = 1 order)
-        4) สร้าง Payment เดียว (รวมยอดทุก order)
-        5) สร้าง StockReservation สำหรับทุก order/item
-        6) สร้าง Stripe Checkout Session เดียว
+        Multi-store:
+        1) Build items จาก cart หรือ direct
+        2) Validate stock
+        3) Group by store → สร้างหลาย Order
+        4) สร้าง Payment เดียว (รวมยอดทุก order) แล้วผูก payment_id เข้าไปทุก Order
+        5) สร้าง StockReservation สำหรับทุก item
+        6) สร้าง Stripe Checkout Session เดียว (ผูก transfer_group = payment_id)
         """
-        # 1) เตรียมรายการสินค้า
+        now = now_utc()
+        expires_at = now + timedelta(minutes=RESERVATION_MINUTES)
+        
+        
         if payload.checkout_type == "CART":
             items, is_from_cart, cart_id = CheckoutService._build_items_from_cart(
                 db, user, payload.cart_id, payload.selected_cart_item_ids,
@@ -188,7 +174,6 @@ class CheckoutService:
         else:
             raise HTTPException(status_code=400, detail="checkout_type ต้องเป็น CART หรือ DIRECT")
 
-        # 2) เช็ค shipping address เป็นของ user
         shipping_address = (
             db.query(ShippingAddress)
             .filter(
@@ -201,10 +186,9 @@ class CheckoutService:
             raise HTTPException(status_code=404, detail="ไม่พบที่อยู่จัดส่งของผู้ใช้")
 
         try:
-            # 3) validate stock (ยังไม่สร้าง order/reservation)
             CheckoutService._validate_stock_only(db, items)
 
-            # 4) group items ตาม store_id แล้วสร้าง Order แยกร้าน
+            # 3) group items ตาม store → สร้าง Order แยกร้าน
             items_by_store: Dict[UUID, List[dict]] = {}
             for it in items:
                 store_id: UUID = it["store"].store_id
@@ -218,7 +202,6 @@ class CheckoutService:
                     i["unit_price"] * i["quantity"] for i in store_items
                 )
 
-                # ❗ ตรงนี้ต้อง match Order model เป๊ะ ๆ
                 order = Order(
                     user_id=user.user_id,
                     store_id=store_id,
@@ -230,7 +213,7 @@ class CheckoutService:
                     total_price=order_total,
                 )
                 db.add(order)
-                db.flush()  # เอา order_id มาใช้กับ OrderItem + Reservation
+                db.flush()  # ได้ order_id
 
                 for i in store_items:
                     variant: ProductVariant = i["variant"]
@@ -238,7 +221,7 @@ class CheckoutService:
 
                     order_item = OrderItem(
                         order_id=order.order_id,
-                        store_id=store_id,  # ยังใช้ field นี้อยู่ใน OrderItem
+                        store_id=store_id,
                         product_id=product.product_id,
                         variant_id=variant.variant_id,
                         quantity=i["quantity"],
@@ -246,7 +229,7 @@ class CheckoutService:
                     )
                     db.add(order_item)
 
-                    # แนบ order เข้าไปใน item เพื่อใช้ตอนสร้าง StockReservation
+                    # แนบ order เข้าไปใน item
                     i["order"] = order
 
                 orders.append(order)
@@ -255,22 +238,33 @@ class CheckoutService:
             if not orders:
                 raise HTTPException(status_code=400, detail="ไม่พบสินค้าในคำสั่งซื้อ")
 
-            # 5) สร้าง Payment เดียว (ผูกกับ order ตัวแรก แต่ amount = grand_total)
+            # 4) สร้าง Payment เดียวแล้วผูกกับทุก Order
             payment = Payment(
-                order_id=orders[0].order_id,
                 amount=grand_total,
                 status=PaymentStatus.PENDING,
                 method_code="STRIPE_CARD",
             )
             db.add(payment)
+            db.flush()  # ได้ payment_id
 
-            # 6) สร้าง StockReservation สำหรับทุก item ทุก order
-            CheckoutService._create_reservations(db, items)
+            CheckoutService._create_reservations(db, items, expires_at)
 
             db.commit()
-            for o in orders:
-                db.refresh(o)
-            db.refresh(payment)
+            
+            # Refresh Payment แค่ครั้งเดียวพอ เพราะมี object เดียว
+            db.refresh(payment) 
+            
+            timeout_seconds = RESERVATION_MINUTES * 60
+            
+            # ✅ รวบ Loop: Refresh และ ส่ง Task ไปพร้อมกันเลย
+            for order in orders:
+                db.refresh(order)  # อัปเดตข้อมูลล่าสุดจาก DB (เช่น created_at)
+                
+                # ส่ง Task ไปรอที่ Redis ทันที
+                check_order_timeout.apply_async(
+                    args=[str(order.order_id)], 
+                    countdown=timeout_seconds
+                )
 
         except HTTPException:
             db.rollback()
@@ -279,8 +273,9 @@ class CheckoutService:
             db.rollback()
             raise HTTPException(status_code=500, detail=f"Checkout ล้มเหลว: {str(e)}")
 
-        # 7) สร้าง Stripe Checkout Session นอก transaction
+        # 6) Stripe Checkout Session
         line_items = []
+        print(items)
         for item in items:
             variant: ProductVariant = item["variant"]
             product: Product = item["product"]
@@ -312,18 +307,21 @@ class CheckoutService:
                 line_items=line_items,
                 success_url=success_url,
                 cancel_url=cancel_url,
+                payment_intent_data={
+                    # 👇 ใช้ payment_id เป็น transfer_group ไว้แจกเงินทีหลัง
+                    "transfer_group": str(payment.payment_id),
+                },
                 metadata={
-                    # multi-order
-                    "order_ids": ",".join(order_ids),
-                    # เผื่อ backward compatibility
-                    "order_id": order_ids[0],
                     "user_id": str(user.user_id),
                     "is_from_cart": "true" if is_from_cart else "false",
                     "cart_id": str(cart_id) if cart_id else "",
+                    "app_payment_id": str(payment.payment_id),
+                    # "order_ids": ",".join(order_ids),
                 },
             )
-
-            payment.payment_intent_id = session.payment_intent
+            print(f"check session create: {session.id}, url: {session.url}, session object: {session}")
+            print(f"check payment intent id: {session.payment_intent}")
+            payment.stripe_session_id = session.id
             db.commit()
             db.refresh(payment)
 
@@ -332,8 +330,8 @@ class CheckoutService:
             raise HTTPException(status_code=500, detail=f"สร้าง Stripe session ล้มเหลว: {str(e)}")
 
         return CheckoutResponse(
-            # 👇 ถ้า schema ของมึงยังเป็น order_id เดียว ให้เปลี่ยนเป็น order_ids: List[UUID]
             order_ids=[o.order_id for o in orders],
             stripe_session_id=session.id,
             stripe_checkout_url=session.url,
+            expires_at=expires_at
         )
