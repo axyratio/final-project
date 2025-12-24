@@ -20,13 +20,16 @@ class Payment(Base):
     __tablename__ = "payments"
 
     payment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.order_id"), nullable=False)
+    # order_id = Column(UUID(as_uuid=True), ForeignKey("orders.order_id"), nullable=False)
+
+    # 🔁 ใหม่: 1 Payment มีได้หลาย Order
 
     method_code = Column(String(50), ForeignKey("payment_methods.method_code"))   # จ่ายผ่านอะไร
     amount = Column(Float, nullable=False)
     status = Column(Enum(PaymentStatus, name="payment_status_enum"), default=PaymentStatus.PENDING)
 
     payment_intent_id = Column(String(100), nullable=True, unique=True)
+    stripe_session_id = Column(String(100), nullable=True, unique=True)
 
     transaction_ref = Column(String(100), nullable=True)   # หมายเลขอ้างอิงจาก gateway/ธนาคาร
     bank_name = Column(String(50), nullable=True)          # สำหรับกรณีโอนธนาคาร
@@ -35,7 +38,7 @@ class Payment(Base):
     masked_card_number = Column(String(20), nullable=True) # **** **** **** 1234
     paid_at = Column(DateTime, default=None)
 
-    order = relationship("Order", back_populates="payment")
+    orders= relationship("Order", back_populates="payment")
     payment_method = relationship("PaymentMethodMeta", back_populates="payments")
     
 
