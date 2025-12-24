@@ -5,7 +5,7 @@ from app.api import cart, checkout, home, product
 import app.models 
 from app.db.database import Base, engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth_router, checkout_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, shipping_address_router, stock_reservation_router, store_application_router, store_dashboard_router, store_router, stripe_webhook_router, user_tryon_image_router, variant_router, vton_meta_router, ws_router
+from app.routes import auth_router, checkout_router, payment_page_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, shipping_address_router, stock_reservation_router, store_application_router, store_dashboard_router, store_router, stripe_webhook_router, user_tryon_image_router, variant_router, vton_meta_router, ws_router
 from app.db.seed import seed_payment_methods, seed_roles
 
 from app.utils.exception_handler import validation_exception_handler
@@ -79,4 +79,5 @@ app.include_router(home.router)
 app.include_router(product.router)
 app.include_router(cart.router)
 app.include_router(checkout.router)    # validate checkout
+app.include_router(payment_page_router.router)
 
