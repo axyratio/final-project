@@ -13,7 +13,7 @@
       <p class="text-gray-600 mb-6" id="msg">กำลังตรวจสอบ...</p>
 
       <div class="space-y-3">
-        <button onclick="window.location.href='client://home'"
+        <button onclick="window.ReactNativeWebView?.postMessage('GO_HOME')"
           class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-6 rounded-xl transition-all duration-300">
           กลับหน้าหลัก
         </button>
@@ -36,7 +36,7 @@
 
   for (let attempt = 1; attempt <= 15; attempt++) {
     try {
-      const res = await fetch(`http://localhost:8000/api/payment/status-by-session/${encodeURIComponent(sessionId)}`);
+      const res = await fetch(`/api/payment/status-by-session/${encodeURIComponent(sessionId)}`);
       if (res.ok) {
         const data = await res.json();
         if (data.status === "SUCCESS") { msg.textContent = "ชำระเงินสำเร็จ ✅"; return; }
