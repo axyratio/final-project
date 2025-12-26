@@ -45,7 +45,7 @@ def check_order_timeout(order_id_str: str):
             if order.payment_id:
                 payment = db.query(Payment).filter(Payment.payment_id == order.payment_id).first()
                 if payment and payment.status == PaymentStatus.PENDING:
-                    payment.status = PaymentStatus.CANCELED
+                    payment.status = PaymentStatus.CANCELLED
             
             db.commit()
             logger.info(f"Order {order_id} has been cancelled successfully.")

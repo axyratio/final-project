@@ -4,7 +4,7 @@ from sqlalchemy import Enum
 from sqlalchemy.orm import relationship
 from app.db.database import Base
 from app.utils.now_utc import now_utc
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 import uuid
 
 # ENUM: สถานะของการชำระ
@@ -14,6 +14,7 @@ class PaymentStatus(enum.Enum):
     PROCESSING = "PROCESSING"
     FAILED = "FAILED"
     REFUNDED = "REFUNDED"
+    CANCELLED = "CANCELLED"  # เพิ่มบรรทัดนี้
 
 # ────────────────────────────────────────────────
 class Payment(Base):
@@ -28,6 +29,9 @@ class Payment(Base):
     amount = Column(Float, nullable=False)
     status = Column(Enum(PaymentStatus, name="payment_status_enum"), default=PaymentStatus.PENDING)
 
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    selected_cart_item_ids = Column(JSONB, nullable=True)  # ["uuid1","uuid2",...]
+    
     payment_intent_id = Column(String(100), nullable=True, unique=True)
     stripe_session_id = Column(String(100), nullable=True, unique=True)
 
