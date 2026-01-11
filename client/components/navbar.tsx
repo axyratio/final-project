@@ -11,7 +11,7 @@ import {
   useToast,
   View,
 } from "native-base";
-import React from "react";
+import React, { useEffect } from "react";
 
 type AppBarProps = {
   onSave?: () => void;
@@ -162,6 +162,7 @@ export const AppBarMore = ({ onClick, title }: AppBarMoreProps) => {
 // components/home/HomeNavbar.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { Input } from "native-base";
+import { useCartStore } from "./cart/cart-memo";
 import { IconWithBadge } from "./icon";
 
 type HomeNavbarProps = {
@@ -169,6 +170,7 @@ type HomeNavbarProps = {
   onChangeSearch: (text: string) => void;
   onSubmitSearch?: () => void;
 };
+
 
 export const HomeNavbar: React.FC<HomeNavbarProps> = ({
   searchValue,
@@ -187,16 +189,23 @@ export const HomeNavbar: React.FC<HomeNavbarProps> = ({
     router.push("/(customer)/search-filter" as any);
   };
 
+const cartQuantity = useCartStore((state) => state.getTotalQuantity());
+const backgroundSync = useCartStore((state) => state.backgroundSync);
+
+  useEffect(() => {
+    backgroundSync();
+  }, []);
+
   return (
     <Box bg="#7c3aed" pb={4} px={4} pt={8}>
       <HStack justifyContent="space-between" alignItems="center" my={1} mt={2}>
         <Box flex={1} />
         <IconWithBadge
-  count={5}
-  icon={<Ionicons name="cart-outline" size={25} color="#fff" />}
-  onPress={handlePressCart}
-  containerStyle={{ backgroundColor: "transparent", width: 40, height: 35 }}
-/>
+          count={cartQuantity}
+          icon={<Ionicons name="cart-outline" size={25} color="#fff" />}
+          onPress={handlePressCart}
+          containerStyle={{ backgroundColor: "transparent", width: 40, height: 35 }}
+        />
 
       </HStack>
 

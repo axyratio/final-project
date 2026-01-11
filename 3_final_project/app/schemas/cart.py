@@ -32,6 +32,7 @@ class CartItemOut(BaseModel):
 
 
 class CartListResponse(BaseModel):
+    cart_id: Optional[str] = None
     items: List[CartItemOut]
 
 

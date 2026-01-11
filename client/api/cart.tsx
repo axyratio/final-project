@@ -83,6 +83,7 @@ export type CartItem = {
 };
 
 export type CartFullResponse = {
+  cart_id?: string | null;
   items: CartItem[];
 };
 

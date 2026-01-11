@@ -130,18 +130,14 @@ def get_total_items(db: Session, user_id: UUID) -> int:
     return int(total)
 
 
-def get_cart_items_with_relations(db: Session, user_id: UUID) -> List[CartItem]:
-    """
-    โหลด cart items ทั้งหมดของ user พร้อม relation:
-    CartItem → Variant → Product → Store, images
-    """
+def get_cart_with_items_with_relations(db: Session, user_id: UUID) -> tuple[Optional[Cart], List[CartItem]]:
     cart: Optional[Cart] = (
         db.query(Cart)
         .filter(Cart.user_id == user_id, Cart.is_active.is_(True))
         .first()
     )
     if not cart:
-        return []
+        return None, []
 
     items: List[CartItem] = (
         db.query(CartItem)
@@ -155,7 +151,7 @@ def get_cart_items_with_relations(db: Session, user_id: UUID) -> List[CartItem]:
         .filter(CartItem.cart_id == cart.cart_id)
         .all()
     )
-    return items
+    return cart, items
 
 
 def get_cart_item_by_id(

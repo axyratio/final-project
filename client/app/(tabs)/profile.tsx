@@ -1,3 +1,4 @@
+// app/(tabs)/profile.tsx
 import { Avartar } from "@/components/avartar";
 import { CustomPressable } from "@/components/pressable";
 import { Colors } from "@/constants/theme";
@@ -116,6 +117,19 @@ export default function ProfileScreen() {
             icon={<MaterialCommunityIcons name="account-edit" size={24} color="black" />}
             iconPosition="left"
           />
+          
+          {/* 👇 เพิ่มปุ่มการซื้อของฉัน */}
+          <CustomPressable
+            onPress={() => router.push("/(profile)/orders" as any)}
+            fontSize={12}
+            mx={1}
+            p={3}
+            justifyContent="flex-start"
+            title="การซื้อของฉัน"
+            icon={<MaterialCommunityIcons name="package-variant-closed" size={24} color="black" />}
+            iconPosition="left"
+          />
+          
           <CustomPressable
             fontSize={12}
             mx={1}
@@ -147,7 +161,7 @@ export default function ProfileScreen() {
           />
 
           <CustomPressable
-            onPress={() => router.push("/(store)/mystore")}
+            onPress={() => router.push("/(seller)/seller-menu")}
             mx={1}
             p={3}
             justifyContent="flex-start"

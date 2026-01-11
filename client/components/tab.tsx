@@ -21,7 +21,7 @@ export default function MyTabs({
       <Box flexDirection="row" bg="white" shadow={2}>
         <Pressable
           flex={1}
-          p="3"
+          p={3}
           onPress={() => setTab("products")}
           style={{ alignItems: "center" }}
         >
@@ -32,13 +32,13 @@ export default function MyTabs({
             รายการสินค้า
           </Text>
           {tab === "products" && (
-            <Box height="2px" bg="violet.600" width="50%" mt="2" />
+            <Box height="2px" bg="violet.600" width="50%" mt={2} />
           )}
         </Pressable>
 
         <Pressable
           flex={1}
-          p="3"
+          p={3}
           onPress={() => setTab("categories")}
           style={{ alignItems: "center" }}
         >
@@ -49,13 +49,13 @@ export default function MyTabs({
             หมวดหมู่
           </Text>
           {tab === "categories" && (
-            <Box height="2px" bg="violet.600" width="50%" mt="2" />
+            <Box height="2px" bg="violet.600" width="50%" mt={2} />
           )}
         </Pressable>
       </Box>
 
       {/* Content */}
-      <Box flex={1} p="4">
+      <Box flex={1} p={4}>
         {tab === "products" ? productContent : categoryContent}
       </Box>
     </Box>

@@ -6,7 +6,7 @@ import {
   HStack,
   Text,
 } from "native-base";
-import React from "react";
+import React, { useMemo } from "react";
 
 type Props = {
   allSelected: boolean;
@@ -16,13 +16,18 @@ type Props = {
   disabled?: boolean;
 };
 
+
+
 export const CartBottomBar: React.FC<Props> = ({
+  
   allSelected,
   onToggleAll,
   totalPrice,
   onPressOrder,
   disabled,
 }) => {
+  // ✅ วิธีที่ 1: useMemo
+  
   return (
     <Box
       position="absolute"
@@ -73,3 +78,7 @@ export const CartBottomBar: React.FC<Props> = ({
     </Box>
   );
 };
+function getSelectedTotal(): any {
+  throw new Error("Function not implemented.");
+}
+

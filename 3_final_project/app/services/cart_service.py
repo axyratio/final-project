@@ -51,9 +51,13 @@ def build_cart_item_out(item: CartItem) -> CartItemOut:
 
 
 def get_cart_for_user(db: Session, user_id: UUID) -> CartListResponse:
-    items = cart_repository.get_cart_items_with_relations(db, user_id)
+    cart, items = cart_repository.get_cart_with_items_with_relations(db, user_id)
     dto_items = [build_cart_item_out(i) for i in items]
-    return CartListResponse(items=dto_items)
+
+    return CartListResponse(
+        cart_id=str(cart.cart_id) if cart else None,
+        items=dto_items
+    )
 
 
 def get_cart_item_detail(

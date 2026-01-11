@@ -1,44 +1,84 @@
+import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 
-const API_BASE_URL = `${DOMAIN}`; // หรือจาก env
-const API_CHECKOUT_BASE = `${API_BASE_URL}/api/v1/checkout`;
+// api/checkout.ts
+export type CheckoutType = "CART" | "DIRECT";
 
-type CheckoutType = "CART" | "DIRECT";
-
-interface CheckoutItem {
+export type CheckoutItemDirect = {
   variant_id: string;
   quantity: number;
-}
+};
 
-interface CheckoutRequest {
+export type CheckoutRequestPayload = {
   checkout_type: CheckoutType;
   cart_id?: string;
-  items?: CheckoutItem[];
+  selected_cart_item_ids?: string[];
+  items?: CheckoutItemDirect[];
   shipping_address_id: string;
-}
+};
 
-export async function checkoutApi(
-  accessToken: string,
-  payload: CheckoutRequest
-) {
-  const res = await fetch(API_CHECKOUT_BASE, {
+export type CheckoutResponse = {
+  order_ids: string[];
+  stripe_session_id: string;
+  stripe_checkout_url: string;
+  expires_at: string;
+};
+
+type ApiResponse<T> = {
+  data: T;
+  message?: string;
+  success?: boolean;
+};
+
+const BASE_URL = `${DOMAIN}/api/v1/checkout`;
+
+export async function checkoutCart(
+  payload: CheckoutRequestPayload,
+): Promise<CheckoutResponse> {
+  const res = await fetch(`${BASE_URL}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
+      "Authorization": `Bearer ${await getToken()}`,
     },
     body: JSON.stringify(payload),
   });
 
-  const json = await res.json();
+  const json = (await res.json()) as ApiResponse<CheckoutResponse> | any;
 
-  if (!res.ok || !json.success) {
-    throw new Error(json.message || "Checkout failed");
+  if (!res.ok) {
+    const errMsg = json?.message || json?.detail || JSON.stringify(json) || "Checkout failed";
+    throw new Error(errMsg);
   }
 
-  return json.data as {
-    order_id: string;
-    stripe_session_id: string;
-    stripe_checkout_url: string;
-  };
+  // Backend returns { data: {...} }
+  if (json && typeof json === "object" && "data" in json) {
+    return json.data as CheckoutResponse;
+  }
+
+  // Fallback: if backend returns the raw object (edge case), return it as data
+  return json as CheckoutResponse;
+}
+
+
+// api/checkout.ts
+
+const API_BASE_URL = `${DOMAIN}`;
+const CHECKOUT_API_BASE = `${API_BASE_URL}/api/v1`;
+
+export async function cancelCheckoutReservation(orderId: string): Promise<void> {
+  const token = await getToken();
+  const res = await fetch(`${CHECKOUT_API_BASE}/checkout/cancel/${orderId}`, {
+    method: "POST",
+    headers: {
+      Authorization: token ? `Bearer ${token}` : "",
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.log("cancelCheckoutReservation error:", res.status, text);
+    // ไม่ต้อง throw ก็ได้ เพราะ cancel เป็น best-effort
+  }
 }

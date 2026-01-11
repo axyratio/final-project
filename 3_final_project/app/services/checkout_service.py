@@ -49,7 +49,7 @@ class CheckoutService:
             raise HTTPException(status_code=400, detail="Cart ว่างเปล่า")
 
         if selected_cart_item_ids:
-            selected_set = {UUID(str(x)) for x in selected_cart_item_ids}
+            selected_set = set(selected_cart_item_ids)
             cart_items: List[CartItem] = [
                 ci for ci in cart.items if ci.cart_item_id in selected_set
             ]
@@ -148,21 +148,14 @@ class CheckoutService:
             )
             db.add(reservation)
 
+    # ... (_build_items_..., _validate_stock_..., _create_reservations เหมือนเดิม)
+
     @staticmethod
     def checkout(db: Session, user: User, payload: CheckoutRequest) -> CheckoutResponse:
-        """
-        Multi-store:
-        1) Build items จาก cart หรือ direct
-        2) Validate stock
-        3) Group by store → สร้างหลาย Order
-        4) สร้าง Payment เดียว (รวมยอดทุก order) แล้วผูก payment_id เข้าไปทุก Order
-        5) สร้าง StockReservation สำหรับทุก item
-        6) สร้าง Stripe Checkout Session เดียว (ผูก transfer_group = payment_id)
-        """
         now = now_utc()
         expires_at = now + timedelta(minutes=RESERVATION_MINUTES)
         
-        
+        # 1) Build Items
         if payload.checkout_type == "CART":
             items, is_from_cart, cart_id = CheckoutService._build_items_from_cart(
                 db, user, payload.cart_id, payload.selected_cart_item_ids,
@@ -172,23 +165,20 @@ class CheckoutService:
                 db, payload.items
             )
         else:
-            raise HTTPException(status_code=400, detail="checkout_type ต้องเป็น CART หรือ DIRECT")
+            raise HTTPException(status_code=400, detail="Invalid checkout_type")
 
-        shipping_address = (
-            db.query(ShippingAddress)
-            .filter(
-                ShippingAddress.ship_addr_id == payload.shipping_address_id,
-                ShippingAddress.user_id == user.user_id,
-            )
-            .first()
-        )
+        shipping_address = db.query(ShippingAddress).filter(
+            ShippingAddress.ship_addr_id == payload.shipping_address_id,
+            ShippingAddress.user_id == user.user_id
+        ).first()
+        
         if not shipping_address:
-            raise HTTPException(status_code=404, detail="ไม่พบที่อยู่จัดส่งของผู้ใช้")
+            raise HTTPException(status_code=404, detail="Shipping address not found")
 
         try:
             CheckoutService._validate_stock_only(db, items)
 
-            # 3) group items ตาม store → สร้าง Order แยกร้าน
+            # 2) Create Orders
             items_by_store: Dict[UUID, List[dict]] = {}
             for it in items:
                 store_id: UUID = it["store"].store_id
@@ -198,140 +188,93 @@ class CheckoutService:
             grand_total = 0.0
 
             for store_id, store_items in items_by_store.items():
-                order_total = sum(
-                    i["unit_price"] * i["quantity"] for i in store_items
-                )
-
+                order_total = sum(i["unit_price"] * i["quantity"] for i in store_items)
                 order = Order(
                     user_id=user.user_id,
                     store_id=store_id,
                     ship_addr_id=payload.shipping_address_id,
-                    order_status="PENDING",
-                    order_text_status="กำลังจัดเตรียม",
+                    order_status="UNPAID",
+                    order_text_status="ยังไม่ได้ชำระเงิน",
                     customer_name=shipping_address.full_name,
-                    shipping_cost=0.0,
                     total_price=order_total,
                 )
                 db.add(order)
-                db.flush()  # ได้ order_id
+                db.flush() 
 
                 for i in store_items:
-                    variant: ProductVariant = i["variant"]
-                    product: Product = i["product"]
-
                     order_item = OrderItem(
                         order_id=order.order_id,
                         store_id=store_id,
-                        product_id=product.product_id,
-                        variant_id=variant.variant_id,
+                        product_id=i["product"].product_id,
+                        variant_id=i["variant"].variant_id,
                         quantity=i["quantity"],
                         unit_price=i["unit_price"],
                     )
                     db.add(order_item)
-
-                    # แนบ order เข้าไปใน item
                     i["order"] = order
-
+                
                 orders.append(order)
                 grand_total += order_total
 
-            if not orders:
-                raise HTTPException(status_code=400, detail="ไม่พบสินค้าในคำสั่งซื้อ")
-
-            # 4) สร้าง Payment เดียวแล้วผูกกับทุก Order
+            # 3) Create Payment & Reservation
             payment = Payment(
+                user_id=user.user_id,
                 amount=grand_total,
                 status=PaymentStatus.PENDING,
                 method_code="STRIPE_CARD",
+                selected_cart_item_ids=[str(x) for x in payload.selected_cart_item_ids] if payload.selected_cart_item_ids else []
             )
             db.add(payment)
-            db.flush()  # ได้ payment_id
+            db.flush()
 
             CheckoutService._create_reservations(db, items, expires_at)
-
-            db.commit()
             
-            # Refresh Payment แค่ครั้งเดียวพอ เพราะมี object เดียว
-            db.refresh(payment) 
-            
-            timeout_seconds = RESERVATION_MINUTES * 60
-            
-            # ✅ รวบ Loop: Refresh และ ส่ง Task ไปพร้อมกันเลย
+            # ผูก payment_id ให้กับทุก order
             for order in orders:
-                db.refresh(order)  # อัปเดตข้อมูลล่าสุดจาก DB (เช่น created_at)
-                
-                # ส่ง Task ไปรอที่ Redis ทันที
-                check_order_timeout.apply_async(
-                    args=[str(order.order_id)], 
-                    countdown=timeout_seconds
-                )
+                order.payment_id = payment.payment_id
 
-        except HTTPException:
-            db.rollback()
-            raise
-        except Exception as e:
-            db.rollback()
-            raise HTTPException(status_code=500, detail=f"Checkout ล้มเหลว: {str(e)}")
+            db.commit() # ✅ Commit รอบแรกเพื่อให้ข้อมูล Order/Payment ลง DB ก่อนสร้าง Stripe Session
 
-        # 6) Stripe Checkout Session
-        line_items = []
-        print(items)
-        for item in items:
-            variant: ProductVariant = item["variant"]
-            product: Product = item["product"]
-            qty = item["quantity"]
-            unit_price = item["unit_price"]
-
-            line_items.append(
-                {
+            # 4) Create Stripe Session
+            line_items = []
+            for item in items:
+                actual_price = item["variant"].price if item["variant"].price is not None else item["product"].base_price
+                line_items.append({
                     "price_data": {
                         "currency": "thb",
-                        "unit_amount": int(unit_price * 100),
-                        "product_data": {
-                            "name": f"{product.product_name} - {variant.name_option}",
-                        },
+                        "unit_amount": int(actual_price * 100),
+                        "product_data": {"name": f"{item['product'].product_name} - {item['variant'].name_option}"},
                     },
-                    "quantity": qty,
-                }
-            )
+                    "quantity": item["quantity"],
+                })
 
-        success_url = f"{settings.BASE_URL}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
-        cancel_url = f"{settings.BASE_URL}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}"
-
-        order_ids = [str(o.order_id) for o in orders]
-
-        try:
             session = stripe.checkout.Session.create(
                 payment_method_types=["card"],
                 mode="payment",
                 line_items=line_items,
-                success_url=success_url,
-                cancel_url=cancel_url,
-                payment_intent_data={
-                    # 👇 ใช้ payment_id เป็น transfer_group ไว้แจกเงินทีหลัง
-                    "transfer_group": str(payment.payment_id),
-                },
-                metadata={
-                    "user_id": str(user.user_id),
-                    "is_from_cart": "true" if is_from_cart else "false",
-                    "cart_id": str(cart_id) if cart_id else "",
-                    "app_payment_id": str(payment.payment_id),
-                    # "order_ids": ",".join(order_ids),
-                },
+                success_url=f"{settings.BASE_URL}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
+                cancel_url=f"{settings.BASE_URL}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}",
+                payment_intent_data={"transfer_group": str(payment.payment_id)},
+                metadata={"app_payment_id": str(payment.payment_id)},
             )
-            print(f"check session create: {session.id}, url: {session.url}, session object: {session}")
-            print(f"check payment intent id: {session.payment_intent}")
+
+            # 5) บันทึก Session ID และส่ง Task
             payment.stripe_session_id = session.id
-            db.commit()
-            db.refresh(payment)
+            db.commit() # ✅ Commit รอบสอง (บันทึก Stripe Session ID)
+
+            # ✅ ส่ง Task หลังจากทุกอย่าง Commit สำเร็จแล้วเท่านั้น
+            timeout_seconds = RESERVATION_MINUTES * 60
+            for order in orders:
+                check_order_timeout.apply_async(args=[str(order.order_id)], countdown=timeout_seconds)
+
+            return CheckoutResponse(
+                order_ids=[o.order_id for o in orders],
+                stripe_session_id=session.id,
+                stripe_checkout_url=session.url,
+                expires_at=expires_at
+            )
 
         except Exception as e:
             db.rollback()
-            raise HTTPException(status_code=500, detail=f"สร้าง Stripe session ล้มเหลว: {str(e)}")
-
-        return CheckoutResponse(
-            order_ids=[o.order_id for o in orders],
-            stripe_session_id=session.id,
-            stripe_checkout_url=session.url,
-            expires_at=expires_at
-        )
+            if isinstance(e, HTTPException): raise e
+            raise HTTPException(status_code=500, detail=f"Checkout failed: {str(e)}")

@@ -1,27 +1,26 @@
 // app/(customer)/product-detail.tsx
+
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Box, Text } from "native-base";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View } from "react-native";
 
 import { addToCart, getCartSummary } from "@/api/cart";
-import { getProductDetail, ProductDetailDto, ProductVariantDto } from "@/api/products";
+import {
+  getProductDetail,
+  ProductDetailDto,
+  ProductVariantDto,
+} from "@/api/products";
 import {
   ExpandableDescription,
   ProductHeader,
   StoreHeaderProductDetail,
 } from "@/components/header";
 import { IconWithBadge } from "@/components/icon";
-import {
-  ProductMainImage,
-  ProductThumbnailStrip,
-} from "@/components/image";
-import {
-  ModalMode,
-  VariantSelectModal,
-} from "@/components/modal";
+import { ProductMainImage, ProductThumbnailStrip } from "@/components/image";
+import { ModalMode, VariantSelectModal } from "@/components/modal";
 import { ReviewPreviewSection } from "@/components/review/header";
 
 export default function ProductDetailScreen() {
@@ -55,6 +54,8 @@ export default function ProductDetailScreen() {
         const detail = await getProductDetail(productId);
         detail.images.sort((a, b) => a.displayOrder - b.displayOrder);
         setProduct(detail);
+
+        console.log("[ProductDetail] loaded", JSON.stringify(detail, null, 2));
       } catch (e) {
         console.log("load product detail error", e);
       } finally {
@@ -66,60 +67,96 @@ export default function ProductDetailScreen() {
     loadCartCount();
   }, [productId]);
 
+  // ✅ helper: เช็คว่ามีรูป VTON อย่างน้อย 1 รูปใน variants ไหม
+  const hasAnyVtonImage = (p: ProductDetailDto | null) => {
+    if (!p?.variants?.length) return false;
+    return p.variants.some((v) =>
+      (v.images || []).some((img) => img.imageType === "VTON")
+    );
+  };
+
+  // ✅ helper: ส่ง variants เข้า modal แบบ "ตัด NORMAL ทิ้ง" เฉพาะโหมด try_on
+  const getVariantsWithVtonImagesOnly = (p: ProductDetailDto | null) => {
+    if (!p?.variants?.length) return [];
+    return p.variants.map((v) => ({
+      ...v,
+      images: (v.images || []).filter((img) => img.imageType === "VTON"),
+    }));
+  };
+
   const openVariantModal = (mode: ModalMode) => {
+    // ✅ เงื่อนไขตามที่สั่ง: อยู่ในปุ่ม "ลองเสื้อ" เท่านั้น
+    if (mode === "try_on") {
+      if (!hasAnyVtonImage(product)) {
+        Alert.alert("ลองเสื้อไม่ได้", "ร้านค้าไม่ได้เพิ่มเสื้อสำหรับลองเสื้อ");
+        return;
+      }
+    }
+
     setModalMode(mode);
     setModalVisible(true);
   };
 
-const handleConfirmVariant = async (payload: {
-  variant: ProductVariantDto;
-  quantity: number;
-}) => {
-  const { variant, quantity } = payload;
+  const handleConfirmVariant = async (payload: {
+    variant: ProductVariantDto;
+    quantity: number;
+  }) => {
+    const { variant, quantity } = payload;
 
-  if (!product) return;
+    if (!product) return;
 
-  if (modalMode === "add_to_cart") {
-    try {
-      await addToCart({
-        productId: product.productId,
-        variantId: variant.variantId,
-        quantity: quantity,
-      });
-      await loadCartCount();
-    } catch (e) {
-      console.log("add to cart error", e);
-    } finally {
-      setModalVisible(false);
+    if (modalMode === "add_to_cart") {
+      try {
+        await addToCart({
+          productId: product.productId,
+          variantId: variant.variantId,
+          quantity,
+        });
+        await loadCartCount();
+      } catch (e) {
+        console.log("add to cart error", e);
+      } finally {
+        setModalVisible(false);
+      }
+      return;
     }
-    return;
-  }
 
-  if (modalMode === "try_on") {
-    setModalVisible(false);
-    router.push({
-      pathname: "/(customer)/try-on",
-      params: {
-        productId: product.productId,
-        variantId: variant.variantId,
-      },
-    } as any);
-    return;
-  }
+    if (modalMode === "try_on") {
+      setModalVisible(false);
 
-  if (modalMode === "buy_now") {
-    setModalVisible(false);
-    router.push({
-      pathname: "/(customer)/checkout",
-      params: {
-        productId: product.productId,
-        variantId: variant.variantId,
-        quantity: String(quantity),
-      },
-    } as any);
-    return;
-  }
-};
+      // ✅ router ไปหน้า vton แล้ว "เปิดแท็บเสื้อจากสินค้า" ทันที
+router.push({
+  pathname: "/(tabs)/vton",
+  params: {
+    productId: product.productId,
+    variantId: variant.variantId,
+    tabId: "outfit",
+    outfitTabId: "product",
+  },
+} as any);
+
+      return;
+    }
+
+    if (modalMode === "buy_now") {
+      setModalVisible(false);
+      router.push({
+        pathname: "/(checkout)/checkout",
+        params: {
+          productId: product.productId,
+          variantId: variant.variantId,
+          quantity: String(quantity),
+          storeId: product.store.storeId,
+          storeName: product.store.name,
+          unitPrice: String(variant.price ?? product.basePrice),
+          productName: product.productName,
+          variantName: variant.variantName ?? "",
+          image_url: product.images[0]?.imageUrl || "",
+        },
+      } as any);
+      return;
+    }
+  };
 
   if (loading) {
     return (
@@ -137,6 +174,11 @@ const handleConfirmVariant = async (payload: {
       </Box>
     );
   }
+
+  const variantsForModal =
+    modalMode === "try_on"
+      ? getVariantsWithVtonImagesOnly(product)
+      : product.variants;
 
   return (
     <Box flex={1} bg="#f3f4f6">
@@ -173,9 +215,7 @@ const handleConfirmVariant = async (payload: {
 
         <View style={{ flexDirection: "row" }}>
           <Pressable
-            onPress={() =>
-              router.push({ pathname: "/(cart)/cart" } as any)
-            }
+            onPress={() => router.push({ pathname: "/(cart)/cart" } as any)}
             style={{
               width: 32,
               height: 32,
@@ -188,7 +228,14 @@ const handleConfirmVariant = async (payload: {
           >
             <IconWithBadge
               count={cartCount}
-              icon={<Ionicons onPress={() => router.push("/(cart)/cart")} name="cart-outline" size={20} color="#fff" />}
+              icon={
+                <Ionicons
+                  onPress={() => router.push("/(cart)/cart")}
+                  name="cart-outline"
+                  size={20}
+                  color="#fff"
+                />
+              }
             />
           </Pressable>
 
@@ -270,9 +317,7 @@ const handleConfirmVariant = async (payload: {
             alignItems: "center",
           }}
         >
-          <Text style={{ color: "white", fontWeight: "600" }}>
-            ซื้อเลย
-          </Text>
+          <Text style={{ color: "white", fontWeight: "600" }}>ซื้อเลย</Text>
         </Pressable>
       </Box>
 
@@ -280,7 +325,7 @@ const handleConfirmVariant = async (payload: {
       <VariantSelectModal
         visible={modalVisible}
         mode={modalMode}
-        variants={product.variants}
+        variants={variantsForModal} // ✅ try_on จะเหลือเฉพาะรูป VTON
         onClose={() => setModalVisible(false)}
         onConfirm={handleConfirmVariant}
       />

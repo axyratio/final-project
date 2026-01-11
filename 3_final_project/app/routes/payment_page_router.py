@@ -1,28 +1,83 @@
 # app/routes/payment_page_router.py
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from pathlib import Path
+from fastapi import APIRouter, Request, Query
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pathlib import Path
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.models.payment import Payment
+from app.models.order import Order
 
-router = APIRouter(
-    prefix="/payment",
-    tags=["Payment Pages"],
-)
+router = APIRouter(prefix="/payment", tags=["Payment Pages"])
 
+templates = Jinja2Templates(directory=str(Path(__file__).parent.parent / "templates"))
+
+# @router.get("/success", response_class=HTMLResponse)
+# async def payment_success_page(
+#     request: Request,
+#     session_id: str | None = Query(default=None),
+#     db: Session = Depends(get_db),
+# ):
+#     """
+#     ✅ เช็คสถานะ order ก่อนแสดงหน้า success
+#     ถ้า order ถูก CANCELLED → redirect ไป timeout
+#     """
+#     if session_id:
+#         # หา payment จาก session_id
+#         payment = db.query(Payment).filter(Payment.stripe_session_id == session_id).first()
+        
+#         if payment:
+#             # เช็ค orders ที่เชื่อมกับ payment นี้
+#             orders = db.query(Order).filter(Order.payment_id == payment.payment_id).all()
+            
+#             # ถ้าทุก order เป็น CANCELLED → redirect ไป timeout
+#             if orders and all(o.order_status == "CANCELLED" for o in orders):
+#                 order_id = orders[0].order_id if orders else "N/A"
+#                 return templates.TemplateResponse(
+#                     "payment_timeout.html",
+#                     {
+#                         "request": request,
+#                         "order_id": order_id,
+#                         "back_url": "/"
+#                     },
+#                 )
+    
+#     # ถ้าไม่ถูก cancel → แสดงหน้า success ปกติ
+#     return templates.TemplateResponse(
+#         "payment_success.html",
+#         {"request": request, "session_id": session_id},
+#     )
 
 @router.get("/success", response_class=HTMLResponse)
-async def payment_success_page(request: Request):
-    """
-    หน้าแสดงผลเมื่อชำระเงินสำเร็จ
-    Stripe จะ redirect มาที่หน้านี้พร้อม session_id
-    """
-    # อ่านไฟล์ HTML
-    template_path = Path(__file__).parent.parent / "templates" / "payment_success.html"
-    
-    with open(template_path, "r", encoding="utf-8") as f:
-        html_content = f.read()
-    
-    return HTMLResponse(content=html_content)
+async def payment_success_page(
+    request: Request,
+    session_id: str | None = Query(default=None),
+):
+    # session_id จะมาจาก /payment/success?session_id=cs_....
+    return templates.TemplateResponse(
+        "payment_success.html",
+        {"request": request, "session_id": session_id},
+    )
 
+@router.get("/timeout", response_class=HTMLResponse)
+async def payment_timeout_page(
+    request: Request,
+    order_id: str | None = Query(default=None),
+):
+    """
+    หน้าแสดงผลเมื่อหมดเวลาชำระเงิน
+    """
+    return templates.TemplateResponse(
+        "payment_timeout.html",
+        {
+            "request": request,
+            "order_id": order_id or "N/A",
+            "back_url": "/"
+        },
+    )
 
 @router.get("/cancel", response_class=HTMLResponse)
 async def payment_cancel_page(request: Request):

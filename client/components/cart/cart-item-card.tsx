@@ -1,4 +1,4 @@
-// components/cart/CartItemCard.tsx
+// components/cart/cart-item-card.tsx
 import { CartItem } from "@/api/cart";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import {
@@ -22,7 +22,7 @@ type Props = {
   onDecrease: () => void;
   isEditMode?: boolean;
   onDelete?: () => void;
-  onPressItem?: () => void; // 👈 เพิ่ม
+  onPressItem?: () => void;
 };
 
 const _CartItemCard: React.FC<Props> = ({
@@ -37,7 +37,6 @@ const _CartItemCard: React.FC<Props> = ({
 }) => {
   const img = item.image_url || "";
   const isMax = item.quantity >= (item.stock_available ?? Infinity);
-
 
   return (
     <Box
@@ -54,16 +53,12 @@ const _CartItemCard: React.FC<Props> = ({
             isChecked={selected}
             onChange={onToggleSelected}
             accessibilityLabel="เลือกสินค้า"
-            _checked={{
-              bg: "violet.600",
-              borderColor: "violet.600",
-            }}
+            _checked={{ bg: "violet.600", borderColor: "violet.600" }}
           />
         ) : (
           <Box w={5} />
         )}
 
-        {/* 👇 ทั้ง block นี้กดได้เพื่อไปหน้า detail */}
         <Box flex={1}>
           <HStack space={3} alignItems="flex-start">
             <Box
@@ -77,15 +72,13 @@ const _CartItemCard: React.FC<Props> = ({
               {img && img.trim() !== "" ? (
                 <Image
                   source={{ uri: img }}
-                  alt="Profile Image"
+                  alt="Product Image"
                   width={"64px"}
                   height={"64px"}
                   borderRadius={5}
-                  // เพิ่ม resizeMode เพื่อให้ภาพไม่เบี้ยว
                   resizeMode="cover"
                 />
               ) : (
-                // ปรับขนาด Text ให้เล็กลงเพื่อให้ใส่ในกล่อง 64px ได้
                 <Text fontSize="8px" color="gray.500" textAlign="center">
                   ไม่มีรูปภาพ
                 </Text>
@@ -102,16 +95,20 @@ const _CartItemCard: React.FC<Props> = ({
                 >
                   {item.product_name}
                 </Text>
-
                 <Text fontSize="xs" color="violet.600">
                   ไซส์: {item.variant_name}
                 </Text>
               </Pressable>
 
               <HStack mt={1} alignItems="center" justifyContent="space-between">
-                <Text fontSize="sm" color="violet.600" fontWeight="bold">
-                  ฿{item.subtotal}
-                </Text>
+                <VStack>
+                  {/* ✅ แสดงราคาต่อหน่วย × จำนวน */}
+                  <Text fontSize="sm" color="violet.600" fontWeight="bold">
+                    ฿{item.price_at_addition} 
+                  </Text>
+                  {/* ✅ แสดง subtotal (ราคารวม) */}
+                  
+                </VStack>
 
                 {!isEditMode ? (
                   <HStack space={1} alignItems="center">
@@ -136,14 +133,14 @@ const _CartItemCard: React.FC<Props> = ({
                       backgroundColor={"coolGray.100"}
                       borderRadius={6}
                       opacity={isMax ? 0.4 : 1}
-                      pointerEvents={isMax ? "none" : "auto"} // ❗ กันไม่ให้ click bubble ไป Pressable
+                      pointerEvents={isMax ? "none" : "auto"}
                     >
                       <IconButton
                         size="sm"
                         variant="ghost"
                         accessibilityLabel="เพิ่มจำนวนสินค้า"
                         onPress={onIncrease}
-                        isDisabled={isMax} // ❗ disable ปุ่มเอง
+                        isDisabled={isMax}
                       >
                         <Icon
                           as={Ionicons}
@@ -183,7 +180,6 @@ const _CartItemCard: React.FC<Props> = ({
   );
 };
 
-// LV3: ป้องกันการ re-render
 export const CartItemCard = React.memo(_CartItemCard, (prev, next) => {
   return (
     prev.selected === next.selected &&

@@ -35,5 +35,5 @@ def cleanup_expired_orders():
 
 
 def start_scheduler():
-    scheduler.add_job(cleanup_expired_orders, "interval", minutes=30)
+    scheduler.add_job(cleanup_expired_orders, "interval", minutes=1)
     scheduler.start()
