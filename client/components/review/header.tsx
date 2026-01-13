@@ -1,9 +1,9 @@
 // components/review/header.tsx
-import React from "react";
-import { Box, Text, Button, HStack } from "native-base";
 import { ReviewDto } from "@/api/products";
-import { ReviewCard } from "./card";
 import { useRouter } from "expo-router";
+import { Box, Button, HStack, Text } from "native-base";
+import React from "react";
+import { ReviewCard } from "./card";
 
 type ReviewPreviewSectionProps = {
   productId: string;
@@ -26,21 +26,30 @@ const handleViewAll = () => {
 };
 
   if (!bestReview) return null;
+return (
+  <Box px={4} py={3} bg="white" mt={2} w="full">
+    <HStack
+      w="full"
+      justifyContent="space-between"
+      alignItems="center"
+      mb={2}
+      flexWrap="nowrap"
+    >
+      <Text fontWeight="600" flexShrink={1} numberOfLines={1} ellipsizeMode="tail">
+        รีวิว
+      </Text>
 
-  return (
-    <Box px={4} py={3} bg="white" mt={2}>
-      <HStack justifyContent="space-between" alignItems="center" mb={2}>
-        <Text fontWeight="600">รีวิว</Text>
-        <Button
-          variant="ghost"
-          _text={{ color: "#7c3aed", fontSize: "xs" }}
-          onPress={handleViewAll}
-        >
+      <Button variant="ghost" onPress={handleViewAll} px={0}>
+        <Text color="#7c3aed" fontSize="xs" numberOfLines={1} ellipsizeMode="tail">
           ดูทั้งหมด ({reviewCount})
-        </Button>
-      </HStack>
+        </Text>
+      </Button>
+    </HStack>
 
+    <Box w="full">
       <ReviewCard review={bestReview} />
     </Box>
-  );
+  </Box>
+);
+
 };

@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Box, Text } from "native-base";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, View, ScrollView } from "react-native";
 
 import { addToCart, getCartSummary } from "@/api/cart";
 import {
@@ -125,15 +125,15 @@ export default function ProductDetailScreen() {
       setModalVisible(false);
 
       // ✅ router ไปหน้า vton แล้ว "เปิดแท็บเสื้อจากสินค้า" ทันที
-router.push({
-  pathname: "/(tabs)/vton",
-  params: {
-    productId: product.productId,
-    variantId: variant.variantId,
-    tabId: "outfit",
-    outfitTabId: "product",
-  },
-} as any);
+      router.push({
+        pathname: "/(tabs)/vton",
+        params: {
+          productId: product.productId,
+          variantId: variant.variantId,
+          tabId: "outfit",
+          outfitTabId: "product",
+        },
+      } as any);
 
       return;
     }
@@ -255,47 +255,53 @@ router.push({
         </View>
       </View>
 
-      {/* ภาพสินค้า */}
-      <ProductMainImage
-        images={product.images}
-        selectedIndex={selectedImageIndex}
-        onChangeIndex={(idx) => setSelectedImageIndex(idx)}
-      />
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ภาพสินค้า */}
+        <ProductMainImage
+          images={product.images}
+          selectedIndex={selectedImageIndex}
+          onChangeIndex={(idx) => setSelectedImageIndex(idx)}
+        />
 
-      <ProductThumbnailStrip
-        images={product.images}
-        selectedIndex={selectedImageIndex}
-        onSelect={(idx) => setSelectedImageIndex(idx)}
-      />
+        <ProductThumbnailStrip
+          images={product.images}
+          selectedIndex={selectedImageIndex}
+          onSelect={(idx) => setSelectedImageIndex(idx)}
+        />
 
-      {/* หัวข้อ + ราคา + ปุ่มลองเสื้อ/ตะกร้า */}
-      <ProductHeader
-        product={product}
-        onPressAddToCart={() => openVariantModal("add_to_cart")}
-        onPressTryOn={() => openVariantModal("try_on")}
-      />
+        {/* หัวข้อ + ราคา + ปุ่มลองเสื้อ/ตะกร้า */}
+        <ProductHeader
+          product={product}
+          onPressAddToCart={() => openVariantModal("add_to_cart")}
+          onPressTryOn={() => openVariantModal("try_on")}
+        />
 
-      {/* ร้านค้า + แชท */}
-      <StoreHeaderProductDetail
-        product={product}
-        onPressViewStore={() =>
-          router.push({
-            pathname: "/(customer)/store-detail",
-            params: { storeId: product.store.storeId },
-          } as any)
-        }
-        onPressChat={() => console.log("chat with store")}
-      />
+        {/* ร้านค้า + แชท */}
+        <StoreHeaderProductDetail
+          product={product}
+          onPressViewStore={() =>
+            router.push({
+              pathname: "/(customer)/store-detail",
+              params: { storeId: product.store.storeId },
+            } as any)
+          }
+          onPressChat={() => console.log("chat with store")}
+        />
 
-      {/* รีวิวตัวอย่าง + ปุ่มดูทั้งหมด */}
-      <ReviewPreviewSection
-        productId={product.productId}
-        bestReview={product.bestReview}
-        reviewCount={product.reviewCount}
-      />
+        {/* รีวิวตัวอย่าง + ปุ่มดูทั้งหมด */}
+        <ReviewPreviewSection
+          productId={product.productId}
+          bestReview={product.bestReview}
+          reviewCount={product.reviewCount}
+        />
 
-      {/* คำอธิบายสินค้า */}
-      <ExpandableDescription text={product.description ?? ""} />
+        {/* คำอธิบายสินค้า */}
+        <ExpandableDescription text={product.description ?? ""} />
+      </ScrollView>
 
       {/* ปุ่มซื้อเลยด้านล่าง */}
       <Box
