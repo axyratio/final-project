@@ -216,7 +216,6 @@ def get_product_detail_api(
 # ====== แท็บการขาย
 
 from app.services.product_service import (
-    get_my_closed_products_service,
     close_sale_product_service,
     open_sale_product_service,
 )
