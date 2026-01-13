@@ -295,7 +295,8 @@ export async function fetchUserOrders(
     console.log("✅ API Response:", res.data);
     
     const responseData = res.data?.data || res.data;
-    
+
+    console.log("[Order]", JSON.stringify(responseData));
     return {
       orders: Array.isArray(responseData?.orders) ? responseData.orders : [],
       total: responseData?.total || 0,

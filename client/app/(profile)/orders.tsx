@@ -6,6 +6,7 @@ import {
   OrderStatus,
   reorderItems,
 } from "@/api/order";
+import { ReviewAPI } from "@/api/review";
 import { OrderCard } from "@/components/profile/order-card";
 import { OrderEmptyState } from "@/components/profile/order-empty-state";
 import { Colors } from "@/constants/theme";
@@ -60,7 +61,8 @@ export default function OrdersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState<string | null>(null);
-
+  const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
+  console.log("[Orders]", orders)
   // ----------------
   // Fetch orders
   // ----------------
@@ -113,6 +115,46 @@ export default function OrdersScreen() {
 
         setOrders(uniqueOrders);
         setError(null);
+
+        // ✅ 6. ตรวจสอบว่าแต่ละสินค้าในออเดอร์ "เคยรีวิวแล้วไหม" เพื่อส่งให้ OrderCard ใช้ซ่อนปุ่ม
+        try {
+          const pairs: { orderId: string; productId: string }[] = [];
+          const seen = new Set<string>();
+
+          uniqueOrders.forEach((o: any) => {
+            const items = o.items || o.order_items || o.orderItems || [];
+            items.forEach((it: any) => {
+              const orderId = o.order_id || o.orderId;
+              const productId = it.product_id || it.productId;
+              if (!orderId || !productId) return;
+              const k = `${orderId}:${productId}`;
+              if (seen.has(k)) return;
+              seen.add(k);
+              pairs.push({ orderId, productId });
+            });
+          });
+
+          if (pairs.length === 0) {
+            setReviewedMap({});
+          } else {
+            const results = await Promise.all(
+              pairs.map(async (p) => {
+                const r = await ReviewAPI.getMyReviewForOrder(p.orderId, p.productId);
+                return { key: `${p.orderId}:${p.productId}`, reviewed: !!r.data };
+              })
+            );
+
+            const nextMap: Record<string, boolean> = {};
+            results.forEach((x) => {
+              nextMap[x.key] = x.reviewed;
+            });
+            setReviewedMap(nextMap);
+          }
+        } catch (e) {
+          console.error("❌ Error checking reviewedMap:", e);
+          setReviewedMap({});
+        }
+
       } catch (error: any) {
         console.error("❌ Error loading orders:", error);
         
@@ -206,9 +248,17 @@ export default function OrdersScreen() {
     router.push(`/(profile)/return-order?orderId=${orderId}` as any);
   };
 
-  const handleReview = (orderId: string, productId: string) => {
-    router.push(`/(home)/review-detail?productId=${productId}&orderId=${orderId}` as any);
-  };
+ const handleReview = (orderId: string, productId: string, variantId: string) => {
+  router.push({
+    pathname: "/(home)/review-detail",
+    params: { 
+      productId: productId, 
+      orderId: orderId,
+      variantId: variantId,
+      action: "write" // เพิ่ม flag นี้เพื่อเปิด modal เขียนรีวิว
+    }
+  } as any);
+};
 
   // ----------------
   // Render tab button
@@ -288,6 +338,7 @@ export default function OrdersScreen() {
               onReorder={handleReorder}
               onReview={handleReview}
               onReturn={handleReturn}
+              reviewedMap={reviewedMap}
             />
           )}
           contentContainerStyle={{ padding: 16 }}

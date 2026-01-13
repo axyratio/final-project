@@ -18,12 +18,12 @@ export const ReviewPreviewSection: React.FC<ReviewPreviewSectionProps> = ({
 }) => {
   const router = useRouter();
 
-  const handleViewAll = () => {
-    router.push({
-      pathname: "/(customer)/product/[id]/reviews",
-      params: { id: productId },
-    } as any);
-  };
+const handleViewAll = () => {
+  router.push({
+    pathname: "/(home)/review-detail",  // ✅ เปลี่ยนจาก "/(customer)/product/[id]/reviews"
+    params: { productId: productId },
+  } as any);
+};
 
   if (!bestReview) return null;
 

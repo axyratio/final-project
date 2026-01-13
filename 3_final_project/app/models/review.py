@@ -12,13 +12,15 @@ class Review(Base):
     review_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id"), nullable=False)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    variant_id = Column(UUID(as_uuid=True), nullable=True)    
+    # สร้าง Relationship เพื่อให้เรียก review.variant.variant_name ได้ง่ายๆ
     rating = Column(Integer, nullable=False)
     comment = Column(TEXT, nullable=True)
     created_at = Column(DateTime, default=now_utc)
 
     product = relationship("Product", back_populates="reviews")
     user = relationship("User", back_populates="reviews")
-    
+
     # --- ADD THIS LINE ---
     images = relationship("ReviewImage", back_populates="review", cascade="all, delete-orphan")
 # ยังไม่ได้ทำ ERD

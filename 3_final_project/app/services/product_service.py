@@ -504,55 +504,6 @@ def delete_product_service(db: Session, product_id: str):
         
 # ==================== ปิดการขาย
 
-from sqlalchemy import and_
-from app.models.product import Product, ProductImage, ImageType
-from app.models.store import Store
-from app.utils.response_handler import success_response, error_response
-from app.repositories import store_repository, product_repository
-
-
-def get_my_closed_products_service(db, auth_user):
-    store = store_repository.get_store_by_user(db, auth_user.user_id)
-    if not store:
-        return error_response("ไม่พบร้านค้าของคุณ", status_code=404)
-
-    rows = (
-        db.query(Product, ProductImage)
-        .outerjoin(
-            ProductImage,
-            and_(
-                Product.product_id == ProductImage.product_id,
-                ProductImage.variant_id == None,
-                ProductImage.is_main == True,
-                ProductImage.image_type == ImageType.NORMAL,
-            ),
-        )
-        .filter(
-            Product.store_id == store.store_id,
-            Product.is_active == False,
-            Product.is_draft == False,
-        )
-        .order_by(Product.created_at.desc())
-        .all()
-    )
-
-    items = []
-    for p, img in rows:
-        items.append(
-            {
-                "product_id": str(p.product_id),
-                "title": p.product_name,
-                "price": float(p.base_price or 0),
-                "star": float(p.average_rating or 0),
-                "image_id": str(img.image_id) if img else None,
-                "image_url": img.image_url if img else None,
-                "category": p.category,
-                "is_active": bool(p.is_active),
-            }
-        )
-
-    return success_response("ดึงสินค้าที่ปิดการขายสำเร็จ", items)
-
 
 def close_sale_product_service(db, auth_user, product_id: str):
     product = product_repository.get_product_by_id(db, product_id)

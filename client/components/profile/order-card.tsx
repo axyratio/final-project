@@ -20,8 +20,9 @@ type OrderCardProps = {
   order: Order;
   onConfirmReceived?: (orderId: string) => void;
   onReorder?: (orderId: string) => void;
-  onReview?: (orderId: string, productId: string) => void;
+  onReview?: (orderId: string, productId: string, variantId: string) => void;
   onReturn?: (orderId: string) => void;
+  reviewedMap?: Record<string, boolean>;
 };
 
 function OrderItemRow({ item }: { item: OrderItem }) {
@@ -106,6 +107,7 @@ const _OrderCard: React.FC<OrderCardProps> = ({
   onReorder,
   onReview,
   onReturn,
+  reviewedMap,
 }) => {
   const router = useRouter();
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -123,6 +125,9 @@ const _OrderCard: React.FC<OrderCardProps> = ({
     setIsConfirmDialogOpen(false);
     onConfirmReceived?.(order.order_id);
   };
+
+  const firstProduct = order.order_items[0];
+  const hasReviewed = firstProduct ? !!reviewedMap?.[`${order.order_id}:${firstProduct.product_id}`] : false;
 
   return (
     <Box bg="white" borderRadius={12} p={4} mb={3} shadow={1}>
@@ -264,14 +269,14 @@ const _OrderCard: React.FC<OrderCardProps> = ({
         )}
 
         {/* ✅ ปุ่มให้คะแนน: แสดงเฉพาะหลังได้รับสินค้าแล้ว */}
-        {order.order_status === "COMPLETED" && order.can_review && (
+        {order.order_status === "COMPLETED" && order.can_review && !hasReviewed && (
           <Button
             size="sm"
             colorScheme="violet"
             onPress={() => {
               const firstProduct = order.order_items[0];
               if (firstProduct) {
-                onReview?.(order.order_id, firstProduct.product_id);
+                onReview?.(order.order_id, firstProduct.product_id, firstProduct.variant_id);
               }
             }}
             _text={{ fontSize: "xs" }}
