@@ -1,9 +1,11 @@
 // src/api/product_api_service.ts
 
+import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 
 const API_BASE_URL = `${DOMAIN}`;
 const PRODUCT_API_BASE = `${API_BASE_URL}/products`;
+const STORE_API_BASE = `${API_BASE_URL}/stores`;
 
 type FullPayload = {
   product_name: string;
@@ -35,14 +37,49 @@ type FullPayload = {
   } | null;
 };
 
-type APIResponse = {
+type APIResponse<T = any> = {
   success: boolean;
   message: string;
-  data?: any;
+  data?: T;
 };
 
+// ✅ type สำหรับรายการสินค้าในหน้า store (ใช้กับ tab ปิดการขายได้เลย)
+export type StoreProductItem = {
+  product_id: string;
+  title: string;
+  price: number;
+  star: number;
+  image_id?: string | null;
+  image_url?: string | null;
+  category?: string | null;
+  is_active?: boolean; // เผื่อ backend ส่งมา
+};
+
+export type StoreDashboardData = {
+  store: {
+    store_id: string;
+    name: string;
+    logo_url?: string | null;
+    rating: number;
+    is_stripe_verified: boolean;
+  };
+  products: StoreProductItem[];
+  closed_products: StoreProductItem[];
+};
+
+// ✅ helper ยิง request แบบมี token ให้เสถียร ไม่ต้องเขียนซ้ำ
+async function authFetch(url: string, options: RequestInit = {}) {
+  const token = await getToken();
+
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+
+  return fetch(url, { ...options, headers });
+}
+
 export const ProductAPIService = {
-  
   /**
    * ส่ง Payload เต็มรูปแบบ (Product + Variant) ไปยัง Backend
    * @param productId ถ้ามี = แก้ไข (PUT), ถ้าไม่มี = สร้างใหม่ (POST)
@@ -52,44 +89,97 @@ export const ProductAPIService = {
   postFullPayload: async (
     productId: string | undefined,
     payload: FullPayload,
-    token: string,
+    token: string
   ): Promise<APIResponse> => {
-    
     const method = productId ? "PATCH" : "POST";
-    // 🚨 Backend API ถูกออกแบบให้รับ Product ID ใน URL สำหรับ POST (สร้างใหม่) หรือ PATCH (แก้ไข)
-    const url = productId 
-      ? `${PRODUCT_API_BASE}/${productId}/update` // PATCH สำหรับแก้ไข
-      : `${PRODUCT_API_BASE}/create_full`;            // POST สำหรับสร้างใหม่
-      
+    const url = productId
+      ? `${PRODUCT_API_BASE}/${productId}/update`
+      : `${PRODUCT_API_BASE}/create_full`;
+
     try {
       const res = await fetch(url, {
         method: method,
         headers: {
-          "Content-Type": "application/json", // 🚨 ส่งเป็น JSON
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
 
       const json = await res.json();
-      
+
       if (!res.ok || !json.success) {
         return { success: false, message: json.message || "บันทึกข้อมูลไม่สำเร็จ" };
       }
 
       return { success: true, message: json.message, data: json.data };
-
     } catch (error) {
       console.error("ProductAPI Post Error:", error);
       return { success: false, message: "Server ไม่ตอบสนอง" };
     }
   },
-  
-  // ... คุณสามารถเพิ่ม getProduct, deleteProduct ในนี้ได้
+
+  // ✅ (เพิ่มตามที่มึงขอ) ปิดการขายสินค้า
+  getMyStoreDashboard: async (): Promise<APIResponse<StoreDashboardData>> => {
+    try {
+      const res = await authFetch(`${STORE_API_BASE}/me/dashboard`, { method: "GET" });
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        return { success: false, message: json.message || "ดึงข้อมูลร้านไม่สำเร็จ" };
+      }
+
+      return { success: true, message: json.message || "ดึงข้อมูลร้านสำเร็จ", data: json.data };
+    } catch (e) {
+      console.log("getMyStoreDashboard error:", e);
+      return { success: false, message: "Server ไม่ตอบสนอง" };
+    }
+  },
+
+  // ✅ ปิดการขาย (ตรงกับ backend: /close-sale)
+  closeProduct: async (productId: string): Promise<APIResponse> => {
+    try {
+      const res = await authFetch(`${PRODUCT_API_BASE}/${productId}/close-sale`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, message: json.message || "ปิดการขายไม่สำเร็จ" };
+      }
+
+      return { success: true, message: json.message || "ปิดการขายสำเร็จ", data: json.data };
+    } catch (e) {
+      console.log("closeProduct error:", e);
+      return { success: false, message: "Server ไม่ตอบสนอง" };
+    }
+  },
+
+  // ✅ เปิดการขาย (ตรงกับ backend: /open-sale)
+  openProduct: async (productId: string): Promise<APIResponse> => {
+    try {
+      const res = await authFetch(`${PRODUCT_API_BASE}/${productId}/open-sale`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        return { success: false, message: json.message || "เปิดการขายไม่สำเร็จ" };
+      }
+
+      return { success: true, message: json.message || "เปิดการขายสำเร็จ", data: json.data };
+    } catch (e) {
+      console.log("openProduct error:", e);
+      return { success: false, message: "Server ไม่ตอบสนอง" };
+    }
+  },
 };
 
-// api/product.ts
-import { getToken } from "@/utils/secure-store";
+// --------------------
+// Product Detail (เดิม)
+// --------------------
 
 export type ImageType = "NORMAL" | "VTON";
 
@@ -109,7 +199,7 @@ export type VariantImageDto = {
 
 export type ProductVariantDto = {
   variantId: string;
-  variantName: string;  // size / color ฯลฯ
+  variantName: string;
   sku: string;
   price: number;
   stock: number;
@@ -125,11 +215,9 @@ export type StoreSummaryDto = {
   rating?: number;
 };
 
-
-
 export type ReviewDto = {
   reviewId: string;
-  userDisplayName: string;   // mask แล้วจาก backend เลยก็ได้
+  userDisplayName: string;
   rating: number;
   comment?: string;
   variantName?: string;
@@ -151,14 +239,13 @@ export type ProductDetailDto = {
   store: StoreSummaryDto;
 
   bestReview?: ReviewDto;
-  reviews?: ReviewDto[];   // สำหรับหน้า list ทั้งหมด
+  reviews?: ReviewDto[];
 
-  cartTotalItems: number;        // item ทั้งหมดในตะกร้า user
-  cartProductQuantity: number;   // จำนวนสินค้านี้ในตะกร้า
+  cartTotalItems: number;
+  cartProductQuantity: number;
 };
-export async function getProductDetail(
-  productId: string
-): Promise<ProductDetailDto> {
+
+export async function getProductDetail(productId: string): Promise<ProductDetailDto> {
   const token = await getToken();
 
   const res = await fetch(`${PRODUCT_API_BASE}/${productId}/detail`, {
@@ -236,11 +323,9 @@ export async function getProductDetail(
       createdAt: rv.created_at,
     })),
 
-    // 👇 map cart_summary
     cartTotalItems: d.cart_summary?.total_items ?? 0,
     cartProductQuantity: d.cart_summary?.product_quantity ?? 0,
   };
 
   return detail;
 }
-

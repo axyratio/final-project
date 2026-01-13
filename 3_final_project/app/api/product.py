@@ -211,3 +211,34 @@ def get_product_detail_api(
         "ดึงข้อมูลสินค้าเรียบร้อย",
         detail_out.dict(),
     )
+
+
+# ====== แท็บการขาย
+
+from app.services.product_service import (
+    get_my_closed_products_service,
+    close_sale_product_service,
+    open_sale_product_service,
+)
+
+
+@router.patch("/{product_id}/close-sale")
+def close_sale_api(
+    product_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_from_cookie),
+):
+    if not current_user:
+        return error_response("กรุณาเข้าสู่ระบบ", status_code=401)
+    return close_sale_product_service(db, current_user, str(product_id))
+
+
+@router.patch("/{product_id}/open-sale")
+def open_sale_api(
+    product_id: UUID,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user_from_cookie),
+):
+    if not current_user:
+        return error_response("กรุณาเข้าสู่ระบบ", status_code=401)
+    return open_sale_product_service(db, current_user, str(product_id))

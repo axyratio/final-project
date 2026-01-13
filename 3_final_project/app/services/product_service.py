@@ -1,5 +1,5 @@
 # app/services/product_service.py
-# ส่วนที่แก้ไขเท่านั้น - แทนที่โค้ดเดิม
+# ✅ แก้ไข: ไม่ลบรูปเก่าทั้งหมด แต่ให้ UPDATE เฉพาะรูปที่เปลี่ยน
 
 import json
 from typing import Optional
@@ -40,6 +40,7 @@ def safely_bind_images(
     for img_data in images_data:
         img_id = img_data.get("image_id")
         if not img_id:
+            print(f"⚠️ Skipping image with no image_id: {img_data}")
             continue
 
         retry_count = 0
@@ -55,6 +56,7 @@ def safely_bind_images(
                 
                 if not image:
                     print(f"⚠️ Image {img_id} not found in database")
+                    print(f"   - This might be a deleted image or invalid image_id")
                     break
 
                 # ✅ ผูกข้อมูลรูปภาพ
@@ -66,7 +68,7 @@ def safely_bind_images(
                 
                 db.add(image)
                 db.flush()  # ✅ flush ทันทีเพื่อ detect errors
-                print(f"✅ Successfully bound image {img_id}")
+                print(f"✅ Successfully bound image {img_id} to variant {variant_id}")
                 break  # สำเร็จ ออกจาก retry loop
                 
             except IntegrityError as e:
@@ -135,7 +137,7 @@ def create_product_with_variants_service(
                     "ผูกภาพสินค้าล้มเหลว", {"error": str(e)}, 500
                 )
 
-        # ✅ สร้าง variant + คำนวณราคาเต็ม
+        # ✅ สร้าง variant + คำนวณราคาเต็ม (base_price + price_delta)
         if variant_block and isinstance(variant_block, dict):
             options = variant_block.get("options") or []
             base_price = product.base_price or 0
@@ -146,6 +148,14 @@ def create_product_with_variants_service(
                     continue
 
                 price_delta = float(opt.get("price_delta", 0))
+                
+                # ✅ FIX: คำนวณราคาเต็ม = base_price + price_delta
+                final_price = base_price + price_delta
+                
+                print(f"🔢 Creating variant: {name}")
+                print(f"   base_price: {base_price}")
+                print(f"   price_delta: {price_delta}")
+                print(f"   final_price: {final_price}")
 
                 variant = ProductVariant(
                     product_id=product.product_id,
@@ -153,7 +163,7 @@ def create_product_with_variants_service(
                     color=None,
                     name_option=name,
                     sku=f"{product.product_id}-{name}",
-                    price=price_delta,  # ✅ แก้: คำนวณราคาเต็ม
+                    price=final_price,  # ✅ ใช้ราคาเต็มที่คำนวณแล้ว
                     stock=int(opt.get("stock", 0)),
                     is_active=True,
                 )
@@ -164,6 +174,7 @@ def create_product_with_variants_service(
                 # ✅ ผูกรูปของ variant ด้วย safely_bind_images
                 images_for_option = opt.get("images") or []
                 if images_for_option:
+                    print(f"🎨 Binding {len(images_for_option)} images to variant '{name}'")
                     try:
                         safely_bind_images(
                             db=db,
@@ -253,7 +264,7 @@ def get_product_by_id_service(db: Session, product_id: str):
         )
 
 
-# แก้ไขส่วนที่มีปัญหาใน update_product_service
+# ✅ แก้ไข update_product_service - UPDATE รูปแบบ SMART (ไม่ลบทั้งหมด)
 
 def update_product_service(
     db: Session,
@@ -312,6 +323,7 @@ def update_product_service(
                 # ลบรูปที่ไม่อยู่ใน payload
                 for img in existing_images:
                     if str(img.image_id) not in payload_ids:
+                        print(f"🗑️ Deleting product image: {img.image_id}")
                         db.delete(img)
                 db.commit()
 
@@ -327,40 +339,21 @@ def update_product_service(
                 db.rollback()
                 return error_response("ผูกภาพสินค้าล้มเหลว", {"error": str(e)}, 500)
 
-        # ✅ แทนที่ variant + รูปของแต่ละ option
+        # ✅ UPDATE variant แบบ SMART - ไม่ลบรูปทั้งหมด
         if isinstance(variant_block, dict):
             options = variant_block.get("options") or []
-
-            try:
-                # ดึง variant_ids ที่ต้องการลบ
-                variant_ids_to_delete = [v.variant_id for v in product.variants]
-                
-                if variant_ids_to_delete:
-                    # ลบรูปของ variant เดิม
-                    deleted_images = (
-                        db.query(ProductImage)
-                        .filter(ProductImage.variant_id.in_(variant_ids_to_delete))
-                        .delete(synchronize_session='fetch')
-                    )
-                    print(f"🗑️ Deleted {deleted_images} variant images")
-
-                # ลบ variant เดิม
-                deleted_variants = 0
-                for v in list(product.variants):
-                    db.delete(v)
-                    deleted_variants += 1
-                
-                print(f"🗑️ Deleted {deleted_variants} variants")
-                db.commit()
-
-            except SQLAlchemyError as e:
-                db.rollback()
-                print(f"⚠️ Error deleting variants: {str(e)}")
-
-            # สร้าง variant ใหม่
             base_price = product.base_price or 0
 
-            print(f"📦 Creating {len(options)} new variants")
+            # ✅ สร้าง map ของ variant เดิม
+            existing_variants_map = {
+                str(v.variant_id): v for v in product.variants
+            }
+            
+            # ✅ สร้าง set ของ variant_id ที่มาจาก payload
+            payload_variant_ids = set()
+            
+            print(f"📦 Processing {len(options)} variants")
+            
             for opt in options:
                 name = (opt.get("name_option") or "").strip()
                 if not name:
@@ -368,49 +361,113 @@ def update_product_service(
 
                 price_delta = float(opt.get("price_delta", 0))
                 stock = int(opt.get("stock", 0))
-
-                # ✅ แก้: คำนวณราคาเต็ม
-                final_price = price_delta
                 
-                print(f"🔢 Creating variant: {name}")
+                # ✅ FIX: คำนวณราคาเต็ม = base_price + price_delta
+                final_price = base_price + price_delta
+                
+                print(f"🔢 Processing variant: {name}")
                 print(f"   base_price: {base_price}")
                 print(f"   price_delta: {price_delta}")
                 print(f"   final_price: {final_price}")
 
-                variant = ProductVariant(
-                    product_id=product.product_id,
-                    size=None,
-                    color=None,
-                    name_option=name,
-                    sku=f"{product.product_id}-{name}",
-                    price=final_price,  # ✅ ใช้ราคาเต็มที่คำนวณแล้ว
-                    stock=stock,
-                    is_active=True,
-                )
-                db.add(variant)
-                db.flush()
-                db.refresh(variant)
+                # ✅ ตรวจสอบว่ามี variant_id เดิมหรือไม่
+                variant_id = opt.get("variant_id")
+                
+                if variant_id and str(variant_id) in existing_variants_map:
+                    # ✅ UPDATE variant เดิม
+                    variant = existing_variants_map[str(variant_id)]
+                    variant.name_option = name
+                    variant.price = final_price  # ✅ ใช้ราคาเต็ม
+                    variant.stock = stock
+                    variant.sku = f"{product.product_id}-{name}"
+                    
+                    print(f"♻️ Updated existing variant: {variant_id}")
+                    payload_variant_ids.add(str(variant_id))
+                    
+                else:
+                    # ✅ สร้าง variant ใหม่
+                    variant = ProductVariant(
+                        product_id=product.product_id,
+                        size=None,
+                        color=None,
+                        name_option=name,
+                        sku=f"{product.product_id}-{name}",
+                        price=final_price,  # ✅ ใช้ราคาเต็ม
+                        stock=stock,
+                        is_active=True,
+                    )
+                    db.add(variant)
+                    db.flush()
+                    db.refresh(variant)
+                    
+                    print(f"✨ Created new variant: {variant.variant_id}")
+                    payload_variant_ids.add(str(variant.variant_id))
 
-                # ✅ ผูกรูป variant ด้วย safely_bind_images
+                # ✅ อัปเดตรูปของ variant แบบ SMART (ไม่ลบทั้งหมด)
                 images_for_option = opt.get("images") or []
-                print(f"🎨 Variant '{name}' has {len(images_for_option)} images")
+                print(f"🎨 Variant '{name}' has {len(images_for_option)} images in payload")
                 
                 if images_for_option:
                     try:
+                        # ✅ ดึงรูปเดิมของ variant นี้
+                        existing_variant_images = (
+                            db.query(ProductImage)
+                            .filter(ProductImage.variant_id == variant.variant_id)
+                            .all()
+                        )
+                        
+                        print(f"📸 Existing images for variant '{name}': {len(existing_variant_images)}")
+                        for img in existing_variant_images:
+                            print(f"   - {img.image_id} ({img.image_type})")
+                        
+                        # ✅ สร้าง set ของ image_id จาก payload
+                        payload_image_ids = {
+                            str(img["image_id"]) for img in images_for_option if img.get("image_id")
+                        }
+                        
+                        print(f"📤 Payload image IDs: {payload_image_ids}")
+                        
+                        # ✅ ลบเฉพาะรูปที่ไม่อยู่ใน payload
+                        for img in existing_variant_images:
+                            if str(img.image_id) not in payload_image_ids:
+                                print(f"🗑️ Deleting variant image: {img.image_id} ({img.image_type})")
+                                db.delete(img)
+                        
+                        db.commit()
+                        
+                        # ✅ ผูกรูปใหม่ (เฉพาะรูปที่มีใน payload)
+                        print(f"🔗 Binding {len(images_for_option)} images to variant '{name}'")
                         safely_bind_images(
                             db=db,
                             images_data=images_for_option,
                             product_id=product.product_id,
                             variant_id=variant.variant_id
                         )
+                        
                     except Exception as e:
                         db.rollback()
+                        print(f"❌ Error updating variant images: {str(e)}")
                         return error_response(
                             f"ผูกภาพ variant '{name}' ล้มเหลว",
                             {"error": str(e)},
                             500
                         )
+                else:
+                    print(f"⚠️ No images in payload for variant '{name}' - keeping existing images")
 
+            # ✅ ลบ variant ที่ไม่อยู่ใน payload
+            for variant_id, variant in existing_variants_map.items():
+                if variant_id not in payload_variant_ids:
+                    print(f"🗑️ Deleting variant: {variant_id}")
+                    
+                    # ลบรูปของ variant นี้
+                    db.query(ProductImage).filter(
+                        ProductImage.variant_id == variant.variant_id
+                    ).delete(synchronize_session='fetch')
+                    
+                    # ลบ variant
+                    db.delete(variant)
+            
             db.commit()
             print(f"💾 Committed all changes successfully")
 
@@ -422,6 +479,8 @@ def update_product_service(
     except Exception as e:
         db.rollback()
         print(f"❌ Error in update_product_service: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return error_response(
             "เกิดข้อผิดพลาดขณะอัปเดตสินค้า",
             {"error": str(e)},
@@ -441,3 +500,83 @@ def delete_product_service(db: Session, product_id: str):
         return error_response(
             "เกิดข้อผิดพลาดในฐานข้อมูล", {"error": str(e)}, 500
         )
+        
+        
+# ==================== ปิดการขาย
+
+from sqlalchemy import and_
+from app.models.product import Product, ProductImage, ImageType
+from app.models.store import Store
+from app.utils.response_handler import success_response, error_response
+from app.repositories import store_repository, product_repository
+
+
+def get_my_closed_products_service(db, auth_user):
+    store = store_repository.get_store_by_user(db, auth_user.user_id)
+    if not store:
+        return error_response("ไม่พบร้านค้าของคุณ", status_code=404)
+
+    rows = (
+        db.query(Product, ProductImage)
+        .outerjoin(
+            ProductImage,
+            and_(
+                Product.product_id == ProductImage.product_id,
+                ProductImage.variant_id == None,
+                ProductImage.is_main == True,
+                ProductImage.image_type == ImageType.NORMAL,
+            ),
+        )
+        .filter(
+            Product.store_id == store.store_id,
+            Product.is_active == False,
+            Product.is_draft == False,
+        )
+        .order_by(Product.created_at.desc())
+        .all()
+    )
+
+    items = []
+    for p, img in rows:
+        items.append(
+            {
+                "product_id": str(p.product_id),
+                "title": p.product_name,
+                "price": float(p.base_price or 0),
+                "star": float(p.average_rating or 0),
+                "image_id": str(img.image_id) if img else None,
+                "image_url": img.image_url if img else None,
+                "category": p.category,
+                "is_active": bool(p.is_active),
+            }
+        )
+
+    return success_response("ดึงสินค้าที่ปิดการขายสำเร็จ", items)
+
+
+def close_sale_product_service(db, auth_user, product_id: str):
+    product = product_repository.get_product_by_id(db, product_id)
+    if not product:
+        return error_response("ไม่พบสินค้า", status_code=404)
+
+    store = store_repository.get_store_by_user(db, auth_user.user_id)
+    if not store or store.store_id != product.store_id:
+        return error_response("คุณไม่มีสิทธิ์ปิดการขายสินค้านี้", status_code=403)
+
+    product.is_active = False
+    db.commit()
+    return success_response("ปิดการขายสินค้าสำเร็จ", {"product_id": str(product.product_id)})
+
+
+def open_sale_product_service(db, auth_user, product_id: str):
+    product = product_repository.get_product_by_id(db, product_id)
+    if not product:
+        return error_response("ไม่พบสินค้า", status_code=404)
+
+    store = store_repository.get_store_by_user(db, auth_user.user_id)
+    if not store or store.store_id != product.store_id:
+        return error_response("คุณไม่มีสิทธิ์เปิดการขายสินค้านี้", status_code=403)
+
+    product.is_active = True
+    db.commit()
+    return success_response("เปิดการขายสินค้าสำเร็จ", {"product_id": str(product.product_id)})

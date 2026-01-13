@@ -1,5 +1,6 @@
 // app/(seller)/orders.tsx
 import { confirmOrderShipped, fetchSellerOrders, SellerOrder } from "@/api/seller";
+import { formatDateTimeTH } from "@/utils/datetime";
 import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -176,6 +177,33 @@ export default function SellerOrdersScreen() {
           </Text>
         </Box>
       </HStack>
+
+      {/* Time Info */}
+<Box bg="coolGray.50" p={3} rounded="md" mt={2} mb={3}>
+  <VStack space={1}>
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ชำระเงิน</Text>
+      <Text fontSize="xs" fontWeight="medium">
+        {formatDateTimeTH(item.paid_at)}
+      </Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">จัดส่งสำเร็จ</Text>
+      <Text fontSize="xs" fontWeight="medium">
+        {formatDateTimeTH(item.delivered_at)}
+      </Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ลูกค้ายืนยันรับ</Text>
+      <Text fontSize="xs" fontWeight="medium">
+        {formatDateTimeTH(item.completed_at)}
+      </Text>
+    </HStack>
+  </VStack>
+</Box>
+
 
       {/* Items */}
       {item.order_items.map((orderItem) => (

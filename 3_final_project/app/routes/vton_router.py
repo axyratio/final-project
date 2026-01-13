@@ -217,3 +217,12 @@ def get_vton_sessions(
 ):
     """ดึงประวัติการลองเสื้อ"""
     return VTONService.get_vton_sessions(db, user, limit)
+
+@router.delete("/sessions/{session_id}")
+def delete_vton_session(
+    session_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(authenticate_token())
+):
+    """ลบ VTON Session (ผลลัพธ์การลองชุด)"""
+    return VTONService.delete_vton_session(db, user, session_id)

@@ -37,7 +37,7 @@ class VTONService:
         return {
             "url": os.getenv("IDM_VTON_URL", "https://api.segmind.com/v1/idm-vton"),
             "api_key": os.getenv("IDM_VTON_API_KEY", ""),
-            "timeout": int(os.getenv("IDM_VTON_TIMEOUT", "120"))
+            "timeout": int(os.getenv("IDM_VTON_TIMEOUT", "380"))
         }
     
     @staticmethod
@@ -460,6 +460,7 @@ class VTONService:
 
         except Exception as e:
             db.rollback()
+            print(f"[GARMENT DELETE ERROR] {e}")
             return error_response("เกิดข้อผิดพลาด", {"error": str(e)}, 500)
 
     # ==================== PRODUCT GARMENTS (เสื้อจากสินค้า) ====================
@@ -858,7 +859,43 @@ class VTONService:
             db.rollback()
             print(f"❌ Error creating VTON session: {e}")
             return error_response("เกิดข้อผิดพลาด", {"error": str(e)}, 500)
+    @staticmethod
+    def delete_vton_session(db: Session, user: User, session_id: UUID):
+        """ลบ VTON Session และไฟล์รูปผลลัพธ์"""
+        try:
+            # ✅ ตรวจสอบว่า session เป็นของ user
+            session = (
+                db.query(VTONSession)
+                .filter(
+                    VTONSession.session_id == session_id,
+                    VTONSession.user_id == user.user_id
+                )
+                .first()
+            )
 
+            if not session:
+                return error_response("ไม่พบรูปผลลัพธ์หรือไม่มีสิทธิ์ลบ", {}, 404)
+
+            # ✅ ลบไฟล์รูปผลลัพธ์ (ถ้ามี)
+            if session.result_image_url:
+                try:
+                    delete_file(session.result_image_url)
+                    print(f"✅ Deleted result image: {session.result_image_url}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not delete result image file: {e}")
+
+            # ✅ ลบ record จาก database
+            db.delete(session)
+            db.commit()
+
+            return success_response("ลบรูปผลลัพธ์สำเร็จ", {})
+
+        except Exception as e:
+            db.rollback()
+            print(f"❌ Error deleting VTON session: {e}")
+            return error_response("เกิดข้อผิดพลาดในการลบรูปผลลัพธ์", {"error": str(e)}, 500)
+        
+        
     @staticmethod
     def change_background_from_session(
         db: Session,

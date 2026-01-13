@@ -1,7 +1,7 @@
 # app/routers/store_dashboard_router.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, func
+from sqlalchemy import and_
 
 from app.db.database import get_db
 from app.core.authz import authenticate_token
@@ -11,28 +11,42 @@ from app.utils.response_handler import success_response, error_response
 
 router = APIRouter(prefix="/stores", tags=["Store Dashboard"])
 
+
+def _map_product_row(product: Product, image: ProductImage | None):
+    image_id = str(image.image_id) if image else None
+    image_url = image.image_url if image else None
+    return {
+        "product_id": str(product.product_id),
+        "title": product.product_name,
+        "price": float(product.base_price or 0),
+        "star": float(product.average_rating or 0.0),
+        "category": product.category,
+        "image_id": image_id,
+        "image_url": image_url,
+        "is_active": bool(product.is_active),
+    }
+
+
 @router.get("/me/dashboard")
 def get_my_store_dashboard(
     db: Session = Depends(get_db),
-    auth_user = Depends(authenticate_token()),
+    auth_user=Depends(authenticate_token()),
 ):
     """
     ดึงข้อมูลหน้าร้านของ seller:
     - ข้อมูลร้าน
-    - รายการสินค้า + main image + rating
+    - รายการสินค้า (is_active=True) + main image + rating
+    - รายการสินค้าปิดการขาย (is_active=False) + main image
     """
     try:
-        # หา store จาก user ปัจจุบัน
         store: Store | None = (
-            db.query(Store)
-            .filter(Store.user_id == auth_user.user_id)
-            .first()
+            db.query(Store).filter(Store.user_id == auth_user.user_id).first()
         )
         if not store:
             return error_response("ไม่พบร้านค้าของคุณ", {}, 404)
 
-        # join product + main image
-        rows = (
+        # ====== PRODUCTS (กำลังขาย)
+        active_rows = (
             db.query(Product, ProductImage)
             .outerjoin(
                 ProductImage,
@@ -46,6 +60,7 @@ def get_my_store_dashboard(
             .filter(
                 Product.store_id == store.store_id,
                 Product.is_active == True,
+                Product.is_draft == False,
             )
             .order_by(Product.created_at.desc())
             .all()
@@ -55,37 +70,45 @@ def get_my_store_dashboard(
         rating_sum = 0.0
         rating_count = 0
 
-        for product, image in rows:
+        for product, image in active_rows:
             star = float(product.average_rating or 0.0)
             if star > 0:
                 rating_sum += star
                 rating_count += 1
 
-            image_id = str(image.image_id) if image else None
-            image_url = image.image_url if image else None
+            products_data.append(_map_product_row(product, image))
 
-            products_data.append(
-                {
-                    "product_id": str(product.product_id),
-                    "title": product.product_name,
-                    "price": float(product.base_price),
-                    "star": star,
-                    "category": product.category,
-                    "image_id": image_id,
-                    "image_url": image_url,
-                }
+        # ====== CLOSED PRODUCTS (ปิดการขาย)
+        closed_rows = (
+            db.query(Product, ProductImage)
+            .outerjoin(
+                ProductImage,
+                and_(
+                    ProductImage.product_id == Product.product_id,
+                    ProductImage.is_main == True,
+                    ProductImage.variant_id == None,
+                    ProductImage.image_type == "NORMAL",
+                ),
             )
+            .filter(
+                Product.store_id == store.store_id,
+                Product.is_active == False,
+                Product.is_draft == False,
+            )
+            .order_by(Product.created_at.desc())
+            .all()
+        )
 
-        # คำนวณ rating ร้านจากค่าเฉลี่ย star ของ product
+        closed_products_data = []
+        for product, image in closed_rows:
+            closed_products_data.append(_map_product_row(product, image))
+
+        # rating ร้าน (เฉลี่ยจากสินค้าที่กำลังขาย)
         store_rating = rating_sum / rating_count if rating_count > 0 else 0.0
         store.rating = store_rating
         db.commit()
 
-        # สร้าง logo_url สำหรับ stream logo ของร้าน
-        if store.logo_path:
-            logo_url = f"/store/{store.store_id}/logo"
-        else:
-            logo_url = None
+        logo_url = f"/store/{store.store_id}/logo" if store.logo_path else None
 
         store_data = {
             "store_id": str(store.store_id),
@@ -98,10 +121,13 @@ def get_my_store_dashboard(
         payload = {
             "store": store_data,
             "products": products_data,
+            "closed_products": closed_products_data,
         }
 
         return success_response("ดึงข้อมูลหน้าร้านสำเร็จ", payload)
 
     except Exception as e:
         db.rollback()
-        return error_response("เกิดข้อผิดพลาดขณะดึงข้อมูลหน้าร้าน", {"error": str(e)}, 500)
+        return error_response(
+            "เกิดข้อผิดพลาดขณะดึงข้อมูลหน้าร้าน", {"error": str(e)}, 500
+        )

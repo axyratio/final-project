@@ -15,7 +15,7 @@ from app.models.payment_method import PaymentMethodMeta
 from app.models.location import Location  
 from app.models.tracking_history import TrackingHistory
 from app.models.wishlist import Wishlist
-from app.models.review import Review
+from app.models.review import Review, ReviewImage
 from app.models.product import ProductVariant
 from app.models.product import ProductImage
 from app.models.product import VTONMeta

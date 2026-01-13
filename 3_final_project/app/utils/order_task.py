@@ -58,8 +58,8 @@ def check_order_timeout(self, order_id_str: str):
                     # อัปเดตข้อมูลให้เป็นชำระเงินสำเร็จ
                     payment.status = PaymentStatus.SUCCESS
                     payment.paid_at = now_utc()
-                    order.order_status = "PAID"
-                    order.order_text_status = "ชำระเงินแล้ว"
+                    order.order_status = "PREPARING"
+                    order.order_text_status = "กำลังจัดเตรียมสินค้า"
                     db.commit()
                     return
 

@@ -18,4 +18,19 @@ class Review(Base):
 
     product = relationship("Product", back_populates="reviews")
     user = relationship("User", back_populates="reviews")
+    
+    # --- ADD THIS LINE ---
+    images = relationship("ReviewImage", back_populates="review", cascade="all, delete-orphan")
 # ยังไม่ได้ทำ ERD
+
+class ReviewImage(Base):
+    __tablename__ = "review_images"
+    review_image_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    review_id = Column(UUID(as_uuid=True), ForeignKey("reviews.review_id"), nullable=False)
+    
+    # เปลี่ยนจาก ForeignKey เป็น String เพื่อเก็บ URL ของรูปภาพโดยตรง
+    image_url = Column(String, nullable=False) 
+    
+    created_at = Column(DateTime, default=now_utc)
+
+    review = relationship("Review", back_populates="images")

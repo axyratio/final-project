@@ -1,7 +1,7 @@
 // components/profile/order-empty-state.tsx
-import React from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { Box, Center, Text, VStack } from "native-base";
+import React from "react";
 
 export function OrderEmptyState({ message }: { message?: string }) {
   return (

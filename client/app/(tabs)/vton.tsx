@@ -5,11 +5,13 @@ import type {
   ProductVariant,
   UserTryOnImage,
   VTONBackground,
+  VTONSession,
 } from "@/api/closet";
 import { closetApi, mockData } from "@/api/closet";
 import { BackgroundSelector } from "@/components/closet/background-selector";
 import { ModelSelector } from "@/components/closet/model-selector";
 import { OutfitSelector } from "@/components/closet/outfit-selector";
+import { ResultSelector } from "@/components/closet/result-selector";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -17,18 +19,18 @@ import { Box, Button, Center, HStack, Pressable, Spinner, Text, useToast } from 
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert } from "react-native";
 
-type MainTabId = "model" | "outfit" | "background";
-type OutfitTabId = "select" | "result" | "product";
+type MainTabId = "result" | "model" | "outfit" | "background";
+type OutfitTabId = "select" | "product";
 
-const MAIN_TAB_IDS: MainTabId[] = ["model", "outfit", "background"];
-const OUTFIT_TAB_IDS: OutfitTabId[] = ["select", "result", "product"];
+const MAIN_TAB_IDS: MainTabId[] = ["result", "model", "outfit", "background"];
+const OUTFIT_TAB_IDS: OutfitTabId[] = ["select", "product"];
 
 function mainTabIdToIndex(id?: string): number {
   const idx = MAIN_TAB_IDS.indexOf(id as MainTabId);
   return idx >= 0 ? idx : 0;
 }
 function mainTabIndexToId(idx: number): MainTabId {
-  return MAIN_TAB_IDS[idx] ?? "model";
+  return MAIN_TAB_IDS[idx] ?? "result";
 }
 function outfitTabIdToIndex(id?: string): number {
   const idx = OUTFIT_TAB_IDS.indexOf(id as OutfitTabId);
@@ -69,7 +71,10 @@ export default function VirtualTryOnPage() {
   const [productGarments, setProductGarments] = useState<ProductVariant[]>([]);
   const [selectedProductGarment, setSelectedProductGarment] = useState<ProductVariant | null>(null);
 
-  const tabs = ["เลือกโมเดล", "เลือกชุด", "พื้นหลัง"];
+  // ✅ State สำหรับ VTON Sessions
+  const [vtonSessions, setVtonSessions] = useState<VTONSession[]>([]);
+
+  const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด", "พื้นหลัง"];
 
   const setRouteParams = (next: { tab?: MainTabId; outfitTab?: OutfitTabId }) => {
     (router as any).setParams?.({
@@ -78,7 +83,7 @@ export default function VirtualTryOnPage() {
     });
   };
 
-  // ✅ sync state <- route params (เข้าหน้าแล้วลงแท็บตามที่ส่งมา)
+  // ✅ sync state <- route params
   useEffect(() => {
     const tabIdx = mainTabIdToIndex(params.tab);
     setCurrentTab(tabIdx);
@@ -97,7 +102,13 @@ export default function VirtualTryOnPage() {
       setInitialLoading(true);
       console.log("🔄 Loading initial data...");
 
-      const [userImagesData, garmentsData, backgroundsData, productGarmentsData] = await Promise.all([
+      const [
+        userImagesData,
+        garmentsData,
+        backgroundsData,
+        productGarmentsData,
+        sessionsData,
+      ] = await Promise.all([
         closetApi.getUserTryOnImages().catch((err) => {
           console.error("❌ Failed to load user images:", err);
           return [];
@@ -114,6 +125,10 @@ export default function VirtualTryOnPage() {
           console.error("❌ Failed to load product garments:", err);
           return [];
         }),
+        closetApi.getVTONSessions(50).catch((err) => {
+          console.error("❌ Failed to load VTON sessions:", err);
+          return [];
+        }),
       ]);
 
       console.log("✅ Data loaded:", {
@@ -121,12 +136,14 @@ export default function VirtualTryOnPage() {
         garments: garmentsData.length,
         backgrounds: backgroundsData.length,
         productGarments: productGarmentsData.length,
+        sessions: sessionsData.length,
       });
 
       setUserImages(userImagesData);
       setGarments(garmentsData);
       setBackgrounds(backgroundsData);
       setProductGarments(productGarmentsData);
+      setVtonSessions(sessionsData);
     } catch (error) {
       console.error("❌ Error loading data:", error);
       toast.closeAll();
@@ -340,6 +357,29 @@ export default function VirtualTryOnPage() {
     }
   };
 
+  // ✅ ฟังก์ชันลบ VTON Session
+  const handleDeleteSession = async (sessionId: string) => {
+    try {
+      await closetApi.deleteVTONSession(sessionId);
+      setVtonSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+
+      toast.closeAll();
+      toast.show({
+        title: "ลบรูปผลลัพธ์สำเร็จ",
+        placement: "top",
+        duration: 2000,
+      });
+    } catch (error: any) {
+      toast.closeAll();
+      toast.show({
+        title: "ลบล้มเหลว",
+        description: error.message,
+        placement: "top",
+        duration: 3000,
+      });
+    }
+  };
+
   const handleSubmit = async () => {
     if (!selectedModel) {
       Alert.alert("แจ้งเตือน", "กรุณาเลือกรูปโมเดลก่อน");
@@ -370,6 +410,9 @@ export default function VirtualTryOnPage() {
       const session = await closetApi.createVTONSession(request);
       setResultImageUrl(session.result_image_url);
 
+      // ✅ เพิ่ม session ใหม่เข้าไปในรายการ
+      setVtonSessions((prev) => [session, ...prev]);
+
       toast.closeAll();
       toast.show({
         title: "✅ ลองชุดสำเร็จ!",
@@ -378,7 +421,8 @@ export default function VirtualTryOnPage() {
         duration: 2000,
       });
 
-      const nextIndex = 1;
+      // ✅ พาไปหน้าแรก (ผลลัพธ์ AI)
+      const nextIndex = 0;
       setCurrentTab(nextIndex);
       setRouteParams({ tab: mainTabIndexToId(nextIndex) });
     } catch (error: any) {
@@ -394,11 +438,18 @@ export default function VirtualTryOnPage() {
     }
   };
 
+  const handleStartTryOn = () => {
+    setCurrentTab(1);
+    setRouteParams({ tab: "model" });
+  };
+
   if (initialLoading) {
     return (
       <Center flex={1} bg="gray.50">
         <Spinner size="lg" color="violet.600" />
-        <Text mt={4} color="gray.600">กำลังโหลดข้อมูล...</Text>
+        <Text mt={4} color="gray.600">
+          กำลังโหลดข้อมูล...
+        </Text>
       </Center>
     );
   }
@@ -449,7 +500,17 @@ export default function VirtualTryOnPage() {
       </Box>
 
       <Box flex={1} p={4}>
+        {/* ✅ TAB 0: ผลลัพธ์ AI */}
         {currentTab === 0 && (
+          <ResultSelector 
+            sessions={vtonSessions} 
+            onStartTryOn={handleStartTryOn}
+            onDeleteSession={handleDeleteSession}
+          />
+        )}
+
+        {/* TAB 1: เลือกโมเดล */}
+        {currentTab === 1 && (
           <Box flex={1}>
             <ModelSelector
               userImages={userImages}
@@ -466,26 +527,22 @@ export default function VirtualTryOnPage() {
           </Box>
         )}
 
-        {currentTab === 1 && (
+        {/* TAB 2: เลือกชุด */}
+        {currentTab === 2 && (
           <Box flex={1}>
             <OutfitSelector
               product={product}
               garments={garments}
               productGarments={productGarments}
-
               selectedVariant={selectedVariant}
               selectedGarment={selectedGarment}
               selectedProductGarment={selectedProductGarment}
-
               outfitTabId={outfitTabIndexToId(outfitTabIndex)}
               onChangeOutfitTabId={(id) => {
                 const idx = outfitTabIdToIndex(id);
                 setOutfitTabIndex(idx);
-
-                // ✅ sync กลับเข้า URL เฉพาะตอนอยู่หน้าเลือกชุด
                 setRouteParams({ tab: "outfit", outfitTab: outfitTabIndexToId(idx) });
               }}
-
               onSelectVariant={(v) => {
                 setSelectedVariant(v);
                 setSelectedGarment(null);
@@ -501,26 +558,28 @@ export default function VirtualTryOnPage() {
                 setSelectedVariant(null);
                 setSelectedGarment(null);
               }}
-
               onAddOutfit={handleAddOutfit}
-              resultImageUrl={resultImageUrl || undefined}
               onDeleteVariant={handleDeleteVariant}
               onDeleteGarment={handleDeleteGarment}
               onDeleteProductGarment={(variantId) => handleDeleteProductGarment(variantId)}
             />
 
             <HStack space={2} mt={4}>
-              <Button flex={1} variant="outline" onPress={() => {
-                setCurrentTab(0);
-                setRouteParams({ tab: "model" });
-              }}>
+              <Button
+                flex={1}
+                variant="outline"
+                onPress={() => {
+                  setCurrentTab(1);
+                  setRouteParams({ tab: "model" });
+                }}
+              >
                 ย้อนกลับ
               </Button>
               <Button
                 flex={1}
                 bg="violet.600"
                 onPress={() => {
-                  setCurrentTab(2);
+                  setCurrentTab(3);
                   setRouteParams({ tab: "background" });
                 }}
                 isDisabled={!selectedVariant && !selectedGarment && !selectedProductGarment}
@@ -532,7 +591,8 @@ export default function VirtualTryOnPage() {
           </Box>
         )}
 
-        {currentTab === 2 && (
+        {/* TAB 3: พื้นหลัง */}
+        {currentTab === 3 && (
           <Box flex={1}>
             <BackgroundSelector
               backgrounds={backgrounds}
@@ -542,10 +602,14 @@ export default function VirtualTryOnPage() {
               onDeleteBackground={handleDeleteBackground}
             />
             <HStack space={2} mt={6}>
-              <Button flex={1} variant="outline" onPress={() => {
-                setCurrentTab(1);
-                setRouteParams({ tab: "outfit" });
-              }}>
+              <Button
+                flex={1}
+                variant="outline"
+                onPress={() => {
+                  setCurrentTab(2);
+                  setRouteParams({ tab: "outfit" });
+                }}
+              >
                 ย้อนกลับ
               </Button>
               <Button flex={1} bg="violet.600" onPress={handleSubmit} isLoading={loading}>

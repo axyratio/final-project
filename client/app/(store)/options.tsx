@@ -1,4 +1,6 @@
 // app/(store)/options.tsx
+// ✅ แก้ไข: เพิ่ม validation และจัดการ variant_id ให้ถูกต้อง
+
 import { DOMAIN } from "@/้host";
 
 import * as ImagePicker from "expo-image-picker";
@@ -91,8 +93,9 @@ export default function OptionsScreen() {
     productDesc?: string;
     minBuy?: string;
     categoryName?: string;
+    categoryId?: string;
     variant?: string;
-    images?: string; // <<< เพิ่ม
+    images?: string;
   }>();
 
   const productId = params.productId as string | undefined;
@@ -100,11 +103,10 @@ export default function OptionsScreen() {
   const [variantName, setVariantName] = useState<string>("");
   const [variantCreated, setVariantCreated] = useState(false);
 
-  const [enableImages, setEnableImages] = useState(false); // เปิด/ปิด VTON
+  const [enableImages, setEnableImages] = useState(false);
   const [options, setOptions] = useState<VariantOptionExtended[]>([]);
   const [optionText, setOptionText] = useState("");
 
-  // ฟอร์มด้านล่างสำหรับเพิ่มตัวเลือก (S, M, L...)
   const [showOptionForm, setShowOptionForm] = useState(false);
 
   // helper เอาไว้ update field ของ option ตัวเดียว
@@ -119,14 +121,13 @@ export default function OptionsScreen() {
 
   // =========================
   // LOAD VARIANT จาก backend ถ้ามี productId
-  // แต่จะ "ไม่เรียก" ถ้ามี params.variant (แปลว่ามาจาก state ฝั่ง client)
   // =========================
   useEffect(() => {
     if (!productId) return;
 
     if (params.variant) {
       console.log(
-        "OptionsScreen: skip fetchVariant because params.variant exists (ใช้ state จากหน้า add-product)"
+        "OptionsScreen: skip fetchVariant because params.variant exists"
       );
       return;
     }
@@ -167,6 +168,7 @@ export default function OptionsScreen() {
               : undefined;
 
             return {
+              id: opt.variant_id , // ✅ เพิ่ม fallback
               name: opt.name,
               displayImageUri: displayImageUrl,
               displayImageId: opt.display_image?.image_id,
@@ -193,7 +195,7 @@ export default function OptionsScreen() {
     fetchVariant();
   }, [productId, params.variant]);
 
-  // ถ้า route มากับ variant (สร้างใหม่ฝั่ง client หรือเพิ่งแก้ใน Options แล้วกลับจาก AddProduct มาอีกที)
+  // ถ้า route มากับ variant
   useEffect(() => {
     if (!params.variant) return;
     try {
@@ -203,12 +205,13 @@ export default function OptionsScreen() {
       setVariantName(v.variantName || "");
       setEnableImages(!!v.enableImages);
 
-      // CHANGED: บังคับให้ preview ใช้ images/stream/:image_id เสมอ
       const mappedOptions: VariantOptionExtended[] = Array.isArray(
         v.options
       )
         ? (v.options as VariantOptionExtended[]).map((opt) => ({
             ...opt,
+            // ✅ ถ้าไม่มี id ให้สร้างใหม่
+            id: opt.id || Date.now().toString() + Math.random(),
             displayImageUri: opt.displayImageId
               ? `${API_BASE_URL}/images/stream/${opt.displayImageId}`
               : undefined,
@@ -242,10 +245,13 @@ export default function OptionsScreen() {
     if (!name) return;
 
     const exists = options.some((o) => o.name === name);
-    if (exists) return;
+    if (exists) {
+      Alert.alert("ชื่อตัวเลือกซ้ำ", "กรุณาใช้ชื่ออื่น");
+      return;
+    }
 
     const newOption: VariantOptionExtended = {
-      id: Date.now().toString(),
+      id: Date.now().toString() + Math.random(), // ✅ ใช้ timestamp + random
       name,
       priceDelta: 0,
       stock: 0,
@@ -255,7 +261,6 @@ export default function OptionsScreen() {
     setShowOptionForm(false);
   };
 
-  // ฟังก์ชันเลือกภาพ 1 รูปจากเครื่อง
   const pickOneImage = async (): Promise<string | null> => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
@@ -267,7 +272,7 @@ export default function OptionsScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 1,
+      quality: 0.7,
     });
 
     if (result.canceled) return null;
@@ -282,7 +287,7 @@ export default function OptionsScreen() {
 
     try {
       const uploaded = await uploadImageFile(localUri, "NORMAL");
-      const fullUrl = `${API_BASE_URL}/images/stream/${uploaded.image_id}`; // CHANGED: ใช้ stream URL
+      const fullUrl = `${API_BASE_URL}/images/stream/${uploaded.image_id}`;
       console.log("uploaded display image:", fullUrl);
       updateOption(id, {
         displayImageUri: fullUrl,
@@ -290,6 +295,7 @@ export default function OptionsScreen() {
       });
     } catch (e) {
       console.log("upload display image failed", e);
+      Alert.alert("อัปโหลดรูปล้มเหลว", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -302,7 +308,7 @@ export default function OptionsScreen() {
 
     try {
       const uploaded = await uploadImageFile(localUri, "VTON");
-      const fullUrl = `${API_BASE_URL}/images/stream/${uploaded.image_id}`; // CHANGED: ใช้ stream URL
+      const fullUrl = `${API_BASE_URL}/images/stream/${uploaded.image_id}`;
       console.log("uploaded vton image:", fullUrl);
       updateOption(id, {
         tryOnImageUri: fullUrl,
@@ -310,6 +316,7 @@ export default function OptionsScreen() {
       });
     } catch (e) {
       console.log("upload vton image failed", e);
+      Alert.alert("อัปโหลดรูปล้มเหลว", "กรุณาลองใหม่อีกครั้ง");
     }
   };
 
@@ -321,13 +328,30 @@ export default function OptionsScreen() {
   // SAVE: ส่งกลับไปหน้า AddProduct
   // =========================
   const handleSave = useCallback(() => {
+    // ✅ Validation ก่อน save
+    if (!variantName.trim()) {
+      Alert.alert("ข้อผิดพลาด", "กรุณากรอกชื่อตัวเลือก");
+      return;
+    }
+
+    if (options.length === 0) {
+      Alert.alert("ข้อผิดพลาด", "กรุณาเพิ่มตัวเลือกอย่างน้อย 1 รายการ");
+      return;
+    }
+
+    // ✅ ตรวจสอบว่าแต่ละ option มี stock และ priceDelta
+    for (const opt of options) {
+      if (typeof opt.stock !== "number" || opt.stock < 0) {
+        Alert.alert("ข้อผิดพลาด", `กรุณากรอกจำนวนคลังสำหรับ "${opt.name}"`);
+        return;
+      }
+    }
+
     const variantPayload = {
       variantName,
       enableImages,
       options,
     };
-
-    // router.back();
 
     console.log("Variant payload from OptionsScreen:", variantPayload);
 
@@ -339,6 +363,7 @@ export default function OptionsScreen() {
         productDesc: params.productDesc ?? "",
         minBuy: params.minBuy ?? "",
         categoryName: params.categoryName ?? "",
+        categoryId: params.categoryId ?? "",
         ...(params.images ? { images: params.images } : {}),
         variant: JSON.stringify(variantPayload),
       },
@@ -353,12 +378,10 @@ export default function OptionsScreen() {
     params.productDesc,
     params.minBuy,
     params.categoryName,
+    params.categoryId,
     params.images,
   ]);
 
-  // =========================
-  // HANDLE BACK BUTTON (hardware) → ให้ทำงานเหมือนกด Save
-  // =========================
   useEffect(() => {
     const onBackPress = () => {
       handleSave();
@@ -387,7 +410,6 @@ export default function OptionsScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 180 }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ปุ่มบนสุด: สร้าง block variant หนึ่งก้อน */}
           <Pressable onPress={handleCreateVariant} disabled={variantCreated}>
             <Box
               borderWidth={1}
@@ -408,7 +430,6 @@ export default function OptionsScreen() {
 
           {variantCreated && (
             <Box mt={6} bg="white" p={4} borderRadius={8}>
-              {/* ชื่อตัวเลือก + ลบ */}
               <Box flexDirection="row" justifyContent="space-between">
                 <Box flex={1}>
                   <Text fontSize="xs" color="gray.500" mb={1}>
@@ -441,7 +462,6 @@ export default function OptionsScreen() {
                 </Pressable>
               </Box>
 
-              {/* toggle เพิ่มรูปลองเสื้อ */}
               <Box mt={4} flexDirection="row" alignItems="center">
                 <Text flex={1}>เพิ่มรูปภาพสำหรับลองเสื้อ (VTON)</Text>
                 <Switch
@@ -452,7 +472,6 @@ export default function OptionsScreen() {
                 />
               </Box>
 
-              {/* ปุ่ม "เพิ่มตัวเลือกสำหรับลูกค้า" */}
               <Box mt={4}>
                 <Pressable onPress={() => setShowOptionForm(true)}>
                   <Text color="#7c3aed" mb={2}>
@@ -464,7 +483,6 @@ export default function OptionsScreen() {
                 )}
               </Box>
 
-              {/* list ตัวเลือก */}
               <Box mt={6}>
                 {options.map((opt) => (
                   <Box
@@ -490,7 +508,6 @@ export default function OptionsScreen() {
                       </Pressable>
                     </Box>
 
-                    {/* ราคาส่วนเพิ่ม + stock ของตัวเลือก */}
                     <Box flexDirection="row" mt={2}>
                       <Box flex={1} mr={2}>
                         <Text fontSize="xs" color="gray.500">
@@ -507,7 +524,7 @@ export default function OptionsScreen() {
                           onChangeText={(text) => {
                             const num = parseFloat(text.replace(/,/g, ""));
                             updateOption(opt.id!, {
-                              priceDelta: isNaN(num) ? undefined : num,
+                              priceDelta: isNaN(num) ? 0 : num,
                             });
                           }}
                           style={{
@@ -523,7 +540,7 @@ export default function OptionsScreen() {
 
                       <Box flex={1} ml={2}>
                         <Text fontSize="xs" color="gray.500">
-                          คลังของตัวเลือก
+                          คลังของตัวเลือก *
                         </Text>
                         <TextInput
                           keyboardType="numeric"
@@ -536,7 +553,7 @@ export default function OptionsScreen() {
                           onChangeText={(text) => {
                             const num = parseInt(text, 10);
                             updateOption(opt.id!, {
-                              stock: isNaN(num) ? undefined : num,
+                              stock: isNaN(num) ? 0 : num,
                             });
                           }}
                           style={{
@@ -551,7 +568,6 @@ export default function OptionsScreen() {
                       </Box>
                     </Box>
 
-                    {/* รูปตัวเลือกสินค้า (NORMAL) */}
                     <Pressable
                       onPress={() => handlePickDisplayImage(opt.id!)}
                     >
@@ -583,7 +599,6 @@ export default function OptionsScreen() {
                       </Box>
                     </Pressable>
 
-                    {/* รูปลองเสื้อ (VTON) */}
                     {enableImages && (
                       <Pressable
                         onPress={() => handlePickTryOnImage(opt.id!)}
@@ -623,7 +638,6 @@ export default function OptionsScreen() {
           )}
         </ScrollView>
 
-        {/* bottom form สำหรับเพิ่มตัวเลือก */}
         {variantCreated && showOptionForm && (
           <Box
             position="absolute"
@@ -678,7 +692,6 @@ export default function OptionsScreen() {
         )}
       </KeyboardAvoidingView>
 
-      {/* ปุ่มบันทึกอยู่นอก KeyboardAvoidingView ชิดขอบล่างจอ */}
       <Box
         position="absolute"
         left={0}

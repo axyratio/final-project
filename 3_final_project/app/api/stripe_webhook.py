@@ -62,6 +62,9 @@ def _update_orders_paid(db: Session, payment_id: UUID) -> None:
     orders = db.query(Order).filter(Order.payment_id == payment_id).all()
     for o in orders:
         # ถ้าออเดอร์ไปไกลกว่าเตรียมแล้ว อย่า downgrade
+        if not o.paid_at:
+            o.paid_at = now_utc()
+        
         if o.order_status in {"SHIPPED", "DELIVERED", "COMPLETED", "RETURNING", "RETURNED"}:
             continue
 

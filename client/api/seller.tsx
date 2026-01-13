@@ -1,7 +1,7 @@
 // api/seller.tsx
+import type { ShippingAddress } from "@/api/address";
 import { DOMAIN } from "@/้host";
 import axios from "axios";
-import type { ShippingAddress } from "@/api/address";
 
 // Toggle สำหรับใช้ Mock Data หรือ API จริง
 const USE_MOCK_DATA = false; // ✅ เปลี่ยนเป็น false เพื่อใช้ API จริง
@@ -59,6 +59,8 @@ export type SellerOrder = {
   courier_name?: string;
   created_at: string;
   paid_at?: string;
+  delivered_at?: string;
+  completed_at?: string;
   order_items: Array<{
     order_item_id: string;
     product_id: string;

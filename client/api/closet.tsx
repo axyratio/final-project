@@ -116,11 +116,9 @@ async function getHeaders(includeContentType = true): Promise<HeadersInit> {
 
 // ✅ สร้าง file object ที่ถูกต้องสำหรับ React Native
 function createFileObject(uri: string, filename: string = "upload.jpg") {
-  // ตรวจสอบ extension
   const uriParts = uri.split(".");
   const fileExtension = uriParts[uriParts.length - 1].toLowerCase();
 
-  // กำหนด MIME type
   let mimeType = "image/jpeg";
   if (fileExtension === "png") {
     mimeType = "image/png";
@@ -132,7 +130,6 @@ function createFileObject(uri: string, filename: string = "upload.jpg") {
     mimeType = "image/webp";
   }
 
-  // สำหรับ React Native ต้องใช้ format นี้
   return {
     uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
     type: mimeType,
@@ -159,7 +156,7 @@ export const closetApi = {
         name: file.name,
       });
 
-      // @ts-ignore - FormData ใน React Native รองรับ object แบบนี้
+      // @ts-ignore
       formData.append("file", file);
 
       const headers = await getHeaders(false);
@@ -336,8 +333,6 @@ export const closetApi = {
 
   // ==================== PRODUCT GARMENTS (เสื้อจากสินค้า) ====================
 
-// ในไฟล์ที่มี export const closetApi = { ... }
-
   async addProductGarment(productId: string, variantId: string): Promise<void> {
     try {
       console.log("📤 [PRODUCT GARMENT] Adding:", { productId, variantId });
@@ -346,7 +341,7 @@ export const closetApi = {
       formData.append("product_id", productId);
       formData.append("variant_id", variantId);
 
-      const headers = await getHeaders(false); // ✅ ไม่มี Content-Type ให้ fetch ใส่ boundary เอง
+      const headers = await getHeaders(false);
       const url = `${BASE_URL}/vton/product-garments`;
 
       const response = await fetch(url, {
@@ -359,7 +354,6 @@ export const closetApi = {
         const errorText = await response.text();
         console.error("❌ [PRODUCT GARMENT] Error:", errorText);
 
-        // ✅ ถ้า server ยังตอบ 400 เพราะซ้ำ (หรือข้อความซ้ำ) -> ไม่ต้อง throw
         if (
           response.status === 400 &&
           (errorText.includes("ถูกเพิ่มไว้แล้ว") ||
@@ -371,7 +365,6 @@ export const closetApi = {
 
         try {
           const error = JSON.parse(errorText);
-          // ✅ ถ้า detail/message บอกว่าซ้ำ -> เงียบ
           const msg = String(error.detail || error.message || "");
           if (msg.includes("ถูกเพิ่มไว้แล้ว") || msg.includes("already") || msg.includes("exists")) {
             return;
@@ -386,12 +379,10 @@ export const closetApi = {
       console.log("✅ [PRODUCT GARMENT] Added/Exists:", result);
       return;
     } catch (error) {
-      // ✅ สุดท้าย: ไม่ให้เด้ง error ขึ้น UI จากการเพิ่มซ้ำ
       console.error("❌ [PRODUCT GARMENT] Exception:", error);
       return;
     }
   },
-
 
   async getProductGarments(): Promise<ProductVariant[]> {
     try {
@@ -637,6 +628,29 @@ export const closetApi = {
       return result.data.sessions;
     } catch (error) {
       console.error("❌ [GET SESSIONS] Error:", error);
+      throw error;
+    }
+  },
+
+  // ✅ เพิ่มฟังก์ชันลบ VTON Session
+  async deleteVTONSession(sessionId: string): Promise<void> {
+    try {
+      console.log("🗑️ [DELETE SESSION] Deleting session:", sessionId);
+      const headers = await getHeaders();
+
+      const response = await fetch(`${BASE_URL}/vton/sessions/${sessionId}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Delete session failed");
+      }
+
+      console.log("✅ [DELETE SESSION] Success");
+    } catch (error) {
+      console.error("❌ [DELETE SESSION] Error:", error);
       throw error;
     }
   },

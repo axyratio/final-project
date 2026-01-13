@@ -247,6 +247,9 @@ class SellerService:
                 'courier_name': order.courier_name,
                 'created_at': order.created_at.isoformat() if order.created_at else None,
                 'paid_at': order.paid_at.isoformat() if order.paid_at else None,
+                'delivered_at': order.delivered_at.isoformat() if order.delivered_at else None,
+                'completed_at': order.completed_at.isoformat() if order.completed_at else None,
+
                 'order_items': order_items,
                 'shipping_address': {
                     'full_name': shipping_addr.full_name,

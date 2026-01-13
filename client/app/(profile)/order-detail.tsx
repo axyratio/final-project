@@ -7,6 +7,7 @@ import {
   OrderItem,
 } from "@/api/order";
 import { Colors } from "@/constants/theme";
+import { formatDateTimeTH } from "@/utils/datetime";
 import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -295,6 +296,31 @@ export default function OrderDetailScreen() {
             </VStack>
           </Box>
         )}
+
+        {/* Time Section */}
+<Box bg="white" p={4} mb={2}>
+  <Text fontSize="sm" fontWeight="bold" mb={2}>
+    ข้อมูลเวลา
+  </Text>
+
+  <VStack space={2}>
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ชำระเงิน</Text>
+      <Text fontSize="xs" fontWeight="medium">{formatDateTimeTH(order.paid_at)}</Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">จัดส่งสำเร็จ</Text>
+      <Text fontSize="xs" fontWeight="medium">{formatDateTimeTH(order.delivered_at)}</Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ยืนยันรับสินค้า</Text>
+      <Text fontSize="xs" fontWeight="medium">{formatDateTimeTH(order.completed_at)}</Text>
+    </HStack>
+  </VStack>
+</Box>
+
 
         {/* Order Items */}
         <Box bg="white" p={4} mb={2}>

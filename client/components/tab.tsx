@@ -1,62 +1,70 @@
 // components/tab/index.tsx
 import { Box, Pressable, Text } from "native-base";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+
+type TabKey = "products" | "categories" | "closed";
 
 type MyTabsProps = {
-  productContent: React.ReactNode;   // เนื้อหาของแท็บ "รายการสินค้า"
-  categoryContent: React.ReactNode;  // เนื้อหาของแท็บ "หมวดหมู่"
-  initialTab?: "products" | "categories";
+  productContent: React.ReactNode;
+  categoryContent: React.ReactNode;
+
+  // ✅ เพิ่มแบบ optional: ถ้าไม่ส่งมา จะไม่มีแท็บ “ปิดการขาย”
+  closedContent?: React.ReactNode;
+
+  // ✅ ให้ initialTab รองรับ closed ด้วย (แต่ถ้าไม่มี closedContent แล้ว initialTab=closed จะ fallback)
+  initialTab?: TabKey;
 };
 
 export default function MyTabs({
   productContent,
   categoryContent,
+  closedContent,
   initialTab = "products",
 }: MyTabsProps) {
-  const [tab, setTab] = useState<"products" | "categories">(initialTab);
+  const tabs = useMemo(() => {
+    const base: Array<{ key: TabKey; label: string }> = [
+      { key: "products", label: "รายการสินค้า" },
+      { key: "categories", label: "หมวดหมู่" },
+    ];
+    if (closedContent) base.push({ key: "closed", label: "ปิดการขาย" });
+    return base;
+  }, [closedContent]);
+
+  const safeInitialTab: TabKey =
+    initialTab === "closed" && !closedContent ? "products" : initialTab;
+
+  const [tab, setTab] = useState<TabKey>(safeInitialTab);
+
+  const renderContent = () => {
+    if (tab === "products") return productContent;
+    if (tab === "categories") return categoryContent;
+    return closedContent ?? productContent; // กันพัง
+  };
 
   return (
     <Box flex={1}>
-      {/* Tabs bar */}
       <Box flexDirection="row" bg="white" shadow={2}>
-        <Pressable
-          flex={1}
-          p={3}
-          onPress={() => setTab("products")}
-          style={{ alignItems: "center" }}
-        >
-          <Text
-            color={tab === "products" ? "violet.600" : "gray.500"}
-            fontWeight={tab === "products" ? "bold" : "normal"}
-          >
-            รายการสินค้า
-          </Text>
-          {tab === "products" && (
-            <Box height="2px" bg="violet.600" width="50%" mt={2} />
-          )}
-        </Pressable>
-
-        <Pressable
-          flex={1}
-          p={3}
-          onPress={() => setTab("categories")}
-          style={{ alignItems: "center" }}
-        >
-          <Text
-            color={tab === "categories" ? "violet.600" : "gray.500"}
-            fontWeight={tab === "categories" ? "bold" : "normal"}
-          >
-            หมวดหมู่
-          </Text>
-          {tab === "categories" && (
-            <Box height="2px" bg="violet.600" width="50%" mt={2} />
-          )}
-        </Pressable>
+        {tabs.map((t) => {
+          const active = tab === t.key;
+          return (
+            <Pressable
+              key={t.key}
+              flex={1}
+              p={3}
+              onPress={() => setTab(t.key)}
+              style={{ alignItems: "center" }}
+            >
+              <Text color={active ? "violet.600" : "gray.500"} fontWeight={active ? "bold" : "normal"}>
+                {t.label}
+              </Text>
+              {active && <Box height="2px" bg="violet.600" width="50%" mt={2} />}
+            </Pressable>
+          );
+        })}
       </Box>
 
-      {/* Content */}
       <Box flex={1} p={4}>
-        {tab === "products" ? productContent : categoryContent}
+        {renderContent()}
       </Box>
     </Box>
   );

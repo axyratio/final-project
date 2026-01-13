@@ -1,5 +1,6 @@
 // components/profile/order-card.tsx
 import { Order, OrderItem } from "@/api/order";
+import { formatDateTimeTH } from "@/utils/datetime";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
@@ -70,18 +71,34 @@ function OrderItemRow({ item }: { item: OrderItem }) {
 
 function getStatusBadgeColor(status: string): string {
   switch (status) {
-    case "PENDING":
+    case "UNPAID":
+      return "error";
+    case "PAID":
+    case "PREPARING":
       return "warning";
     case "SHIPPED":
       return "info";
     case "DELIVERED":
       return "success";
+    case "COMPLETED":
+      return "success";
+    case "RETURNING":
+      return "muted";
+    case "APPROVED":
+      return "success";
+    case "REJECTED":
+      return "error";
+    case "RETURNED":
+      return "coolGray";
+    case "CANCELLED":
+      return "coolGray";
     case "FAILED":
       return "error";
     default:
       return "gray";
   }
 }
+
 
 const _OrderCard: React.FC<OrderCardProps> = ({
   order,
@@ -163,6 +180,31 @@ const _OrderCard: React.FC<OrderCardProps> = ({
         </HStack>
       )}
 
+      <Box bg="coolGray.50" p={3} borderRadius={8} mb={3}>
+  <VStack space={1}>
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ชำระเงิน</Text>
+      <Text fontSize="xs" fontWeight="medium" color="gray.800">
+        {formatDateTimeTH(order.paid_at)}
+      </Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">จัดส่งสำเร็จ</Text>
+      <Text fontSize="xs" fontWeight="medium" color="gray.800">
+        {formatDateTimeTH(order.delivered_at)}
+      </Text>
+    </HStack>
+
+    <HStack justifyContent="space-between">
+      <Text fontSize="xs" color="gray.600">ยืนยันรับสินค้า</Text>
+      <Text fontSize="xs" fontWeight="medium" color="gray.800">
+        {formatDateTimeTH(order.completed_at)}
+      </Text>
+    </HStack>
+  </VStack>
+</Box>
+
       {/* Total Price */}
       <HStack
         justifyContent="space-between"
@@ -179,6 +221,7 @@ const _OrderCard: React.FC<OrderCardProps> = ({
           ฿{order.total_price.toFixed(0)}
         </Text>
       </HStack>
+
 
       {/* Action Buttons */}
       <HStack space={2} justifyContent="flex-end" flexWrap="wrap">
