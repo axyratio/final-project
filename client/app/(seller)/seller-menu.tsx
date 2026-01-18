@@ -1,511 +1,347 @@
 // app/(seller)/seller-menu.tsx
-import { fetchSellerNotifications } from "@/api/seller";
-import { Colors } from "@/constants/theme";
-import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import {
-    Badge,
-    Box,
-    HStack,
-    Icon,
-    Pressable,
-    ScrollView,
-    StatusBar,
-    Text,
-    VStack,
-} from "native-base";
 import React, { useEffect, useState } from "react";
-import { useColorScheme } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-type MenuItem = {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route: string;
-  badge?: number;
-  color: string;
-};
+import { sellerAPI } from "@/api/seller";
+import { getGlobalStoreId, setGlobalStoreId } from "@/utils/fetch-interceptor";
+import { getStoreId, saveStoreId } from "@/utils/secure-store";
+
+interface BadgeCounts {
+  unread_notifications: number;
+  preparing_orders: number;
+  pending_returns: number;
+  unread_chats: number;
+}
 
 export default function SellerMenuScreen() {
-  const colorScheme = useColorScheme();
-  const themeColors = Colors[colorScheme ?? "light"];
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [badges, setBadges] = useState<BadgeCounts>({
+    unread_notifications: 0,
+    preparing_orders: 0,
+    pending_returns: 0,
+    unread_chats: 0,
+  });
 
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [preparingCount, setPreparingCount] = useState(0);
-  const [returnCount, setReturnCount] = useState(0);
-
-  useEffect(() => {
-    loadCounts();
-  }, []);
-
-  const loadCounts = async () => {
+  /**
+   * ✅ ฟังก์ชันสำหรับโหลดและตั้งค่า Store ID
+   * เลียนแบบ validateToken() ใน fetch-interceptor
+   */
+  const loadAndSetStoreId = async (): Promise<string | null> => {
     try {
-      const token = await getToken();
-      if (!token) return;
+      // 1. เช็คจาก Global Variable ก่อน (in-memory)
+      const cachedStoreId = getGlobalStoreId();
+      if (cachedStoreId) {
+        console.log("[Store] Using cached store ID:", cachedStoreId);
+        return cachedStoreId;
+      }
 
-      const notifications = await fetchSellerNotifications(token);
-      const unread = notifications.filter((n) => !n.is_read).length;
-      setUnreadCount(unread);
+      // 2. ถ้าไม่มีใน memory ให้โหลดจาก SecureStore
+      const storedId = await getStoreId();
 
-      // TODO: Load preparing orders count and return requests count
-      setPreparingCount(15); // Mock data
-      setReturnCount(3); // Mock data
+      if (storedId) {
+        console.log("[Store] Loaded store ID from SecureStore:", storedId);
+        // เก็บลง Global Variable
+        setGlobalStoreId(storedId);
+        return storedId;
+      }
+
+      // 3. ถ้าไม่มีใน SecureStore ให้ดึงจาก API
+      console.log("[Store] No stored ID, fetching from API...");
+      const storeData = await sellerAPI.getMyStore(); // สมมติว่ามี API นี้
+
+      if (storeData?.store_id) {
+        console.log("[Store] Fetched store ID from API:", storeData.store_id);
+
+        // บันทึกลง SecureStore
+        await saveStoreId(storeData.store_id);
+
+        // เก็บลง Global Variable
+        setGlobalStoreId(storeData.store_id);
+
+        return storeData.store_id;
+      }
+
+      console.warn("[Store] No store ID found");
+      return null;
     } catch (error) {
-      console.error("Error loading counts:", error);
+      console.error("[Store] Error loading store ID:", error);
+      return null;
     }
   };
 
-  const menuItems: MenuItem[] = [
-    {
-      id: "store",
-      title: "ร้านค้าของฉัน",
-      subtitle: "จัดการข้อมูลร้านค้าและสินค้า",
-      icon: "storefront",
-      route: "/(store)/mystore",
-      color: "#7c3aed",
-    },
-    {
-      id: "orders",
-      title: "การสั่งซื้อ",
-      subtitle: "จัดการออเดอร์และการจัดส่ง",
-      icon: "receipt",
-      route: "/(seller)/orders",
-      badge: preparingCount,
-      color: "#f59e0b",
-    },
-    {
-      id: "returns",
-      title: "การคืนสินค้า",
-      subtitle: "จัดการคำขอคืนสินค้า",
-      icon: "return-down-back",
-      route: "/(seller)/returns",
-      badge: returnCount,
-      color: "#ef4444",
-    },
-    {
-      id: "dashboard",
-      title: "Dashboard",
-      subtitle: "สถิติและรายงานการขาย",
-      icon: "analytics",
-      route: "/(seller)/dashboard",
-      color: "#10b981",
-    },
-    {
-      id: "notifications",
-      title: "การแจ้งเตือน",
-      subtitle: "ข่าวสารและกิจกรรมของร้าน",
-      icon: "notifications",
-      route: "/(seller)/notifications",
-      badge: unreadCount,
-      color: "#3b82f6",
-    },
-  ];
+  // โหลดข้อมูลเมื่อเปิดหน้า
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
 
-  const renderMenuItem = (item: MenuItem) => (
-    <Pressable
-      key={item.id}
-      onPress={() => router.push(item.route as any)}
-      mb={3}
-      _pressed={{ opacity: 0.7 }}
-    >
-      <Box
-        bg="white"
-        rounded="xl"
-        p={4}
-        shadow={2}
-        borderLeftWidth={0}
-        borderLeftColor={item.color}
-      >
-        <HStack alignItems="center" space={4}>
-          {/* Icon */}
-          <Box
-            bg={`${item.color}15`}
-            p={3}
-            rounded="full"
-          >
-            <Icon
-              as={Ionicons}
-              name={item.icon}
-              size="lg"
-              color={item.color}
-            />
-          </Box>
+        // ✅ โหลดและตั้งค่า Store ID ก่อน
+        const storeId = await loadAndSetStoreId();
 
-          {/* Content */}
-          <VStack flex={1}>
-            <HStack alignItems="center" space={2}>
-              <Text fontSize="md" fontWeight="bold" color="gray.800">
-                {item.title}
-              </Text>
-              {item.badge && item.badge > 0 ? (
-                <Badge
-                  bg={item.color}
-                  rounded="full"
-                  _text={{ color: "white", fontSize: "xs", fontWeight: "bold" }}
-                >
-                  {item.badge}
-                </Badge>
-              ) : null}
-            </HStack>
-            <Text fontSize="xs" color="gray.500" mt={0.5}>
-              {item.subtitle}
-            </Text>
-          </VStack>
+        if (!storeId) {
+          Alert.alert("ไม่พบข้อมูลร้านค้า", "กรุณาสร้างร้านค้าก่อนใช้งาน", [
+            {
+              text: "สร้างร้านค้า",
+              onPress: () => router.push("/(store)/create-store"),
+            },
+            {
+              text: "ยกเลิก",
+              style: "cancel",
+            },
+          ]);
+          setLoading(false);
+          return;
+        }
 
-          {/* Arrow */}
-          <Icon
-            as={Ionicons}
-            name="chevron-forward"
-            size="sm"
-            color="gray.400"
-          />
-        </HStack>
-      </Box>
-    </Pressable>
-  );
+        // ✅ โหลด Badge Counts หลังจาก Store ID พร้อมแล้ว
+        console.log("[SellerMenu] Loading badges for store:", storeId);
+        const data = await sellerAPI.getBadgeCounts();
+        console.log("[SellerMenu] Badge counts:", data);
+        setBadges(data);
+      } catch (error: any) {
+        console.error("[SellerMenu] Load error:", error);
+        Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // ฟังก์ชันเปิดหน้า Chat
+  const handleOpenChats = () => {
+    // ✅ ไม่ต้องส่ง params เพราะหน้า Chat จะดึงจาก Global Variable เอง
+    router.push("/(seller)/chat" as any);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#8b5cf6" />
+          <Text style={styles.loadingText}>กำลังโหลด...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <Box flex={1} bg="coolGray.50">
-      <StatusBar backgroundColor="#7c3aed" barStyle="light-content" />
-      <Box safeAreaTop bg="violet.600" />
-
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {/* Header */}
-      <Box bg="violet.600" px={4} py={4}>
-        <HStack alignItems="center" space={3}>
-          <Pressable onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="white" />
-          </Pressable>
-          <VStack flex={1}>
-            <Text fontSize="xl" fontWeight="bold" color="white">
-              Seller Menu
-            </Text>
-            <Text fontSize="xs" color="white" opacity={0.8}>
-              จัดการร้านค้าของคุณ
-            </Text>
-          </VStack>
-          <Pressable onPress={() => router.push("/(seller)/notifications" as any)}>
-            <Box position="relative">
-              <Ionicons name="notifications-outline" size={24} color="white" />
-              {unreadCount > 0 && (
-                <Box
-                  position="absolute"
-                  top={-4}
-                  right={-4}
-                  bg="red.500"
-                  rounded="full"
-                  minW={5}
-                  h={5}
-                  alignItems="center"
-                  justifyContent="center"
-                >
-                  <Text color="white" fontSize="xs" fontWeight="bold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </Text>
-                </Box>
-              )}
-            </Box>
-          </Pressable>
-        </HStack>
-      </Box>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>เมนูผู้ขาย</Text>
+        <View style={{ width: 24 }} />
+      </View>
 
       {/* Menu Items */}
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <VStack p={4} space={0}>
-          {menuItems.map(renderMenuItem)}
-        </VStack>
-      </ScrollView>
-    </Box>
+      <View style={styles.menuContainer}>
+        {/* Dashboard */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/(seller)/dashboard")}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="stats-chart" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>แดชบอร์ด</Text>
+            <Text style={styles.menuDescription}>สรุปยอดขายและสถิติ</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/(store)/mystore")}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="storefront" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>ร้านค้า</Text>
+            <Text style={styles.menuDescription}>จัดการร้านค้าของฉัน</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+
+        {/* Orders */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/(seller)/orders")}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="cart" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>จัดการคำสั่งซื้อ</Text>
+            <Text style={styles.menuDescription}>คำสั่งซื้อทั้งหมด</Text>
+          </View>
+          {badges.preparing_orders > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badges.preparing_orders}</Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+
+        {/* Returns */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/(seller)/returns")}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="return-up-back" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>คำขอคืนสินค้า</Text>
+            <Text style={styles.menuDescription}>จัดการการคืนสินค้า</Text>
+          </View>
+          {badges.pending_returns > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badges.pending_returns}</Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+
+        {/* Chats */}
+        <TouchableOpacity style={styles.menuItem} onPress={handleOpenChats}>
+          <View style={styles.menuIcon}>
+            <Ionicons name="chatbubbles" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>แชทลูกค้า</Text>
+            <Text style={styles.menuDescription}>ข้อความจากลูกค้า</Text>
+          </View>
+          {badges.unread_chats > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{badges.unread_chats}</Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+
+        {/* Notifications */}
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push("/(seller)/notifications")}
+        >
+          <View style={styles.menuIcon}>
+            <Ionicons name="notifications" size={24} color="#8b5cf6" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>การแจ้งเตือน</Text>
+            <Text style={styles.menuDescription}>การแจ้งเตือนทั้งหมด</Text>
+          </View>
+          {badges.unread_notifications > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {badges.unread_notifications}
+              </Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={20} color="#999" />
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
-
-// แบบดึง API ทั้งตำบล
-// app/(seller)/seller-menu.tsx
-// import { fetchSellerNotifications, fetchSellerDashboard } from "@/api/seller";
-// import { Colors } from "@/constants/theme";
-// import { getToken } from "@/utils/secure-store";
-// import { Ionicons } from "@expo/vector-icons";
-// import { useRouter } from "expo-router";
-// import {
-//   Badge,
-//   Box,
-//   HStack,
-//   Icon,
-//   Pressable,
-//   ScrollView,
-//   StatusBar,
-//   Text,
-//   VStack,
-//   Spinner,
-//   Center,
-// } from "native-base";
-// import React, { useEffect, useState } from "react";
-// import { useColorScheme } from "react-native";
-
-// type MenuItem = {
-//   id: string;
-//   title: string;
-//   subtitle: string;
-//   icon: keyof typeof Ionicons.glyphMap;
-//   route: string;
-//   badge?: number;
-//   color: string;
-// };
-
-// export default function SellerMenuScreen() {
-//   const colorScheme = useColorScheme();
-//   const themeColors = Colors[colorScheme ?? "light"];
-//   const router = useRouter();
-
-//   // ✅ State สำหรับ Badge counts
-//   const [unreadCount, setUnreadCount] = useState(0);
-//   const [preparingCount, setPreparingCount] = useState(0);
-//   const [returnCount, setReturnCount] = useState(0);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     loadCounts();
-//   }, []);
-
-//   const loadCounts = async () => {
-//     try {
-//       setLoading(true);
-//       setError(null);
-
-//       const token = await getToken();
-//       if (!token) {
-//         router.replace("/login");
-//         return;
-//       }
-
-//       // ✅ 1. โหลดการแจ้งเตือนที่ยังไม่ได้อ่าน
-//       const notifications = await fetchSellerNotifications(token);
-//       const unread = notifications.filter((n) => !n.is_read).length;
-//       setUnreadCount(unread);
-
-//       // ✅ 2. โหลด Dashboard เพื่อดึงข้อมูล order และ return
-//       const dashboardData = await fetchSellerDashboard(token);
-      
-//       // ✅ 3. จำนวน order ที่กำลังเตรียม (PREPARING)
-//       setPreparingCount(dashboardData.order_status_count.preparing);
-
-//       // ✅ 4. จำนวนคำขอคืนสินค้าที่รอดำเนินการ (PENDING)
-//       setReturnCount(dashboardData.pending_returns);
-
-//     } catch (error: any) {
-//       console.error("❌ Error loading counts:", error);
-//       setError(error.message || "ไม่สามารถโหลดข้อมูลได้");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const menuItems: MenuItem[] = [
-//     {
-//       id: "store",
-//       title: "ร้านค้าของฉัน",
-//       subtitle: "จัดการข้อมูลร้านค้าและสินค้า",
-//       icon: "storefront",
-//       route: "/(store)/mystore",
-//       color: "#7c3aed",
-//     },
-//     {
-//       id: "orders",
-//       title: "การสั่งซื้อ",
-//       subtitle: "จัดการออเดอร์และการจัดส่ง",
-//       icon: "receipt",
-//       route: "/(seller)/orders",
-//       badge: preparingCount, // ✅ แสดงจำนวนจริงจาก API
-//       color: "#f59e0b",
-//     },
-//     {
-//       id: "returns",
-//       title: "การคืนสินค้า",
-//       subtitle: "จัดการคำขอคืนสินค้า",
-//       icon: "return-down-back",
-//       route: "/(seller)/returns",
-//       badge: returnCount, // ✅ แสดงจำนวนจริงจาก API
-//       color: "#ef4444",
-//     },
-//     {
-//       id: "dashboard",
-//       title: "Dashboard",
-//       subtitle: "สถิติและรายงานการขาย",
-//       icon: "analytics",
-//       route: "/(seller)/dashboard",
-//       color: "#10b981",
-//     },
-//     {
-//       id: "notifications",
-//       title: "การแจ้งเตือน",
-//       subtitle: "ข่าวสารและกิจกรรมของร้าน",
-//       icon: "notifications",
-//       route: "/(seller)/notifications",
-//       badge: unreadCount, // ✅ แสดงจำนวนจริงจาก API
-//       color: "#3b82f6",
-//     },
-//   ];
-
-//   const renderMenuItem = (item: MenuItem) => (
-//     <Pressable
-//       key={item.id}
-//       onPress={() => router.push(item.route as any)}
-//       mb={3}
-//       _pressed={{ opacity: 0.7 }}
-//     >
-//       <Box
-//         bg="white"
-//         rounded="xl"
-//         p={4}
-//         shadow={2}
-//         borderLeftWidth={4}
-//         borderLeftColor={item.color}
-//       >
-//         <HStack alignItems="center" space={4}>
-//           {/* Icon */}
-//           <Box bg={`${item.color}15`} p={3} rounded="full">
-//             <Icon as={Ionicons} name={item.icon} size="lg" color={item.color} />
-//           </Box>
-
-//           {/* Content */}
-//           <VStack flex={1}>
-//             <HStack alignItems="center" space={2}>
-//               <Text fontSize="md" fontWeight="bold" color="gray.800">
-//                 {item.title}
-//               </Text>
-//               {/* ✅ แสดง Badge เฉพาะเมื่อมีจำนวน > 0 */}
-//               {item.badge && item.badge > 0 ? (
-//                 <Badge
-//                   bg={item.color}
-//                   rounded="full"
-//                   _text={{
-//                     color: "white",
-//                     fontSize: "xs",
-//                     fontWeight: "bold",
-//                   }}
-//                 >
-//                   {item.badge > 99 ? "99+" : item.badge}
-//                 </Badge>
-//               ) : null}
-//             </HStack>
-//             <Text fontSize="xs" color="gray.500" mt={0.5}>
-//               {item.subtitle}
-//             </Text>
-//           </VStack>
-
-//           {/* Arrow */}
-//           <Icon as={Ionicons} name="chevron-forward" size="sm" color="gray.400" />
-//         </HStack>
-//       </Box>
-//     </Pressable>
-//   );
-
-//   return (
-//     <Box flex={1} bg="coolGray.50">
-//       <StatusBar backgroundColor="#7c3aed" barStyle="light-content" />
-//       <Box safeAreaTop bg="violet.600" />
-
-//       {/* Header */}
-//       <Box bg="violet.600" px={4} py={4}>
-//         <HStack alignItems="center" space={3}>
-//           <Pressable onPress={() => router.back()}>
-//             <Ionicons name="arrow-back" size={24} color="white" />
-//           </Pressable>
-//           <VStack flex={1}>
-//             <Text fontSize="xl" fontWeight="bold" color="white">
-//               Seller Menu
-//             </Text>
-//             <Text fontSize="xs" color="white" opacity={0.8}>
-//               จัดการร้านค้าของคุณ
-//             </Text>
-//           </VStack>
-//           <Pressable onPress={() => router.push("/(seller)/notifications" as any)}>
-//             <Box position="relative">
-//               <Ionicons name="notifications-outline" size={24} color="white" />
-//               {/* ✅ แสดง Badge จำนวนการแจ้งเตือนที่ยังไม่ได้อ่าน */}
-//               {unreadCount > 0 && (
-//                 <Box
-//                   position="absolute"
-//                   top={-4}
-//                   right={-4}
-//                   bg="red.500"
-//                   rounded="full"
-//                   minW={5}
-//                   h={5}
-//                   alignItems="center"
-//                   justifyContent="center"
-//                 >
-//                   <Text color="white" fontSize="xs" fontWeight="bold">
-//                     {unreadCount > 9 ? "9+" : unreadCount}
-//                   </Text>
-//                 </Box>
-//               )}
-//             </Box>
-//           </Pressable>
-//         </HStack>
-//       </Box>
-
-//       {/* Content */}
-//       {loading ? (
-//         // ✅ Loading State
-//         <Center flex={1}>
-//           <Spinner size="lg" color="violet.600" />
-//           <Text mt={2} color="gray.500">
-//             กำลังโหลดข้อมูล...
-//           </Text>
-//         </Center>
-//       ) : error ? (
-//         // ✅ Error State
-//         <Center flex={1} px={4}>
-//           <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
-//           <Text mt={4} fontSize="md" color="gray.700" textAlign="center">
-//             {error}
-//           </Text>
-//           <Pressable
-//             mt={4}
-//             px={6}
-//             py={3}
-//             bg="violet.600"
-//             rounded="lg"
-//             onPress={loadCounts}
-//           >
-//             <Text color="white" fontWeight="bold">
-//               ลองใหม่อีกครั้ง
-//             </Text>
-//           </Pressable>
-//         </Center>
-//       ) : (
-//         // ✅ Menu Items
-//         <ScrollView showsVerticalScrollIndicator={false}>
-//           <VStack p={4} space={0}>
-//             {menuItems.map(renderMenuItem)}
-//           </VStack>
-
-//           {/* ✅ เพิ่มปุ่ม Refresh (Optional) */}
-//           <Box px={4} pb={4}>
-//             <Pressable
-//               onPress={loadCounts}
-//               bg="white"
-//               rounded="lg"
-//               p={3}
-//               borderWidth={1}
-//               borderColor="coolGray.200"
-//               _pressed={{ opacity: 0.7 }}
-//             >
-//               <HStack alignItems="center" justifyContent="center" space={2}>
-//                 <Ionicons name="refresh-outline" size={18} color="#7c3aed" />
-//                 <Text fontSize="sm" color="violet.600" fontWeight="medium">
-//                   รีเฟรชข้อมูล
-//                 </Text>
-//               </HStack>
-//             </Pressable>
-//           </Box>
-//         </ScrollView>
-//       )}
-//     </Box>
-//   );
-// }
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f9f9f9",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#fff",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+  },
+  menuContainer: {
+    marginTop: 16,
+    paddingHorizontal: 16,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  menuIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#f3f0ff",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  menuContent: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 4,
+  },
+  menuDescription: {
+    fontSize: 14,
+    color: "#666",
+  },
+  badge: {
+    backgroundColor: "#ef4444",
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 8,
+    minWidth: 24,
+    alignItems: "center",
+  },
+  badgeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+});

@@ -92,3 +92,27 @@ def reorder_items(
         message="เพิ่มสินค้าเข้าตะกร้าสำเร็จ",
         data=result
     )
+    
+@router.post("/{order_id}/update-status")
+async def update_order_status(
+    order_id: UUID,
+    status: str,
+    tracking_number: Optional[str] = None,
+    courier_name: Optional[str] = None,
+    current_user: User = Depends(authenticate_token()),
+    db: Session = Depends(get_db)
+):
+    """อัปเดตสถานะคำสั่งซื้อ (สำหรับผู้ขาย/Admin)"""
+    
+    order = await OrderService.update_order_status_with_notification(
+        db=db,
+        order_id=order_id,
+        new_status=status,
+        tracking_number=tracking_number,
+        courier_name=courier_name
+    )
+    
+    return {
+        "message": "อัปเดตสถานะสำเร็จ",
+        "order": order
+    }

@@ -73,3 +73,19 @@ def delete_account_by_user_id(db: Session, user_id: UUID) -> User:
     
     return True
 
+
+from sqlalchemy.orm import Session
+from typing import Optional
+from uuid import UUID
+from app.models.user import User
+
+class UserRepository:
+    
+    # ... ฟังก์ชันอื่นๆ ที่มีอยู่แล้ว ...
+    
+    @staticmethod
+    def get_user_by_id(db: Session, user_id: UUID) -> Optional[User]:
+        """ดึงข้อมูล user จาก user_id"""
+        return db.query(User).filter(User.user_id == user_id).first()
+    
+    # ถ้ามีฟังก์ชันนี้อยู่แล้วก็ไม่ต้องเพิ่ม

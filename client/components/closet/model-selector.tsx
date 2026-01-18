@@ -1,9 +1,9 @@
-import React from 'react';
-import { Image, Alert } from 'react-native';
-import { Box, Text, Pressable, HStack } from 'native-base';
-import { Ionicons } from '@expo/vector-icons';
 import type { UserTryOnImage } from '@/api/closet';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Box, HStack, Pressable, Text } from 'native-base';
+import React from 'react';
+import { Alert, Image } from 'react-native';
 
 interface ModelSelectorProps {
   userImages: UserTryOnImage[];
@@ -26,7 +26,7 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [3, 4],
-      quality: 0.7
+      quality: 0.5
     });
 
     if (!result.canceled && result.assets[0]) {

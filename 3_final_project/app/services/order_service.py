@@ -11,6 +11,8 @@ from app.models.cart import Cart, CartItem
 from app.models.return_order import ReturnOrder
 from app.models.product import Product, ProductVariant
 from app.models.store import Store
+from app.models.tracking_history import TrackingHistory, TrackingStatus
+from app.services.notification_service import NotificationService
 from app.utils.now_utc import now_utc
 
 
@@ -280,3 +282,8 @@ class OrderService:
             "cart_items_added": items_added,
             "message": f"เพิ่ม {items_added} รายการเข้าตะกร้าสำเร็จ"
         }
+        
+# ==========================================
+# ✅ ตัวอย่างการใช้งานใน routes/order_router.py
+# ==========================================
+

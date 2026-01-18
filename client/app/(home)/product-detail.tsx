@@ -1,4 +1,4 @@
-// app/(customer)/product-detail.tsx
+// app/(home)/product-detail.tsx
 
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -22,6 +22,8 @@ import { IconWithBadge } from "@/components/icon";
 import { ProductMainImage, ProductThumbnailStrip } from "@/components/image";
 import { ModalMode, VariantSelectModal } from "@/components/modal";
 import { ReviewPreviewSection } from "@/components/review/header";
+import { chatAPI } from "@/api/chat";
+import { closetApi } from "@/api/closet"; // ✅ เพิ่ม import
 
 export default function ProductDetailScreen() {
   const router = useRouter();
@@ -124,16 +126,31 @@ export default function ProductDetailScreen() {
     if (modalMode === "try_on") {
       setModalVisible(false);
 
-      // ✅ router ไปหน้า vton แล้ว "เปิดแท็บเสื้อจากสินค้า" ทันที
-      router.push({
-        pathname: "/(tabs)/vton",
-        params: {
+      try {
+        // ✅ เรียก API เพิ่มสินค้าเข้า product garments ก่อน
+        console.log("📤 [TRY_ON] Adding product garment:", {
           productId: product.productId,
           variantId: variant.variantId,
-          tabId: "outfit",
-          outfitTabId: "product",
-        },
-      } as any);
+        });
+
+        await closetApi.addProductGarment(product.productId, variant.variantId);
+
+        console.log("✅ [TRY_ON] Product garment added successfully");
+
+        // ✅ router ไปหน้า vton แล้ว "เปิดแท็บเสื้อจากสินค้า" ทันที
+        // ✅ router พร้อม refresh เพื่อให้ vton.tsx โหลดข้อมูลใหม่
+        router.replace({
+          pathname: "/(tabs)/vton",
+          params: {
+            tab: "outfit",
+            outfitTab: "product",
+            _refresh: Date.now().toString(), // force refresh
+          },
+        } as any);
+      } catch (error) {
+        console.error("❌ [TRY_ON] Error adding product garment:", error);
+        Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถเพิ่มสินค้าเข้าตู้เสื้อได้");
+      }
 
       return;
     }
@@ -289,7 +306,23 @@ export default function ProductDetailScreen() {
               params: { storeId: product.store.storeId },
             } as any)
           }
-          onPressChat={() => console.log("chat with store")}
+          onPressChat={async () => {
+            try {
+              const conv = await chatAPI.createOrGetConversation(product.store.storeId);
+
+              router.push({
+                pathname: "/(chat)/chat",
+                params: {
+                  conversationId: conv.conversation_id,
+                  storeName: conv.store_name ?? product.store.name ?? "ร้านค้า",
+                },
+              } as any);
+            } catch (e) {
+              console.log("[ProductDetail] open chat error", e);
+              Alert.alert("ข้อผิดพลาด", "ไม่สามารถเปิดแชทได้");
+            }
+          }}
+
         />
 
         {/* รีวิวตัวอย่าง + ปุ่มดูทั้งหมด */}
@@ -331,7 +364,7 @@ export default function ProductDetailScreen() {
       <VariantSelectModal
         visible={modalVisible}
         mode={modalMode}
-        variants={variantsForModal} // ✅ try_on จะเหลือเฉพาะรูป VTON
+        variants={variantsForModal}
         onClose={() => setModalVisible(false)}
         onConfirm={handleConfirmVariant}
       />

@@ -103,6 +103,7 @@ def create_product_with_variants_service(
             return error_response("ไม่พบร้านค้าของคุณ", {}, 403)
 
         variant_block = data.get("variant") or {}
+        print(f"[PRODUCT] varaitn data", data.get(""))
 
         product = Product(
             store_id=store.store_id,
@@ -150,7 +151,7 @@ def create_product_with_variants_service(
                 price_delta = float(opt.get("price_delta", 0))
                 
                 # ✅ FIX: คำนวณราคาเต็ม = base_price + price_delta
-                final_price = base_price + price_delta
+                final_price = price_delta
                 
                 print(f"🔢 Creating variant: {name}")
                 print(f"   base_price: {base_price}")
@@ -363,7 +364,7 @@ def update_product_service(
                 stock = int(opt.get("stock", 0))
                 
                 # ✅ FIX: คำนวณราคาเต็ม = base_price + price_delta
-                final_price = base_price + price_delta
+                final_price = price_delta
                 
                 print(f"🔢 Processing variant: {name}")
                 print(f"   base_price: {base_price}")

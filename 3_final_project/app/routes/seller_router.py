@@ -1,9 +1,14 @@
 # app/routes/seller_router.py
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.db.database import get_db
 from app.core.authz import authenticate_token
+from app.models.order import Order
+from app.models.return_order import ReturnOrder, ReturnStatus
+from app.models.seller_notification import SellerNotification
 from app.models.user import User
 from app.models.store import Store
 from app.services.seller_service import SellerService
@@ -189,3 +194,104 @@ async def mark_notification_as_read(
     )
     
     return {"message": "Notification marked as read"}
+
+
+# ========================================
+# FILE 1: app/routes/seller_router.py
+# เพิ่ม endpoint ใหม่
+# ========================================
+
+@router.get("/badge-counts", response_model=dict)
+async def get_seller_badge_counts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticate_token())
+):
+    """
+    ดึงข้อมูล Badge Counts และ Store ID สำหรับหน้า Seller Menu
+    
+    Returns:
+        - store_id: รหัสร้านค้า
+        - unread_notifications: จำนวนการแจ้งเตือนที่ยังไม่ได้อ่าน
+        - preparing_orders: จำนวนออเดอร์ที่กำลังเตรียม
+        - pending_returns: จำนวนคำขอคืนสินค้าที่รอดำเนินการ
+        - unread_chats: จำนวนแชทที่ยังไม่ได้อ่าน
+    """
+    store = get_user_store(db, str(current_user.user_id))
+    
+    badge_counts = SellerService.get_badge_counts(
+        db=db,
+        store_id=str(store.store_id)
+    )
+    
+    return {
+        "data": {
+            "store_id": str(store.store_id),
+            **badge_counts
+        }
+    }
+
+
+# ========================================
+# FILE 2: app/services/seller_service.py
+# เพิ่ม static method ใหม่
+# ========================================
+
+@staticmethod
+def get_badge_counts(db: Session, store_id: str):
+    """
+    ดึงจำนวน Badge ทั้งหมดสำหรับหน้า Seller Menu
+    
+    Returns:
+        - unread_notifications: การแจ้งเตือนที่ยังไม่ได้อ่าน
+        - preparing_orders: ออเดอร์ที่กำลังเตรียม
+        - pending_returns: คำขอคืนสินค้าที่รอดำเนินการ
+        - unread_chats: แชทที่ยังไม่ได้อ่าน
+    """
+    from app.models.chat_conversation import ChatConversation
+    
+    # 1. นับการแจ้งเตือนที่ยังไม่ได้อ่าน
+    unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
+        SellerNotification.store_id == store_id,
+        SellerNotification.is_read == False
+    ).scalar() or 0
+    
+    # 2. นับออเดอร์ที่กำลังเตรียม
+    preparing_orders = db.query(func.count(Order.order_id)).filter(
+        Order.store_id == store_id,
+        Order.order_status == 'PREPARING'
+    ).scalar() or 0
+    
+    # 3. นับคำขอคืนสินค้าที่รอดำเนินการ
+    pending_returns = db.query(func.count(ReturnOrder.return_id)).join(
+        Order, Order.order_id == ReturnOrder.order_id
+    ).filter(
+        Order.store_id == store_id,
+        ReturnOrder.status == ReturnStatus.PENDING
+    ).scalar() or 0
+    
+    # 4. นับแชทที่ยังไม่ได้อ่าน (ข้อความล่าสุดเป็นของลูกค้า และร้านยังไม่ได้อ่าน)
+    unread_chats = db.query(func.count(func.distinct(ChatConversation.conversation_id))).filter(
+        ChatConversation.store_id == store_id,
+        ChatConversation.last_message_from == 'USER',
+        ChatConversation.store_unread_count > 0
+    ).scalar() or 0
+    
+    return {
+        'unread_notifications': unread_notifications,
+        'preparing_orders': preparing_orders,
+        'pending_returns': pending_returns,
+        'unread_chats': unread_chats
+    }
+
+
+# ========================================
+# FILE 3: app/schemas/seller.py
+# เพิ่ม schema ใหม่
+# ========================================
+
+class BadgeCountsResponse(BaseModel):
+    store_id: str
+    unread_notifications: int
+    preparing_orders: int
+    pending_returns: int
+    unread_chats: int

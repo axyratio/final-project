@@ -1,9 +1,8 @@
-// components/vton/OutfitSelector.tsx
-// (หรือ path ที่คุณใช้จริง แต่ไฟล์นี้คือ OutfitSelector อย่างเดียว)
+// components/closet/outfit-selector.tsx
 
 import type { GarmentImage, Product, ProductVariant } from "@/api/closet";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Box, Center, HStack, Pressable, Text } from "native-base";
 import React, { useEffect, useMemo, useState } from "react";
@@ -39,7 +38,6 @@ interface OutfitSelectorProps {
 
   onDeleteProductGarment?: (variantId: string) => void;
 
-  // ✅ ควบคุม tab ย่อยผ่าน id (controlled)
   outfitTabId?: OutfitTabId;
   onChangeOutfitTabId?: (id: OutfitTabId) => void;
 }
@@ -71,55 +69,32 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
   onChangeOutfitTabId,
 }) => {
   const router = useRouter();
-  const routeParams = useLocalSearchParams<{ outfitTabId?: string }>();
 
   const tabIds: OutfitTabId[] = useMemo(() => ["select", "result", "product"], []);
 
-  // ✅ ถ้ามี prop (controlled) ให้ prop ชนะ
+  // ✅ ใช้ prop outfitTabId เป็นหลัก
   const controlledIndex = outfitTabId ? tabIds.indexOf(outfitTabId) : -1;
-
-
-
-  // ✅ ถ้าไม่มี prop ให้ดูจาก route param outfitTabId
-  const routeIndex = useMemo(() => {
-    const p = routeParams.outfitTabId;
-    if (p === "select" || p === "result" || p === "product") {
-      return tabIds.indexOf(p);
-    }
-    return -1;
-  }, [routeParams.outfitTabId, tabIds]);
-
-    console.log("[OutfitSelector] prop outfitTabId =", outfitTabId);
-console.log("[OutfitSelector] route outfitTabId =", routeParams.outfitTabId);
-console.log("[OutfitSelector] controlledIndex =", controlledIndex);
-console.log("[OutfitSelector] routeIndex =", routeIndex);
-
-  const initialIndex = controlledIndex >= 0 ? controlledIndex : routeIndex >= 0 ? routeIndex : 0;
+  const initialIndex = controlledIndex >= 0 ? controlledIndex : 0;
 
   const [activeTab, setActiveTab] = useState(initialIndex);
 
   // ✅ sync internal state <- prop
   useEffect(() => {
-    if (controlledIndex >= 0) setActiveTab(controlledIndex);
-  }, [controlledIndex]);
-
-  // ✅ sync internal state <- route param (เฉพาะกรณีไม่ได้ controlled ด้วย prop)
-  useEffect(() => {
-    if (controlledIndex >= 0) return;
-    if (routeIndex >= 0) setActiveTab(routeIndex);
-  }, [routeIndex, controlledIndex]);
+    if (controlledIndex >= 0) {
+      console.log("🔄 [OutfitSelector] Syncing tab from prop:", outfitTabId);
+      setActiveTab(controlledIndex);
+    }
+  }, [controlledIndex, outfitTabId]);
 
   const setTab = (idx: number) => {
     const safeIdx = Math.max(0, Math.min(idx, tabIds.length - 1));
     const id = tabIds[safeIdx] ?? "select";
 
+    console.log("📍 [OutfitSelector] Changing tab to:", id);
     setActiveTab(safeIdx);
 
-    // แจ้ง parent ถ้ามี
+    // แจ้ง parent
     onChangeOutfitTabId?.(id);
-
-    // ✅ สำคัญ: อัปเดต params ให้ URL/route มี id ของแท็บ (deep link ได้)
-    router.setParams({ outfitTabId: id } as any);
   };
 
   const handlePickImage = async () => {

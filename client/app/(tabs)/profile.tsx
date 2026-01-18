@@ -2,6 +2,7 @@
 import { Avartar } from "@/components/avartar";
 import { CustomPressable } from "@/components/pressable";
 import { Colors } from "@/constants/theme";
+import { globalUserId, logout } from "@/utils/fetch-interceptor";
 import { deleteToken, getToken, saveRole } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import Feather from "@expo/vector-icons/Feather";
@@ -73,9 +74,10 @@ export default function ProfileScreen() {
   // -------------------
   const handleLogout = async () => {
     try {
+      console.log("[LOGOUT] global user id", globalUserId);
       setLoading(true);
-      await deleteToken();
-      router.replace("/login");
+      await logout();
+
     } catch (err) {
       console.log(err);
     } finally {

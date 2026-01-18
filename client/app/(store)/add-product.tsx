@@ -350,8 +350,10 @@ export default function AddProductScreen() {
                 typeof v.price === "number" ? v.price : basePrice;
               const priceDelta =
                 typeof fullPrice === "number"
-                  ? fullPrice - basePrice
+                  ? fullPrice
                   : 0;
+
+                  //  - basePrice
 
               return {
                 id: String(v.variant_id),

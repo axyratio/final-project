@@ -45,8 +45,7 @@ export default function VirtualTryOnPage() {
   const params = useLocalSearchParams<{
     tab?: string;
     outfitTab?: string;
-    productId?: string;
-    variantId?: string;
+    _refresh?: string; // ✅ เพิ่ม param สำหรับ trigger reload
   }>();
 
   const toast = useToast();
@@ -71,7 +70,6 @@ export default function VirtualTryOnPage() {
   const [productGarments, setProductGarments] = useState<ProductVariant[]>([]);
   const [selectedProductGarment, setSelectedProductGarment] = useState<ProductVariant | null>(null);
 
-  // ✅ State สำหรับ VTON Sessions
   const [vtonSessions, setVtonSessions] = useState<VTONSession[]>([]);
 
   const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด", "พื้นหลัง"];
@@ -90,12 +88,19 @@ export default function VirtualTryOnPage() {
 
     const outfitIdx = outfitTabIdToIndex(params.outfitTab);
     setOutfitTabIndex(outfitIdx);
+
+    console.log("🔄 [VTON] Syncing params:", {
+      tab: params.tab,
+      outfitTab: params.outfitTab,
+      tabIdx,
+      outfitIdx,
+    });
   }, [params.tab, params.outfitTab]);
 
-  // ✅ Load ข้อมูลทั้งหมดตอนเริ่มต้น
+  // ✅ Load ข้อมูลทั้งหมดตอนเริ่มต้น + เมื่อมี _refresh
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [params._refresh]);
 
   const loadInitialData = async () => {
     try {
@@ -357,7 +362,6 @@ export default function VirtualTryOnPage() {
     }
   };
 
-  // ✅ ฟังก์ชันลบ VTON Session
   const handleDeleteSession = async (sessionId: string) => {
     try {
       await closetApi.deleteVTONSession(sessionId);
@@ -410,7 +414,6 @@ export default function VirtualTryOnPage() {
       const session = await closetApi.createVTONSession(request);
       setResultImageUrl(session.result_image_url);
 
-      // ✅ เพิ่ม session ใหม่เข้าไปในรายการ
       setVtonSessions((prev) => [session, ...prev]);
 
       toast.closeAll();
@@ -421,7 +424,6 @@ export default function VirtualTryOnPage() {
         duration: 2000,
       });
 
-      // ✅ พาไปหน้าแรก (ผลลัพธ์ AI)
       const nextIndex = 0;
       setCurrentTab(nextIndex);
       setRouteParams({ tab: mainTabIndexToId(nextIndex) });
@@ -500,7 +502,6 @@ export default function VirtualTryOnPage() {
       </Box>
 
       <Box flex={1} p={4}>
-        {/* ✅ TAB 0: ผลลัพธ์ AI */}
         {currentTab === 0 && (
           <ResultSelector 
             sessions={vtonSessions} 
@@ -509,7 +510,6 @@ export default function VirtualTryOnPage() {
           />
         )}
 
-        {/* TAB 1: เลือกโมเดล */}
         {currentTab === 1 && (
           <Box flex={1}>
             <ModelSelector
@@ -527,7 +527,6 @@ export default function VirtualTryOnPage() {
           </Box>
         )}
 
-        {/* TAB 2: เลือกชุด */}
         {currentTab === 2 && (
           <Box flex={1}>
             <OutfitSelector
@@ -591,7 +590,6 @@ export default function VirtualTryOnPage() {
           </Box>
         )}
 
-        {/* TAB 3: พื้นหลัง */}
         {currentTab === 3 && (
           <Box flex={1}>
             <BackgroundSelector

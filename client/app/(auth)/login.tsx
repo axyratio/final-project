@@ -1,3 +1,4 @@
+import { getCurrentUserId, validateToken } from "@/utils/fetch-interceptor"; // 🆕 Import validateToken
 import { getToken, saveRole, saveToken } from "@/utils/secure-store";
 import { useRouter } from "expo-router";
 import { Box, Button, Text } from "native-base";
@@ -57,12 +58,23 @@ export default function Login() {
       }
 
       const data = await res.json();
-      await saveToken(data.access_token); // save token
+      
+      // 🆕 เรียงลำดับการทำงาน:
+      // 1. Save token ก่อน
+      await saveToken(data.access_token);
       await saveRole(data.user_role);
+      
+      // 2. Validate token เพื่อ set globalUserId
+      await validateToken(); // ⭐ ตรงนี้สำคัญ!
+      console.log("[LOGIN] Current User ID after login", getCurrentUserId());
+      
+      console.log('✅ Login successful, globalUserId set');
 
-      router.replace("/(tabs)"); // redirect หลัง login สำเร็จ
+      // 3. Redirect
+      router.replace("/(tabs)");
+      
     } catch (err: any) {
-    console.log(err, "err")
+      console.log(err, "err")
       let errorData = null;
 
       // axios error

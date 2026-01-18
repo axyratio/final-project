@@ -163,25 +163,28 @@ class VTONSession(Base):
     __tablename__ = "vton_sessions"
 
     session_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
-    variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variants.variant_id"), nullable=True)  
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id"), nullable=True)
-    user_image_id = Column(UUID(as_uuid=True), ForeignKey("user_tryon_images.user_image_id"), nullable=False)
-
-    result_image_url = Column(String(255), nullable=True)  # ผลลัพธ์ของการลองเสื้อ
-    model_used = Column(String(100), nullable=True)        # AI model ที่ใช้ เช่น 'TryOn-GAN'
-    generated_at = Column(DateTime, default=now_utc)
-    background_id = Column(UUID(as_uuid=True), ForeignKey("vton_backgrounds.background_id"), nullable=True)
-    garment_id = Column(UUID(as_uuid=True), ForeignKey("garment_images.garment_id"), nullable=True)
-    # ... (relationships เดิม) ...
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     
-    # [เพิ่ม Relationship นี้]
-    background = relationship("VTONBackground", back_populates="sessions")
-    garment = relationship("GarmentImage", backref="vton_sessions")
+    # 🔗 เชื่อมกับสินค้า: ลบสินค้า/Variant -> ลบ Session นี้ทิ้งทันที (CASCADE)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id", ondelete="CASCADE"), nullable=True)
+    variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variants.variant_id", ondelete="CASCADE"), nullable=True)
+
+    # 🔗 เชื่อมกับรูปคน/ชุด/พื้นหลัง: ลบตัวแม่ -> Session ยังอยู่แต่เปลี่ยน ID เป็น NULL (SET NULL)
+    user_image_id = Column(UUID(as_uuid=True), ForeignKey("user_tryon_images.user_image_id", ondelete="SET NULL"), nullable=True)
+    garment_id = Column(UUID(as_uuid=True), ForeignKey("garment_images.garment_id", ondelete="SET NULL"), nullable=True)
+    background_id = Column(UUID(as_uuid=True), ForeignKey("vton_backgrounds.background_id", ondelete="SET NULL"), nullable=True)
+
+    result_image_url = Column(String(255), nullable=True)
+    model_used = Column(String(100), nullable=True)
+    generated_at = Column(DateTime, default=now_utc)
+
+    # Relationships
     user = relationship("User", back_populates="tryon_sessions")
     product = relationship("Product", back_populates="tryon_sessions")
-    user_image = relationship("UserTryOnImage", back_populates="sessions")
     variant = relationship("ProductVariant", back_populates="tryon_sessions")
+    user_image = relationship("UserTryOnImage", back_populates="sessions")
+    garment = relationship("GarmentImage", back_populates="vton_sessions")
+    background = relationship("VTONBackground", back_populates="sessions")
     # reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
     
 

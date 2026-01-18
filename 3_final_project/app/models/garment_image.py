@@ -30,6 +30,7 @@ class GarmentImage(Base):
     
     # Relationships
     user = relationship("User", backref="garment_images")
+    vton_sessions = relationship("VTONSession", back_populates="garment")
     
     
 # app/models/user_product_garment.py

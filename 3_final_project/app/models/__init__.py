@@ -27,7 +27,9 @@ from app.models.store_payout import StorePayout
 from app.models.return_order import ReturnOrder
 from app.models.seller_notification import SellerNotification
 from app.models.garment_image import GarmentImage  # ✅ ต้องมี
-
+from app.models.chat_conversation import ChatConversation
+from app.models.chat_message import ChatMessage, MessageType
+from app.models.notification import Notification, NotificationType
 
 from sqlalchemy.orm import configure_mappers
 configure_mappers()

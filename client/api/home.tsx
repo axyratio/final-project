@@ -1,4 +1,5 @@
 // api/home/homeApi.ts
+import { authFetch } from "@/utils/fetch-interceptor";
 import { DOMAIN } from "@/้host";
 
 const API_BASE_URL = `${DOMAIN}`;
@@ -48,8 +49,8 @@ export type HomeData = {
 // =========================
 
 export async function fetchHomeData(): Promise<HomeData> {
-  const res = await fetch(`${API_BASE_URL}/home`);
-  if (!res.ok) throw new Error("Failed to fetch home data");
+  const res = await authFetch(`${API_BASE_URL}/home`);
+  if (!res.ok) throw new Error("Failed to authFetch home data");
   const json = await res.json();
 
   // สมมติ backend ส่งรูปแบบ:
@@ -82,8 +83,8 @@ export type CategoryPageData = {
 };
 
 export async function fetchCategoryPageData(): Promise<CategoryPageData> {
-  const res = await fetch(`${API_BASE_URL}/home/categories-page`);
-  if (!res.ok) throw new Error("Failed to fetch category page data");
+  const res = await authFetch(`${API_BASE_URL}/home/categories-page`);
+  if (!res.ok) throw new Error("Failed to authFetch category page data");
 
   const json = await res.json();
   const data = json.data ?? json;

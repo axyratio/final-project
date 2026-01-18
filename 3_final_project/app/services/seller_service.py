@@ -16,6 +16,56 @@ from fastapi import HTTPException
 
 
 class SellerService:
+    # app/services/seller_service.py - ส่วนแก้ไข
+# (เฉพาะฟังก์ชัน get_badge_counts)
+
+    @staticmethod
+    def get_badge_counts(db: Session, store_id: str):
+        """
+        ดึงจำนวน Badge ทั้งหมดสำหรับหน้า Seller Menu
+        
+        Returns:
+            - unread_notifications: การแจ้งเตือนที่ยังไม่ได้อ่าน
+            - preparing_orders: ออเดอร์ที่กำลังเตรียม
+            - pending_returns: คำขอคืนสินค้าที่รอดำเนินการ
+            - unread_chats: แชทที่ยังไม่ได้อ่าน
+        """
+        # ป้องกัน Circular Import โดยการ import ภายในฟังก์ชัน
+        from app.models.chat_conversation import ChatConversation
+        
+        # 1. นับการแจ้งเตือนที่ยังไม่ได้อ่าน
+        unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
+            SellerNotification.store_id == store_id,
+            SellerNotification.is_read == False
+        ).scalar() or 0
+        
+        # 2. นับออเดอร์ที่กำลังเตรียม (สถานะ PREPARING)
+        preparing_orders = db.query(func.count(Order.order_id)).filter(
+            Order.store_id == store_id,
+            Order.order_status == 'PREPARING'
+        ).scalar() or 0
+        
+        # 3. นับคำขอคืนสินค้าที่รอดำเนินการ (Join กับตาราง Order เพื่อเช็ค store_id)
+        pending_returns = db.query(func.count(ReturnOrder.return_id)).join(
+            Order, Order.order_id == ReturnOrder.order_id
+        ).filter(
+            Order.store_id == store_id,
+            ReturnOrder.status == ReturnStatus.PENDING
+        ).scalar() or 0
+        
+        # 4. ✅ แก้ไขการนับแชทที่ยังไม่ได้อ่าน
+        # นับจาก store_unread_count ที่มากกว่า 0
+        unread_chats = db.query(func.count(ChatConversation.conversation_id)).filter(
+            ChatConversation.store_id == store_id,
+            ChatConversation.store_unread_count > 0
+        ).scalar() or 0
+        
+        return {
+            'unread_notifications': unread_notifications,
+            'preparing_orders': preparing_orders,
+            'pending_returns': pending_returns,
+            'unread_chats': unread_chats
+        }
     
     @staticmethod
     def get_seller_dashboard(db: Session, store_id: str, month: Optional[str] = None):

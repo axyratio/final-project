@@ -1,5 +1,6 @@
 // api/seller.tsx
 import type { ShippingAddress } from "@/api/address";
+import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import axios from "axios";
 
@@ -102,6 +103,15 @@ export type SellerNotification = {
   created_at: string;
 };
 
+// ✅ เพิ่ม Type สำหรับ Badge Counts (ตาม backend badge-counts)
+export type BadgeCounts = {
+  store_id: string;
+  unread_notifications: number;
+  preparing_orders: number;
+  pending_returns: number;
+  unread_chats: number;
+};
+
 // ================== MOCK DATA (สำหรับทดสอบ) ==================
 
 const MOCK_DASHBOARD: DashboardData = {
@@ -202,10 +212,7 @@ const MOCK_RETURN_REQUESTS: ReturnRequest[] = [
     customer_name: "คุณทดสอบ คืนสินค้า",
     reason: "WRONG_ITEM",
     reason_detail: "ได้รับสินค้าไม่ตรงกับที่สั่ง สีไม่ตรง",
-    image_urls: [
-      "https://via.placeholder.com/200",
-      "https://via.placeholder.com/200",
-    ],
+    image_urls: ["https://via.placeholder.com/200", "https://via.placeholder.com/200"],
     status: "PENDING",
     status_text: "รอการตรวจสอบ",
     refund_amount: 1200,
@@ -237,64 +244,36 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ================== API FUNCTIONS ==================
 
-/**
- * ดึงข้อมูล Dashboard
- */
-export async function fetchSellerDashboard(
-  token: string,
-  month?: string
-): Promise<DashboardData> {
+export async function fetchSellerDashboard(token: string, month?: string): Promise<DashboardData> {
   if (USE_MOCK_DATA) {
     await delay(500);
     return MOCK_DASHBOARD;
   }
 
-  try {
-    const params = month ? { month } : {};
-    const res = await axios.get(`${DOMAIN}/seller/dashboard`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    });
-    const data = res.data?.data || res.data;
-    return data;
-  } catch (error: any) {
-    console.error("❌ Error fetching dashboard:", error.response?.data || error.message);
-    throw error;
-  }
+  const params = month ? { month } : {};
+  const res = await axios.get(`${DOMAIN}/seller/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+  return res.data?.data || res.data;
 }
 
-/**
- * ดึงรายการออเดอร์ของร้าน
- */
-export async function fetchSellerOrders(
-  token: string,
-  status?: string
-): Promise<SellerOrder[]> {
+export async function fetchSellerOrders(token: string, status?: string): Promise<SellerOrder[]> {
   if (USE_MOCK_DATA) {
     await delay(500);
-    if (status) {
-      return MOCK_SELLER_ORDERS.filter((o) => o.order_status === status);
-    }
+    if (status) return MOCK_SELLER_ORDERS.filter((o) => o.order_status === status);
     return MOCK_SELLER_ORDERS;
   }
 
-  try {
-    const params = status ? { status } : {};
-    const res = await axios.get(`${DOMAIN}/seller/orders`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    });
-    const data = res.data?.data || res.data;
-    return data?.orders || [];
-  } catch (error: any) {
-    console.error("❌ Error fetching orders:", error.response?.data || error.message);
-    return [];
-  }
+  const params = status ? { status } : {};
+  const res = await axios.get(`${DOMAIN}/seller/orders`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+  const data = res.data?.data || res.data;
+  return data?.orders || [];
 }
 
-/**
- * ยืนยันออเดอร์และเพิ่ม tracking number
- */
 export async function confirmOrderShipped(
   token: string,
   orderId: string,
@@ -313,56 +292,30 @@ export async function confirmOrderShipped(
     return { message: "ยืนยันการจัดส่งสำเร็จ" };
   }
 
-  try {
-    const res = await axios.post(
-      `${DOMAIN}/seller/orders/${orderId}/ship`,
-      {
-        tracking_number: trackingNumber,
-        courier_name: courierName,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    return res.data;
-  } catch (error: any) {
-    console.error("❌ Error confirming shipment:", error.response?.data || error.message);
-    throw error;
-  }
+  const res = await axios.post(
+    `${DOMAIN}/seller/orders/${orderId}/ship`,
+    { tracking_number: trackingNumber, courier_name: courierName },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
 }
 
-/**
- * ดึงรายการคำขอคืนสินค้า
- */
-export async function fetchReturnRequests(
-  token: string,
-  status?: string
-): Promise<ReturnRequest[]> {
+export async function fetchReturnRequests(token: string, status?: string): Promise<ReturnRequest[]> {
   if (USE_MOCK_DATA) {
     await delay(500);
-    if (status) {
-      return MOCK_RETURN_REQUESTS.filter((r) => r.status === status);
-    }
+    if (status) return MOCK_RETURN_REQUESTS.filter((r) => r.status === status);
     return MOCK_RETURN_REQUESTS;
   }
 
-  try {
-    const params = status ? { status } : {};
-    const res = await axios.get(`${DOMAIN}/seller/returns`, {
-      headers: { Authorization: `Bearer ${token}` },
-      params,
-    });
-    const data = res.data?.data || res.data;
-    return data?.returns || [];
-  } catch (error: any) {
-    console.error("❌ Error fetching returns:", error.response?.data || error.message);
-    return [];
-  }
+  const params = status ? { status } : {};
+  const res = await axios.get(`${DOMAIN}/seller/returns`, {
+    headers: { Authorization: `Bearer ${token}` },
+    params,
+  });
+  const data = res.data?.data || res.data;
+  return data?.returns || [];
 }
 
-/**
- * อนุมัติหรือปฏิเสธการคืนสินค้า
- */
 export async function handleReturnRequest(
   token: string,
   returnId: string,
@@ -376,75 +329,107 @@ export async function handleReturnRequest(
       returnReq.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
       returnReq.status_text = action === "APPROVE" ? "อนุมัติ" : "ปฏิเสธ";
     }
-    return {
-      message: action === "APPROVE" ? "อนุมัติการคืนสินค้าสำเร็จ" : "ปฏิเสธการคืนสินค้าสำเร็จ",
-    };
+    return { message: action === "APPROVE" ? "อนุมัติการคืนสินค้าสำเร็จ" : "ปฏิเสธการคืนสินค้าสำเร็จ" };
   }
 
-  try {
-    const endpoint = action === "APPROVE" ? "approve" : "reject";
-    const res = await axios.post(
-      `${DOMAIN}/seller/returns/${returnId}/${endpoint}`,
-      action === "REJECT" ? { note } : {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    return res.data;
-  } catch (error: any) {
-    console.error("❌ Error handling return:", error.response?.data || error.message);
-    throw error;
-  }
+  const endpoint = action === "APPROVE" ? "approve" : "reject";
+  const res = await axios.post(
+    `${DOMAIN}/seller/returns/${returnId}/${endpoint}`,
+    action === "REJECT" ? { note } : {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
 }
 
-/**
- * ดึงการแจ้งเตือน
- */
-export async function fetchSellerNotifications(
-  token: string
-): Promise<SellerNotification[]> {
+export async function fetchSellerNotifications(token: string): Promise<SellerNotification[]> {
   if (USE_MOCK_DATA) {
     await delay(300);
     return MOCK_NOTIFICATIONS;
   }
 
-  try {
-    const res = await axios.get(`${DOMAIN}/seller/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = res.data?.data || res.data;
-    return data?.notifications || [];
-  } catch (error: any) {
-    console.error("❌ Error fetching notifications:", error.response?.data || error.message);
-    return [];
-  }
+  const res = await axios.get(`${DOMAIN}/seller/notifications`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = res.data?.data || res.data;
+  return data?.notifications || [];
 }
 
-/**
- * อ่านการแจ้งเตือน
- */
-export async function markNotificationAsRead(
-  token: string,
-  notificationId: string
-): Promise<void> {
+export async function markNotificationAsRead(token: string, notificationId: string): Promise<void> {
   if (USE_MOCK_DATA) {
     await delay(200);
     const notif = MOCK_NOTIFICATIONS.find((n) => n.notification_id === notificationId);
-    if (notif) {
-      notif.is_read = true;
-    }
+    if (notif) notif.is_read = true;
     return;
   }
 
-  try {
-    await axios.post(
-      `${DOMAIN}/seller/notifications/${notificationId}/read`,
-      {},
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-  } catch (error: any) {
-    console.error("❌ Error marking notification:", error.response?.data || error.message);
-  }
+  await axios.post(
+    `${DOMAIN}/seller/notifications/${notificationId}/read`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 }
+
+export async function fetchSellerBadgeCounts(token: string): Promise<BadgeCounts> {
+  if (USE_MOCK_DATA) {
+    await delay(300);
+    return {
+      store_id: "store-001",
+      unread_notifications: 5,
+      preparing_orders: 15,
+      pending_returns: 3,
+      unread_chats: 8,
+    };
+  }
+
+  const res = await axios.get(`${DOMAIN}/seller/badge-counts`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return res.data?.data || res.data;
+}
+
+// ================== ✅ sellerAPI OBJECT (แก้ปัญหา export sellerAPI) ==================
+
+export const sellerAPI = {
+  fetchSellerDashboard,
+  fetchSellerOrders,
+  confirmOrderShipped,
+  fetchReturnRequests,
+  handleReturnRequest,
+  fetchSellerNotifications,
+  markNotificationAsRead,
+  fetchSellerBadgeCounts,
+
+  // ✅ ให้ seller-menu.tsx เรียกง่าย (ไม่ต้องส่ง token)
+  async getBadgeCounts(): Promise<{
+    unread_notifications: number;
+    preparing_orders: number;
+    pending_returns: number;
+    unread_chats: number;
+  }> {
+    const token = await getToken();
+    if (!token) throw new Error("Missing token");
+
+    const data = await fetchSellerBadgeCounts(token);
+    return {
+      unread_notifications: data.unread_notifications,
+      preparing_orders: data.preparing_orders,
+      pending_returns: data.pending_returns,
+      unread_chats: data.unread_chats,
+    };
+  },
+
+  // ✅ ใช้สำหรับดึง store_id กรณีไม่เคย save ไว้
+  // ต้องมี backend endpoint: GET /seller/my-store -> { data: { store_id: "..." } }
+  async getMyStore(): Promise<{ store_id: string } | null> {
+    const token = await getToken();
+    if (!token) throw new Error("Missing token");
+
+    const res = await axios.get(`${DOMAIN}/seller/badge-counts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const data = res.data?.data || res.data;
+    if (!data?.store_id) return null;
+    return { store_id: data.store_id };
+  },
+};

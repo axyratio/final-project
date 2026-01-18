@@ -41,4 +41,5 @@ class User(Base):
     reviews = relationship("Review", back_populates="user", cascade="all, delete-orphan")
     shipping_addresses = relationship("ShippingAddress", back_populates="user", cascade="all, delete-orphan")
     uploaded_backgrounds = relationship("VTONBackground", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
 
