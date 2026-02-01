@@ -1,4 +1,4 @@
-export const ADDRESS_IP = "192.168.90.111";
+export const ADDRESS_IP = "192.168.90.62";
 export const PORT = "8000";
 
 export const DOMAIN = `http://${ADDRESS_IP}:${PORT}`;
