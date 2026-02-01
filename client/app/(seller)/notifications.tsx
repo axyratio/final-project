@@ -1,25 +1,27 @@
 // app/(seller)/notifications.tsx
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  HStack,
-  VStack,
-  Text,
-  Pressable,
-  StatusBar,
-  Spinner,
-  Center,
-  useToast,
-} from "native-base";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { FlatList, RefreshControl } from "react-native";
 import {
   fetchSellerNotifications,
   markNotificationAsRead,
   SellerNotification,
 } from "@/api/seller";
+import { useSellerNotificationContext } from "@/context/SellerNotificationContext";
 import { getToken } from "@/utils/secure-store";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import {
+  Badge,
+  Box,
+  Center,
+  HStack,
+  Pressable,
+  Spinner,
+  StatusBar,
+  Text,
+  useToast,
+  VStack,
+} from "native-base";
+import React, { useCallback, useEffect, useState } from "react";
+import { FlatList, RefreshControl } from "react-native";
 
 const NOTIFICATION_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   ORDER_RECEIVED: "cart",
@@ -38,6 +40,11 @@ const NOTIFICATION_COLORS: Record<string, string> = {
 export default function SellerNotificationsScreen() {
   const router = useRouter();
   const toast = useToast();
+  const {
+    isConnected,
+    lastNotification,
+    notifications: wsNotifications,
+  } = useSellerNotificationContext();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -46,6 +53,33 @@ export default function SellerNotificationsScreen() {
   useEffect(() => {
     loadNotifications();
   }, []);
+
+  // อัพเดท notifications เมื่อได้รับจาก WebSocket
+  useEffect(() => {
+    if (lastNotification && lastNotification.type === "NOTIFICATION") {
+      const newNotification: SellerNotification = {
+        notification_id: lastNotification.notification_id!,
+        type: lastNotification.notification_type!,
+        title: lastNotification.title!,
+        message: lastNotification.message!,
+        order_id: lastNotification.order_id,
+        return_id: lastNotification.return_id,
+        product_id: lastNotification.product_id,
+        is_read: false,
+        created_at: lastNotification.created_at!,
+      };
+
+      // เพิ่มการแจ้งเตือนใหม่ที่ด้านบน
+      setNotifications((prev) => [newNotification, ...prev]);
+
+      // แสดง toast
+      toast.show({
+        description: lastNotification.title,
+        duration: 3000,
+        bg: "violet.600",
+      });
+    }
+  }, [lastNotification]);
 
   const loadNotifications = async (showLoading = true) => {
     try {
@@ -84,14 +118,14 @@ export default function SellerNotificationsScreen() {
         const token = await getToken();
         if (token) {
           await markNotificationAsRead(token, notification.notification_id);
-          
+
           // Update local state
           setNotifications((prev) =>
             prev.map((n) =>
               n.notification_id === notification.notification_id
                 ? { ...n, is_read: true }
-                : n
-            )
+                : n,
+            ),
           );
         }
       }
@@ -103,6 +137,8 @@ export default function SellerNotificationsScreen() {
         } else {
           router.push("/(seller)/orders" as any);
         }
+      } else if (notification.product_id) {
+        router.push("/(seller)/products" as any);
       }
     } catch (error) {
       console.error("Error handling notification:", error);
@@ -223,12 +259,26 @@ export default function SellerNotificationsScreen() {
             <Ionicons name="arrow-back" size={24} color="white" />
           </Pressable>
           <VStack flex={1}>
-            <Text fontSize="lg" fontWeight="bold" color="white">
-              การแจ้งเตือน
-            </Text>
+            <HStack alignItems="center" space={2}>
+              <Text fontSize="lg" fontWeight="bold" color="white">
+                การแจ้งเตือน
+              </Text>
+              {isConnected && (
+                <Badge
+                  bg="green.500"
+                  _text={{ fontSize: "2xs", color: "white" }}
+                  rounded="full"
+                  px={2}
+                  py={0.5}
+                >
+                  LIVE
+                </Badge>
+              )}
+            </HStack>
             {notifications.length > 0 && (
               <Text fontSize="xs" color="white" opacity={0.8}>
-                {notifications.filter((n) => !n.is_read).length} รายการยังไม่ได้อ่าน
+                {notifications.filter((n) => !n.is_read).length}{" "}
+                รายการยังไม่ได้อ่าน
               </Text>
             )}
           </VStack>
@@ -242,10 +292,19 @@ export default function SellerNotificationsScreen() {
         </Center>
       ) : notifications.length === 0 ? (
         <Center flex={1}>
-          <Ionicons name="notifications-off-outline" size={64} color="#d1d5db" />
+          <Ionicons
+            name="notifications-off-outline"
+            size={64}
+            color="#d1d5db"
+          />
           <Text mt={4} color="gray.500">
             ไม่มีการแจ้งเตือน
           </Text>
+          {isConnected && (
+            <Text mt={2} fontSize="xs" color="green.500">
+              🟢 เชื่อมต่อสำเร็จ - รอการแจ้งเตือนใหม่
+            </Text>
+          )}
         </Center>
       ) : (
         <FlatList

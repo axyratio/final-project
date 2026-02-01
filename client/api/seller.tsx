@@ -101,6 +101,8 @@ export type SellerNotification = {
   order_id?: string;
   is_read: boolean;
   created_at: string;
+  return_id?: string;
+  product_id?: string;
 };
 
 // ✅ เพิ่ม Type สำหรับ Badge Counts (ตาม backend badge-counts)

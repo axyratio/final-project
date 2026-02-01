@@ -1,29 +1,12 @@
-// components/category.tsx
+// File: components/category.tsx
+
 import React, { useEffect, useState } from "react";
 import { ScrollView, Pressable } from "react-native";
 import { Box, Spinner, Text } from "native-base";
-
-// type ที่ export ใช้ทั้งหน้าบ้านและ store
-export type Category = {
-  id: string;   // slug / uuid
-  name: string; // ชื่อภาษาไทยที่โชว์
-};
+import { Category, fetchPublicCategories } from "@/api/category";
 
 type CategoryListProps = {
   onSelect: (category: Category) => void;
-};
-
-// mock data ตอนนี้ยังไม่ได้ดึงจาก backend จริง
-const mockCategoryResponse: { categories: Category[] } = {
-  categories: [
-    { id: "tshirt",    name: "เสื้อยืด" },
-    { id: "shirt",     name: "เสื้อเชิ้ต" },
-    { id: "formal",    name: "เสื้อทางการ" },
-    { id: "cute",      name: "เสื้อน่ารัก" },
-    { id: "sport",     name: "เสื้อกีฬา" },
-    { id: "sleepwear", name: "ชุดนอน" },
-    { id: "longsleeve", name: "เสื้อแขนยาว" },
-  ],
 };
 
 export default function CategoryList({ onSelect }: CategoryListProps) {
@@ -31,14 +14,19 @@ export default function CategoryList({ onSelect }: CategoryListProps) {
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {
-    // จำลองการเรียก backend
-    const timer = setTimeout(() => {
-      setCategories(mockCategoryResponse.categories);
-      setLoading(false);
-    }, 400);
-
-    return () => clearTimeout(timer);
+    loadCategories();
   }, []);
+
+  const loadCategories = async () => {
+    try {
+      const data = await fetchPublicCategories();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to load categories:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -49,11 +37,19 @@ export default function CategoryList({ onSelect }: CategoryListProps) {
     );
   }
 
+  if (categories.length === 0) {
+    return (
+      <Box flex={1} alignItems="center" justifyContent="center" p={4}>
+        <Text color="gray.500">ไม่มีหมวดหมู่</Text>
+      </Box>
+    );
+  }
+
   return (
     <ScrollView>
       <Box>
         {categories.map((cat) => (
-          <CategoryItem key={cat.id} item={cat} onPress={onSelect} />
+          <CategoryItem key={cat.category_id} item={cat} onPress={onSelect} />
         ))}
       </Box>
     </ScrollView>
@@ -70,13 +66,20 @@ export function CategoryItem({ item, onPress }: CategoryItemProps) {
     <Pressable onPress={() => onPress(item)}>
       <Box
         px={4}
-        py={3}
+        py={4}
         borderBottomWidth={1}
         borderColor="#eee"
         backgroundColor="white"
       >
-        <Text fontSize="md">{item.name}</Text>
+        <Text fontSize="md" fontWeight="500">
+          {item.name}
+        </Text>
+        <Text fontSize="xs" color="gray.500" mt={1}>
+          Slug: {item.slug}
+        </Text>
       </Box>
     </Pressable>
   );
 }
+
+export type { Category };

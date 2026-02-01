@@ -11,7 +11,11 @@ type ProfileContextType = {
 
 const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
 
-export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
+export const ProfileProvider = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const [refresh, setRefresh] = useState(0);
   const [isAuth, setIsAuth] = useState(false);
   const router = useRouter();
@@ -52,14 +56,12 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     return {
       refresh,
       setRefresh,
-      isAuth
+      isAuth,
     };
   }, [refresh, isAuth]);
 
   return (
-    <ProfileContext.Provider value={value}>
-      {children}
-    </ProfileContext.Provider>
+    <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
   );
 };
 
@@ -70,7 +72,6 @@ export const useProfileContext = () => {
   }
   return ctx;
 };
-
 
 // import { deleteToken, getRole, getToken } from "@/utils/secure-store";
 // import { usePathname, useRouter } from "expo-router";

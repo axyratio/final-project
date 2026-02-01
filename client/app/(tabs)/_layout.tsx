@@ -78,7 +78,7 @@ export default function TabLayout() {
         }}
       />
 
-            <Tabs.Screen
+      <Tabs.Screen
         name="chat"
         options={{
           title: "แชท",
@@ -108,7 +108,6 @@ export default function TabLayout() {
         }}
       />
 
-      {/* ✅ เพิ่ม Notification Tab พร้อม Badge */}
       <Tabs.Screen
         name="notification"
         options={{
@@ -127,7 +126,6 @@ export default function TabLayout() {
         }}
         listeners={{
           tabPress: () => {
-            // รีเซ็ต badge เมื่อเข้าหน้า notification
             setUnreadCount(0);
           },
         }}
@@ -147,8 +145,6 @@ export default function TabLayout() {
           ),
         }}
       />
-
-
     </Tabs>
   );
 }

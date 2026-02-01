@@ -18,6 +18,7 @@ import { AppBarNoCheck } from "@/components/navbar";
 import PreviewModal from "@/components/preview-modal";
 import { VariantOption } from "@/types/variant";
 import { getToken } from "@/utils/secure-store";
+import { Category, fetchPublicCategories } from "@/api/category";
 import { DOMAIN } from "@/้host";
 import type { VariantOptionExtended } from "./options";
 
@@ -131,6 +132,7 @@ export default function AddProductScreen() {
 
   const [categoryId, setCategoryId] = useState<string | null>(null);  // 🆕
   const [categoryName, setCategoryName] = useState("");
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [variant, setVariant] = useState<VariantState | null>(null);
   const [isDirty, setIsDirty] = useState(false);
@@ -143,6 +145,19 @@ export default function AddProductScreen() {
         .filter(Boolean),
     [productImages]
   );
+
+  useEffect(() => {
+  loadCategories();
+}, []);
+
+const loadCategories = async () => {
+  try {
+    const data = await fetchPublicCategories();
+    setCategories(data);
+  } catch (error) {
+    console.error("Failed to load categories:", error);
+  }
+};
 
   const navigateBackToStore = () => {
     router.back();
@@ -564,6 +579,12 @@ export default function AddProductScreen() {
     const qs = q.length ? `?${q.join("&")}` : "";
     return `/(store)/categories${qs}`;
   })();
+
+  const handleSelectCategory = (cat: Category) => {
+  setCategoryId(cat.category_id);  // ✅ เก็บ UUID
+  setCategoryName(cat.name);
+  router.back();
+};
 
   const handleSubmit = async () => {
     if (isSubmitting) {
