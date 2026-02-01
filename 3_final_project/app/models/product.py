@@ -8,32 +8,38 @@ import uuid
 from sqlalchemy import Enum
 
 
+from sqlalchemy import ForeignKey
+
+# แก้ไข Product class - เปลี่ยนจาก String เป็น UUID
 class Product(Base):
     __tablename__ = 'products'
     product_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     store_id = Column(
-    UUID(as_uuid=True),
-    ForeignKey("stores.store_id", ondelete="CASCADE"),
-    nullable=False
-)
-    category_id = Column(String(50), nullable=True)
-
+        UUID(as_uuid=True),
+        ForeignKey("stores.store_id", ondelete="CASCADE"),
+        nullable=False
+    )
+    
+    # ✅ เปลี่ยนเป็น Foreign Key
+    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.category_id"))
+    
+    # เก็บ category แบบเก่าไว้ก่อน สำหรับ backward compatibility
+    category = Column(String, nullable=True)
+    
     variant_name = Column(String(50), nullable=True)
     product_name = Column(String, nullable=False)
     base_price = Column(Float, nullable=False)
     stock_quantity = Column(Integer, nullable=False)
     description = Column(TEXT, nullable=True)
-    category = Column(String, nullable=False)
     is_active = Column(Boolean, default=True)
     is_draft = Column(Boolean, default=True)
-
     average_rating = Column(Float, nullable=True, default=0.0)
     
     deleted_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
-
     created_at = Column(DateTime, default=now_utc)
     updated_at = Column(DateTime, default=now_utc, onupdate=now_utc)
 
+    # Relationships
     images = relationship(
         "ProductImage",
         primaryjoin="and_(Product.product_id == ProductImage.product_id, "
@@ -42,13 +48,15 @@ class Product(Base):
         cascade="all, delete-orphan",
         back_populates="product"
     )
-
     store = relationship("Store", back_populates="products")
     order_items = relationship("OrderItem", back_populates="product")
     variants = relationship("ProductVariant", back_populates="product", cascade="all, delete-orphan")
     tryon_sessions = relationship("VTONSession", back_populates="product", cascade="all, delete-orphan")
     wishlists = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
     reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
+    
+    # ✅ เพิ่ม relationship กับ Category
+    category_rel = relationship("Category", back_populates="products")
 
 
 

@@ -1,97 +1,97 @@
-from app.repositories import store_application_repository
-from app.models.store_application import StoreApplication
-from app.utils.hmac_pid import hmac_pid
+# from app.repositories import store_application_repository
+# from app.models.store_application import StoreApplication
+# from app.utils.hmac_pid import hmac_pid
 
-import uuid
-from app.models.store_application import StoreApplication
-from app.repositories import store_application_repository
-from app.utils.response_handler import success_response, error_response
-from app.utils.hmac_pid import hmac_pid  # สมมติว่าใช้สำหรับเข้ารหัสบัตร
+# import uuid
+# from app.models.store_application import StoreApplication
+# from app.repositories import store_application_repository
+# from app.utils.response_handler import success_response, error_response
+# from app.utils.hmac_pid import hmac_pid  # สมมติว่าใช้สำหรับเข้ารหัสบัตร
 
-def store_application_service(db, auth_current_user, data, citizen_data):
-    try:
-        cid = citizen_data.get('citizen_id')
-        verified = citizen_data.get('verified', False)
+# def store_application_service(db, auth_current_user, data, citizen_data):
+#     try:
+#         cid = citizen_data.get('citizen_id')
+#         verified = citizen_data.get('verified', False)
 
-        fullname = f"{data.first_name} {data.last_name}"
-        print(f"fullname match: {fullname == data.bank_account_name}")
+#         fullname = f"{data.first_name} {data.last_name}"
+#         print(f"fullname match: {fullname == data.bank_account_name}")
 
-        # ✅ ตรวจว่ามีรหัสบัตรไหม
-        if not cid:
-            return error_response(
-                "ไม่สามารถสมัครร้านค้าได้",
-                {"citizen_id": "ไม่พบรหัสบัตรประชาชนจากระบบตรวจสอบ"},
-                status_code=400
-            )
+#         # ✅ ตรวจว่ามีรหัสบัตรไหม
+#         if not cid:
+#             return error_response(
+#                 "ไม่สามารถสมัครร้านค้าได้",
+#                 {"citizen_id": "ไม่พบรหัสบัตรประชาชนจากระบบตรวจสอบ"},
+#                 status_code=400
+#             )
 
-        # ✅ ตรวจว่าชื่อกับบัญชีธนาคารตรงกันไหม
-        if data.bank_account_name != fullname:
-            return error_response(
-                "ไม่สามารถสมัครร้านค้าได้",
-                {"bank_account_name": "ชื่อจริงกับชื่อบัญชีของธนาคารไม่ตรงกัน"},
-                status_code=400
-            )
+#         # ✅ ตรวจว่าชื่อกับบัญชีธนาคารตรงกันไหม
+#         if data.bank_account_name != fullname:
+#             return error_response(
+#                 "ไม่สามารถสมัครร้านค้าได้",
+#                 {"bank_account_name": "ชื่อจริงกับชื่อบัญชีของธนาคารไม่ตรงกัน"},
+#                 status_code=400
+#             )
 
-        # ✅ ตรวจว่ามีใบสมัครอยู่แล้วหรือยัง
-        existing_store = store_application_repository.get_store_by_hmac_pid(db=db, pid=cid)
-        if existing_store:
-            if existing_store.status == "APPROVED":
-                return error_response(
-                    "บัญชีนี้มีร้านค้าอยู่แล้ว",
-                    {"status": "APPROVED"},
-                    status_code=400
-                )
-            if existing_store.status == "PENDING":
-                return error_response(
-                    "ร้านค้ากำลังรอการอนุมัติ",
-                    {"status": "PENDING"},
-                    status_code=400
-                )
-            if existing_store.status == "REJECTED":
-                db.delete(existing_store)
-                db.commit()
+#         # ✅ ตรวจว่ามีใบสมัครอยู่แล้วหรือยัง
+#         existing_store = store_application_repository.get_store_by_hmac_pid(db=db, pid=cid)
+#         if existing_store:
+#             if existing_store.status == "APPROVED":
+#                 return error_response(
+#                     "บัญชีนี้มีร้านค้าอยู่แล้ว",
+#                     {"status": "APPROVED"},
+#                     status_code=400
+#                 )
+#             if existing_store.status == "PENDING":
+#                 return error_response(
+#                     "ร้านค้ากำลังรอการอนุมัติ",
+#                     {"status": "PENDING"},
+#                     status_code=400
+#                 )
+#             if existing_store.status == "REJECTED":
+#                 db.delete(existing_store)
+#                 db.commit()
 
-        # ✅ ถ้าบัตรผ่านการยืนยัน — สมัครสำเร็จ
-        if verified:
-            new_store = StoreApplication(
-                user_id=auth_current_user.user_id,
-                status="APPROVED",
-                first_name=data.first_name,
-                last_name=data.last_name,
-                birth_date=data.birth_date,
-                card_is_verified=True,
-                hmac_card_id=hmac_pid(cid),
-                mask_card_id=cid,
-                phone_number=data.phone_number,
-                store_address=data.store_address,
-                bank_account_name=data.bank_account_name,
-                bank_account_number=data.bank_account_number,
-                bank_name=data.bank_name,
-            )
-            db.add(new_store)
-            db.commit()
-            db.refresh(new_store)
+#         # ✅ ถ้าบัตรผ่านการยืนยัน — สมัครสำเร็จ
+#         if verified:
+#             new_store = StoreApplication(
+#                 user_id=auth_current_user.user_id,
+#                 status="APPROVED",
+#                 first_name=data.first_name,
+#                 last_name=data.last_name,
+#                 birth_date=data.birth_date,
+#                 card_is_verified=True,
+#                 hmac_card_id=hmac_pid(cid),
+#                 mask_card_id=cid,
+#                 phone_number=data.phone_number,
+#                 store_address=data.store_address,
+#                 bank_account_name=data.bank_account_name,
+#                 bank_account_number=data.bank_account_number,
+#                 bank_name=data.bank_name,
+#             )
+#             db.add(new_store)
+#             db.commit()
+#             db.refresh(new_store)
 
-            return success_response(
-                "สมัครร้านค้าสำเร็จ (บัตรประชาชนผ่านการยืนยันแล้ว)",
-                new_store,
-                status_code=201
-            )
+#             return success_response(
+#                 "สมัครร้านค้าสำเร็จ (บัตรประชาชนผ่านการยืนยันแล้ว)",
+#                 new_store,
+#                 status_code=201
+#             )
 
-        # ❌ ถ้าบัตรไม่ผ่านการยืนยัน
-        return error_response(
-            "การตรวจสอบบัตรประชาชนไม่สำเร็จ",
-            {"verification": "กรุณาตรวจสอบข้อมูลอีกครั้ง"},
-            status_code=400
-        )
+#         # ❌ ถ้าบัตรไม่ผ่านการยืนยัน
+#         return error_response(
+#             "การตรวจสอบบัตรประชาชนไม่สำเร็จ",
+#             {"verification": "กรุณาตรวจสอบข้อมูลอีกครั้ง"},
+#             status_code=400
+#         )
 
-    except Exception as e:
-        db.rollback()
-        return error_response(
-            "เกิดข้อผิดพลาดขณะสมัครร้านค้า",
-            {"error": str(e)},
-            status_code=500
-        )
+#     except Exception as e:
+#         db.rollback()
+#         return error_response(
+#             "เกิดข้อผิดพลาดขณะสมัครร้านค้า",
+#             {"error": str(e)},
+#             status_code=500
+#         )
 
     
 

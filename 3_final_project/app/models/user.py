@@ -33,7 +33,7 @@ class User(Base):
     role_id = Column(Integer, ForeignKey("roles.role_id"), nullable=False)
     role = relationship("Role", back_populates="users")
     cart = relationship("Cart", back_populates="user", uselist=False)
-    store_applications = relationship("StoreApplication", back_populates="users")
+    # store_applications = relationship("StoreApplication", back_populates="users")
     tryon_images = relationship("UserTryOnImage", back_populates="user", cascade="all, delete-orphan")
     tryon_sessions = relationship("VTONSession", back_populates="user", cascade="all, delete-orphan")
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")

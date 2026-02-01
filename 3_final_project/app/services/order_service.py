@@ -11,7 +11,7 @@ from app.models.cart import Cart, CartItem
 from app.models.return_order import ReturnOrder
 from app.models.product import Product, ProductVariant
 from app.models.store import Store
-from app.models.tracking_history import TrackingHistory, TrackingStatus
+# from app.models.tracking_history import TrackingHistory, TrackingStatus
 from app.services.notification_service import NotificationService
 from app.utils.now_utc import now_utc
 
@@ -282,6 +282,54 @@ class OrderService:
             "cart_items_added": items_added,
             "message": f"เพิ่ม {items_added} รายการเข้าตะกร้าสำเร็จ"
         }
+
+    @staticmethod
+    async def update_order_status_with_notification(
+        db: Session,
+        order_id: UUID,
+        new_status: str,
+        tracking_number: Optional[str] = None,
+        courier_name: Optional[str] = None
+    ) -> Dict:
+        """อัปเดตสถานะออเดอร์ และส่งการแจ้งเตือนแบบ realtime เมื่อจำเป็น"""
+        order = (
+            db.query(Order)
+            .options(
+                joinedload(Order.order_items).joinedload(OrderItem.product).joinedload(Product.images)
+            )
+            .filter(Order.order_id == order_id)
+            .first()
+        )
+        
+        if not order:
+            raise HTTPException(status_code=404, detail="Order not found")
+        
+        order.order_status = new_status
+        order.order_text_status = OrderService.get_status_text(new_status)
+        order.updated_at = now_utc()
+        
+        if tracking_number is not None:
+            order.tracking_number = tracking_number
+        if courier_name is not None:
+            order.courier_name = courier_name
+        
+        if new_status == "DELIVERED":
+            order.delivered_at = now_utc()
+        if new_status == "COMPLETED":
+            order.completed_at = now_utc()
+        
+        db.commit()
+        db.refresh(order)
+        
+        # ส่ง notification ตามสถานะที่ต้องการ
+        if new_status == "CANCELLED":
+            await NotificationService.notify_order_cancelled_by_store(db, order)
+        elif new_status == "PREPARING":
+            await NotificationService.notify_order_approved(db, order)
+        elif new_status == "DELIVERED":
+            await NotificationService.notify_order_delivered(db, order)
+        
+        return OrderService.format_order_response(order)
         
 # ==========================================
 # ✅ ตัวอย่างการใช้งานใน routes/order_router.py

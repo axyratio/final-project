@@ -110,8 +110,8 @@ def create_product_with_variants_service(
             product_name=data.get("product_name", "").strip(),
             base_price=data.get("base_price", 0),
             stock_quantity=data.get("stock_quantity", 0),
-            category=data.get("category", "").strip(),
-            category_id=data.get("category_id"),
+            category_id=data.get("category_id"),  # ✅ เพิ่มบรรทัดนี้
+            category=data.get("category", "").strip(),  # เก็บไว้สำหรับ backward compatibility
             description=data.get("description", None),
             variant_name=variant_block.get("variant_name"),
             is_draft=False,
@@ -292,6 +292,9 @@ def update_product_service(
 
         if "category_id" in data:
             product.category_id = data.get("category_id", product.category_id)
+            
+        if "category" in data:
+            product.category = data.get("category", product.category)
 
         product.description = data.get("description", product.description)
 

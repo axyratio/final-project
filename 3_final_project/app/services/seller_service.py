@@ -441,6 +441,18 @@ class SellerService:
             
             db.commit()
             
+            if action == 'APPROVE':
+                try:
+                    import asyncio
+                    from app.services.notification_service import NotificationService
+                    loop = asyncio.get_event_loop()
+                except RuntimeError:
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                loop.run_until_complete(
+                    NotificationService.notify_return_approved(db, ret.order)
+                )
+            
             message = 'อนุมัติการคืนสินค้าสำเร็จ' if action == 'APPROVE' else 'ปฏิเสธการคืนสินค้าสำเร็จ'
             return {'message': message}
     

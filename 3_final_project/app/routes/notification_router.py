@@ -58,6 +58,20 @@ async def get_unread_count(
     return {"unread_count": unread_count}
 
 
+@router.get("/badge-count", response_model=UnreadCountResponse)
+async def get_badge_count(
+    current_user: User = Depends(authenticate_token()),
+    db: Session = Depends(get_db)
+):
+    """ดึง badge count ของการแจ้งเตือนที่ยังไม่อ่าน"""
+    unread_count = await NotificationService.get_unread_count(
+        db=db,
+        user_id=current_user.user_id
+    )
+    
+    return {"unread_count": unread_count}
+
+
 @router.post("/{notification_id}/read")
 async def mark_notification_as_read(
     notification_id: UUID,

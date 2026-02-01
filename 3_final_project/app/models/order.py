@@ -59,28 +59,28 @@ class Order(Base):
     # N orders → 1 payment
     payment = relationship("Payment", back_populates="orders")
 
-    tracking_histories = relationship(
-        "TrackingHistory",
-        back_populates="order",
-        cascade="all, delete-orphan",
-        foreign_keys="[TrackingHistory.order_id]"
-    )
+    # tracking_histories = relationship(
+    #     "TrackingHistory",
+    #     back_populates="order",
+    #     cascade="all, delete-orphan",
+    #     foreign_keys="[TrackingHistory.order_id]"
+    # )
 
     shipping_address = relationship("ShippingAddress", back_populates="orders")
 
-    def update_status_from_tracking(self):
-        """อัพเดตสถานะจาก tracking history"""
-        if not self.tracking_histories:
-            return
+    # def update_status_from_tracking(self):
+    #     """อัพเดตสถานะจาก tracking history"""
+    #     if not self.tracking_histories:
+    #         return
 
-        latest = sorted(self.tracking_histories, key=lambda t: t.current_time)[-1]
-        self.order_text_status = latest.status_text
+    #     latest = sorted(self.tracking_histories, key=lambda t: t.current_time)[-1]
+    #     self.order_text_status = latest.status_text
 
-        if latest.status_code.name == "DELIVERED":
-            self.order_status = "DELIVERED"
-            if not self.delivered_at:
-                self.delivered_at = now_utc()
-        elif latest.status_code.name in ("IN_TRANSIT", "OUT_FOR_DELIVERY"):
-            self.order_status = "SHIPPED"
-        elif latest.status_code.name == "FAILED":
-            self.order_status = "FAILED"
+    #     if latest.status_code.name == "DELIVERED":
+    #         self.order_status = "DELIVERED"
+    #         if not self.delivered_at:
+    #             self.delivered_at = now_utc()
+    #     elif latest.status_code.name in ("IN_TRANSIT", "OUT_FOR_DELIVERY"):
+    #         self.order_status = "SHIPPED"
+    #     elif latest.status_code.name == "FAILED":
+    #         self.order_status = "FAILED"
