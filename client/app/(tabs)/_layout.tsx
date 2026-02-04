@@ -1,24 +1,35 @@
-// app/(tabs)/_layout.tsx
-import { fetchUnreadCount } from "@/api/notification";
+// ============================================================
+// FILE: app/(tabs)/_layout.tsx
+// วางไว้ที่: client/app/(tabs)/_layout.tsx
+//
+// Tab layout + Badge สำหรับ notification
+//
+// Badge อัปเดต:
+//   mount → REST fetchUnreadCount() 1 ครั้ง (initial value)
+//         → เปิด ws เพื่อรับ unread_count realtime
+//   พอ notification ใหม่มา → badge อัปเดตทันที จาก ws
+//   unmount → close ws
+//
+// ไม่มี polling, ไม่มี useCallback, ไม่มี useFocusEffect
+// ============================================================
+
+import { connectNotificationWS, fetchUnreadCount } from "@/api/notification";
 import { HapticTab } from "@/components/haptic-tab";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, useFocusEffect } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import { Tabs } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-// Badge Component
+// ── Badge Component ──
 function TabBarBadge({ count }: { count: number }) {
   if (count === 0) return null;
-
-  const displayCount = count > 99 ? "99+" : count.toString();
-
   return (
     <View style={styles.badge}>
-      <Text style={styles.badgeText}>{displayCount}</Text>
+      <Text style={styles.badgeText}>{count > 99 ? "99+" : count}</Text>
     </View>
   );
 }
@@ -27,35 +38,37 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const themeColors = Colors[colorScheme ?? "light"];
   const [unreadCount, setUnreadCount] = useState(0);
+  const wsCleanupRef = useRef<(() => void) | null>(null);
 
-  const loadUnreadCount = async () => {
-    try {
-      const token = await getToken();
-      if (!token) return;
-
-      const count = await fetchUnreadCount(token);
-      setUnreadCount(count);
-    } catch (error) {
-      console.error("Error loading unread count:", error);
-    }
-  };
-
-  // โหลดครั้งแรก
+  // mount เดียว → โหลด initial count + เปิด ws
+  // unmount → close ws
   useEffect(() => {
-    loadUnreadCount();
+    let cancelled = false;
 
-    // Auto refresh ทุก 30 วินาที
-    const interval = setInterval(loadUnreadCount, 30000);
+    const init = async () => {
+      const token = await getToken();
+      if (!token || cancelled) return;
 
-    return () => clearInterval(interval);
+      // 1. initial badge count จาก REST
+      const count = await fetchUnreadCount(token);
+      if (!cancelled) setUnreadCount(count);
+
+      // 2. เปิด ws เพื่อ realtime badge update
+      wsCleanupRef.current = connectNotificationWS(token, (event) => {
+        if (!cancelled) setUnreadCount(event.unread_count);
+      });
+    };
+
+    init();
+
+    return () => {
+      cancelled = true;
+      if (wsCleanupRef.current) {
+        wsCleanupRef.current();
+        wsCleanupRef.current = null;
+      }
+    };
   }, []);
-
-  // Refresh เมื่อกลับมาที่ Tab
-  useFocusEffect(
-    useCallback(() => {
-      loadUnreadCount();
-    }, []),
-  );
 
   return (
     <Tabs
@@ -125,9 +138,7 @@ export default function TabLayout() {
           ),
         }}
         listeners={{
-          tabPress: () => {
-            setUnreadCount(0);
-          },
+          tabPress: () => setUnreadCount(0), // optimistic clear เมื่อกด tab
         }}
       />
 

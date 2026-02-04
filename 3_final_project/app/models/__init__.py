@@ -31,6 +31,7 @@ from app.models.chat_conversation import ChatConversation
 from app.models.chat_message import ChatMessage, MessageType
 from app.models.notification import Notification, NotificationType
 from app.models.category import Category
+from app.models.report import Report
 
 from sqlalchemy.orm import configure_mappers
 configure_mappers()

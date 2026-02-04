@@ -61,23 +61,7 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}
         >
           <HomeBannerSlider banners={banners} />
-          <HomeCategoryList
-          categories={categories}
-          getBackgroundColor={(cat) => {
-            switch (cat.id) {
-              case "shirt":
-                return "#fee2e2"; // แดงอ่อน
-              case "tshirt":
-                return "#dbeafe"; // น้ำเงินอ่อน
-              case "sport":
-                return "#dcfce7"; // เขียวอ่อน
-              case "cute":
-                return "#fef3c7"; // เหลืองอ่อน
-              default:
-                return undefined; // ไปใช้ค่า default แทน
-            }
-          }}
-        />
+          <HomeCategoryList categories={categories} />
           <HomeProductGrid products={products} />
         </ScrollView>
       )}

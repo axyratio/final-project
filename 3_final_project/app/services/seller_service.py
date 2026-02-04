@@ -389,7 +389,7 @@ class SellerService:
         return result
     
     @staticmethod
-    def handle_return_request(
+    async def handle_return_request(
             db: Session, 
             store_id: str, 
             return_id: str, 
@@ -410,48 +410,32 @@ class SellerService:
             if ret.status != ReturnStatus.PENDING:
                 raise HTTPException(status_code=400, detail="Return request is not pending")
             
-            # 1. จัดการฝั่ง ReturnOrder และ Order หลัก
             if action == 'APPROVE':
-                # อัปเดตตารางคืนสินค้า
                 ret.status = ReturnStatus.APPROVED
                 ret.status_text = 'อนุมัติ'
                 ret.approved_at = now_utc()
-                
-                # ✅ อัปเดตตาราง Order หลัก (ใช้ชื่อสถานะให้ตรงกับที่ตั้งไว้ใน OrderService)
                 ret.order.order_status = 'APPROVED'
                 ret.order.order_text_status = 'อนุมัติการคืนเงิน'
                 
             elif action == 'REJECT':
-                # อัปเดตตารางคืนสินค้า
                 ret.status = ReturnStatus.REJECTED
                 ret.status_text = 'ปฏิเสธ'
                 ret.rejected_at = now_utc()
                 ret.store_note = note
-                
-                # ✅ อัปเดตตาราง Order หลัก
                 ret.order.order_status = 'REJECTED'
                 ret.order.order_text_status = 'ปฏิเสธการคืนสินค้า'
                 
             else:
                 raise HTTPException(status_code=400, detail="Invalid action")
             
-            # อัปเดตเวลาแก้ไขล่าสุดของทั้งคู่
             ret.updated_at = now_utc()
             ret.order.updated_at = now_utc()
-            
             db.commit()
-            
+
+            # ── notify หลัง commit เท่านั้น ──
             if action == 'APPROVE':
-                try:
-                    import asyncio
-                    from app.services.notification_service import NotificationService
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                loop.run_until_complete(
-                    NotificationService.notify_return_approved(db, ret.order)
-                )
+                from app.services.notification_service import NotificationService
+                await NotificationService.notify_return_approved(db, ret.order)
             
             message = 'อนุมัติการคืนสินค้าสำเร็จ' if action == 'APPROVE' else 'ปฏิเสธการคืนสินค้าสำเร็จ'
             return {'message': message}

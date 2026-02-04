@@ -6,7 +6,7 @@ from app.db import seed_categories
 import app.models 
 from app.db.database import Base, engine, SessionLocal
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import admin_category_router, admin_dashboard_router, admin_store_router, auth_router, category_router, chat_router, chat_ws_router, checkout_router, notification_router, order_return_router, order_router, payment_page_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, review_router, seller_notification_ws, seller_router, shipping_address_router, stock_reservation_router, store_application_router, store_dashboard_router, store_router, stripe_webhook_router, user_tryon_image_router, variant_router, vton_meta_router, vton_router, ws_router
+from app.routes import admin_category_router, admin_dashboard_router, admin_store_router, admin_user_router, auth_router, category_router, chat_router, chat_ws_router, checkout_router, notification_router, order_return_router, order_router, payment_page_router, payment_router, preview_image_router, product_router, product_variant_router, profile_router, report_router, review_router, seller_notification_ws, seller_router, shipping_address_router, stock_reservation_router, store_application_router, store_dashboard_router, store_router, stripe_webhook_router, user_notification_ws, user_tryon_image_router, variant_router, vton_meta_router, vton_router, ws_router
 from app.db.seed import seed_payment_methods, seed_roles
 
 from app.utils.exception_handler import validation_exception_handler
@@ -84,6 +84,9 @@ app.include_router(admin_category_router.router)  # สำหรับ admin จ
 app.include_router(category_router.router)   
 app.include_router(admin_dashboard_router.router)  
 app.include_router(seller_notification_ws.router) 
+app.include_router(user_notification_ws.router)     
+app.include_router(admin_user_router.router) 
+app.include_router(report_router.router) 
 
 
 # api

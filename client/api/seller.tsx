@@ -105,7 +105,6 @@ export type SellerNotification = {
   product_id?: string;
 };
 
-// ✅ เพิ่ม Type สำหรับ Badge Counts (ตาม backend badge-counts)
 export type BadgeCounts = {
   store_id: string;
   unread_notifications: number;
@@ -276,6 +275,29 @@ export async function fetchSellerOrders(token: string, status?: string): Promise
   return data?.orders || [];
 }
 
+// ✅ เพิ่มใหม่: อนุมัติออเดอร์ (PAID → PREPARING)
+export async function approveOrder(
+  token: string,
+  orderId: string
+): Promise<{ message: string }> {
+  if (USE_MOCK_DATA) {
+    await delay(500);
+    const order = MOCK_SELLER_ORDERS.find((o) => o.order_id === orderId);
+    if (order) {
+      order.order_status = "PREPARING";
+      order.order_text_status = "กำลังเตรียมสินค้า";
+    }
+    return { message: "อนุมัติออเดอร์สำเร็จ" };
+  }
+
+  const res = await axios.post(
+    `${DOMAIN}/seller/orders/${orderId}/approve`,
+    {},
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  return res.data;
+}
+
 export async function confirmOrderShipped(
   token: string,
   orderId: string,
@@ -389,11 +411,12 @@ export async function fetchSellerBadgeCounts(token: string): Promise<BadgeCounts
   return res.data?.data || res.data;
 }
 
-// ================== ✅ sellerAPI OBJECT (แก้ปัญหา export sellerAPI) ==================
+// ================== ✅ sellerAPI OBJECT ==================
 
 export const sellerAPI = {
   fetchSellerDashboard,
   fetchSellerOrders,
+  approveOrder, // ✅ เพิ่มบรรทัดนี้
   confirmOrderShipped,
   fetchReturnRequests,
   handleReturnRequest,
@@ -401,7 +424,6 @@ export const sellerAPI = {
   markNotificationAsRead,
   fetchSellerBadgeCounts,
 
-  // ✅ ให้ seller-menu.tsx เรียกง่าย (ไม่ต้องส่ง token)
   async getBadgeCounts(): Promise<{
     unread_notifications: number;
     preparing_orders: number;
@@ -420,8 +442,6 @@ export const sellerAPI = {
     };
   },
 
-  // ✅ ใช้สำหรับดึง store_id กรณีไม่เคย save ไว้
-  // ต้องมี backend endpoint: GET /seller/my-store -> { data: { store_id: "..." } }
   async getMyStore(): Promise<{ store_id: string } | null> {
     const token = await getToken();
     if (!token) throw new Error("Missing token");
