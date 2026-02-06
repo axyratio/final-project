@@ -139,7 +139,7 @@ export default function StoreHeader({
 
 // components/header.tsx
 import { ProductDetailDto } from "@/api/products";
-import { Avatar, Button, HStack } from "native-base";
+import { Avatar, Button, HStack, Menu } from "native-base";
 import { View } from "react-native";
 
 type ProductHeaderProps = {
@@ -152,6 +152,7 @@ type StoreHeaderProductDetailProps = {
   product: ProductDetailDto;
   onPressViewStore: () => void;
   onPressChat: () => void;
+  onPressReport?: () => void; // 🆕 เพิ่ม callback สำหรับรายงาน
 };
 
 // แยกฟังก์ชันคำนวณส่วนลดให้แก้ logic ได้ง่าย
@@ -242,6 +243,7 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
   product,
   onPressViewStore,
   onPressChat,
+  onPressReport, // 🆕
 }) => {
   const store = product.store;
   return (
@@ -268,7 +270,7 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
           </Box>
         </HStack>
 
-        <HStack space={2}>
+        <HStack space={2} alignItems="center">
           <Pressable onPress={onPressViewStore}>
             <View
               style={{
@@ -299,6 +301,24 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
               </Text>
             </View>
           </Pressable>
+
+          {/* 🆕 Report menu button */}
+          {onPressReport && (
+            <Menu
+              trigger={(triggerProps) => (
+                <Pressable {...triggerProps} p={1}>
+                  <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
+                </Pressable>
+              )}
+            >
+              <Menu.Item onPress={onPressReport}>
+                <HStack space={2} alignItems="center">
+                  <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                  <Text>รายงานร้านค้า</Text>
+                </HStack>
+              </Menu.Item>
+            </Menu>
+          )}
         </HStack>
       </HStack>
     </Box>
@@ -345,4 +365,3 @@ export const ExpandableDescription: React.FC<DescriptionProps> = ({
     </Box>
   );
 };
-

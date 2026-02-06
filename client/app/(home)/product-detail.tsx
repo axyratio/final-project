@@ -22,8 +22,10 @@ import { IconWithBadge } from "@/components/icon";
 import { ProductMainImage, ProductThumbnailStrip } from "@/components/image";
 import { ModalMode, VariantSelectModal } from "@/components/modal";
 import { ReviewPreviewSection } from "@/components/review/header";
+import ReportModal from "@/components/report/report-modal";
+import { createReport } from "@/api/report";
 import { chatAPI } from "@/api/chat";
-import { closetApi } from "@/api/closet"; // ✅ เพิ่ม import
+import { closetApi } from "@/api/closet";
 
 export default function ProductDetailScreen() {
   const router = useRouter();
@@ -38,6 +40,9 @@ export default function ProductDetailScreen() {
   const [modalMode, setModalMode] = useState<ModalMode>("add_to_cart");
 
   const [cartCount, setCartCount] = useState(0);
+
+  // 🆕 Report modal state
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const loadCartCount = async () => {
     try {
@@ -97,6 +102,49 @@ export default function ProductDetailScreen() {
 
     setModalMode(mode);
     setModalVisible(true);
+  };
+
+  // 🆕 Handle report store
+  const handleReportStore = () => {
+    if (!product?.store?.storeId) {
+      Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลร้านค้า");
+      return;
+    }
+    setReportModalVisible(true);
+  };
+
+  // 🆕 Submit report
+  const handleSubmitReport = async (data: any) => {
+    if (!product?.store?.storeId) return;
+
+    try {
+      const reportData = {
+        report_type: "store" as const,
+        reported_id: product.store.storeId,
+        reason: data.reason,
+        description: data.description,
+        image_urls: data.imageUrls,
+      };
+
+      await createReport(reportData);
+      
+      Alert.alert(
+        "รายงานสำเร็จ",
+        "ขอบคุณที่แจ้งเรา เราจะตรวจสอบและดำเนินการต่อไป",
+        [
+          {
+            text: "ตกลง",
+            onPress: () => setReportModalVisible(false),
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Submit report error:", error);
+      Alert.alert(
+        "เกิดข้อผิดพลาด",
+        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง"
+      );
+    }
   };
 
   const handleConfirmVariant = async (payload: {
@@ -297,7 +345,7 @@ export default function ProductDetailScreen() {
           onPressTryOn={() => openVariantModal("try_on")}
         />
 
-        {/* ร้านค้า + แชท */}
+        {/* ร้านค้า + แชท + 🆕 รายงาน */}
         <StoreHeaderProductDetail
           product={product}
           onPressViewStore={() =>
@@ -315,6 +363,7 @@ export default function ProductDetailScreen() {
                 params: {
                   conversationId: conv.conversation_id,
                   storeName: conv.store_name ?? product.store.name ?? "ร้านค้า",
+                  storeId: product.store.storeId,
                 },
               } as any);
             } catch (e) {
@@ -322,7 +371,7 @@ export default function ProductDetailScreen() {
               Alert.alert("ข้อผิดพลาด", "ไม่สามารถเปิดแชทได้");
             }
           }}
-
+          onPressReport={handleReportStore} // 🆕
         />
 
         {/* รีวิวตัวอย่าง + ปุ่มดูทั้งหมด */}
@@ -368,6 +417,18 @@ export default function ProductDetailScreen() {
         onClose={() => setModalVisible(false)}
         onConfirm={handleConfirmVariant}
       />
+
+      {/* 🆕 Report Modal */}
+      {product?.store && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          onSubmit={handleSubmitReport}
+          reportType="store"
+          reportedId={product.store.storeId}
+          reportedName={product.store.name}
+        />
+      )}
     </Box>
   );
 }

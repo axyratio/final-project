@@ -49,7 +49,7 @@ export default function AdminHome() {
       id: 4,
       title: "จัดการรายงาน",
       icon: "flag",
-      route: "/(admin)/reports",
+      route: "/(admin)/report",
       color: "#ef4444",
       description: "ตรวจสอบและจัดการรายงาน",
     },

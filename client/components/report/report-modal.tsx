@@ -1,21 +1,21 @@
 // client/components/report/ReportModal.tsx
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  TextInput,
-  ScrollView,
-  Image,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { uploadImage } from "@/api/upload";
 import { getToken } from "@/utils/secure-store";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface ReportModalProps {
   visible: boolean;
@@ -75,7 +75,8 @@ export default function ReportModal({
         return;
       }
 
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const { status } =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== "granted") {
         Alert.alert("ต้องการสิทธิ์", "กรุณาอนุญาตการเข้าถึงรูปภาพ");
         return;
@@ -99,10 +100,10 @@ export default function ReportModal({
 
           // อัปโหลดรูป
           const uploaded = await uploadImage(result.assets[0].uri, token);
-          
+
           // เพิ่ม URL ที่ได้เข้า array
           setImageUrls((prev) => [...prev, uploaded.url]);
-          
+
           Alert.alert("สำเร็จ", "อัปโหลดรูปภาพสำเร็จ");
         } catch (error) {
           console.error("Error uploading image:", error);
@@ -133,31 +134,31 @@ export default function ReportModal({
   };
 
   // ส่งรายงาน
-  const handleSubmit = () => {
-    // Validation
-    if (!selectedReason) {
-      Alert.alert("กรุณาเลือกเหตุผล", "โปรดเลือกเหตุผลในการรายงาน");
-      return;
-    }
+  const handleSubmit = async () => {
+  // Validation
+  if (!selectedReason) {
+    Alert.alert("กรุณาเลือกเหตุผล", "โปรดเลือกเหตุผลในการรายงาน");
+    return;
+  }
 
-    if (description.trim().length < 10) {
-      Alert.alert(
-        "รายละเอียดไม่เพียงพอ",
-        "กรุณาระบุรายละเอียดอย่างน้อย 10 ตัวอักษร"
-      );
-      return;
-    }
+  setSubmitting(true);
 
-    setSubmitting(true);
-
-    onSubmit({
+  try {
+    await onSubmit({
       reason: selectedReason,
       description: description.trim(),
       imageUrls: imageUrls,
     });
-
-    // Reset จะทำภายหลังหลังจาก submit สำเร็จ
-  };
+    
+    // ✅ Reset form หลังส่งสำเร็จ
+    handleReset();
+  } catch (error) {
+    console.error("Submit error:", error);
+  } finally {
+    // ✅ ปิดการหมุนเสมอ
+    setSubmitting(false);
+  }
+};
 
   return (
     <Modal
@@ -171,7 +172,9 @@ export default function ReportModal({
           {/* Header */}
           <View style={styles.header}>
             <View>
-              <Text style={styles.headerTitle}>รายงาน{reportType === "user" ? "ผู้ใช้" : "ร้านค้า"}</Text>
+              <Text style={styles.headerTitle}>
+                รายงาน{reportType === "user" ? "ผู้ใช้" : "ร้านค้า"}
+              </Text>
               <Text style={styles.headerSubtitle}>{reportedName}</Text>
             </View>
             <TouchableOpacity onPress={handleClose} disabled={submitting}>
@@ -179,7 +182,10 @@ export default function ReportModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
             {/* เลือกเหตุผล */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>เหตุผลในการรายงาน *</Text>
@@ -189,7 +195,8 @@ export default function ReportModal({
                     key={reason.value}
                     style={[
                       styles.reasonButton,
-                      selectedReason === reason.value && styles.reasonButtonActive,
+                      selectedReason === reason.value &&
+                        styles.reasonButtonActive,
                     ]}
                     onPress={() => setSelectedReason(reason.value)}
                     disabled={submitting}
@@ -204,7 +211,8 @@ export default function ReportModal({
                     <Text
                       style={[
                         styles.reasonText,
-                        selectedReason === reason.value && styles.reasonTextActive,
+                        selectedReason === reason.value &&
+                          styles.reasonTextActive,
                       ]}
                     >
                       {reason.label}
@@ -238,7 +246,7 @@ export default function ReportModal({
               <Text style={styles.sectionTitle}>
                 รูปภาพหลักฐาน (สูงสุด 5 รูป)
               </Text>
-              
+
               {/* รูปที่อัปโหลดแล้ว */}
               {imageUrls.length > 0 && (
                 <View style={styles.imagesGrid}>
@@ -250,7 +258,11 @@ export default function ReportModal({
                         onPress={() => handleRemoveImage(index)}
                         disabled={submitting}
                       >
-                        <Ionicons name="close-circle" size={24} color="#ef4444" />
+                        <Ionicons
+                          name="close-circle"
+                          size={24}
+                          color="#ef4444"
+                        />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -267,7 +279,9 @@ export default function ReportModal({
                   {uploading ? (
                     <>
                       <ActivityIndicator size="small" color="#3b82f6" />
-                      <Text style={styles.uploadButtonText}>กำลังอัปโหลด...</Text>
+                      <Text style={styles.uploadButtonText}>
+                        กำลังอัปโหลด...
+                      </Text>
                     </>
                   ) : (
                     <>
@@ -298,7 +312,10 @@ export default function ReportModal({
               <Text style={styles.cancelButtonText}>ยกเลิก</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+              style={[
+                styles.submitButton,
+                submitting && styles.submitButtonDisabled,
+              ]}
               onPress={handleSubmit}
               disabled={submitting}
             >

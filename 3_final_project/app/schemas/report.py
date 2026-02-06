@@ -1,6 +1,7 @@
 # app/schemas/report.py
 """
 Schemas สำหรับระบบรายงาน (Report System)
+Updated: ลบข้อจำกัดตัวอักษรขั้นต่ำ
 """
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
@@ -41,7 +42,7 @@ class CreateReportRequest(BaseModel):
     report_type: ReportType = Field(..., description="ประเภทรายงาน (user/store)")
     reported_id: str = Field(..., description="ID ของผู้ถูกรายงาน (user_id หรือ store_id)")
     reason: ReportReason = Field(..., description="เหตุผลในการรายงาน")
-    description: str = Field(..., min_length=10, max_length=1000, description="รายละเอียดการรายงาน")
+    description: str = Field(default="", max_length=1000, description="รายละเอียดการรายงาน (optional)")  # ✅ เปลี่ยนจาก min_length=10
     image_urls: List[str] = Field(default=[], description="URL รูปภาพหลักฐาน (สูงสุด 5 รูป)")
     
     @validator('image_urls')
@@ -49,6 +50,13 @@ class CreateReportRequest(BaseModel):
         if len(v) > 5:
             raise ValueError('สามารถอัปโหลดรูปได้สูงสุด 5 รูป')
         return v
+    
+    @validator('description')
+    def validate_description(cls, v):
+        # ✅ อนุญาตให้ส่ง empty string ได้
+        if v is None:
+            return ""
+        return v.strip()
 
 
 class UpdateReportStatusRequest(BaseModel):

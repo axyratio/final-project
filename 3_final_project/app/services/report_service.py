@@ -44,6 +44,8 @@ def format_report_for_list(report: Report, db: Session) -> Dict[str, Any]:
         'reported_name': reported_name,
         'reported_id': reported_id,
         'image_count': len(report.image_urls) if report.image_urls else 0,
+        'image_urls': report.image_urls or [],  # ✅ เพิ่มบรรทัดนี้
+        'description': report.description,       # ✅ เพิ่มบรรทัดนี้
     }
 
 
@@ -212,7 +214,8 @@ def get_all_reports_service(
             'reports': reports_list,
             'total': total,
             'skip': params.skip,
-            'limit': params.limit
+            'limit': params.limit,
+
         }, None
         
     except Exception as e:

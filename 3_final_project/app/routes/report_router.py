@@ -1,11 +1,14 @@
 # app/routes/report_router.py
 """
 Report Router - ระบบรายงาน
+Enhanced with detailed debugging
 """
 from fastapi import APIRouter, Depends, Query, Form, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from uuid import UUID
+import json
+import traceback
 
 from app.db.database import get_db
 from app.core.authz import authenticate_token
@@ -42,7 +45,7 @@ def create_report(
     report_type: str = Form(..., description="user หรือ store"),
     reported_id: str = Form(..., description="ID ของผู้ถูกรายงาน"),
     reason: str = Form(..., description="เหตุผล"),
-    description: str = Form(..., description="รายละเอียด"),
+    description: str = Form("", description="รายละเอียด"),  # ✅ เปลี่ยนเป็น default=""
     image_urls: str = Form("[]", description="JSON array ของ image URLs"),
     db: Session = Depends(get_db),
     auth_user: User = Depends(authenticate_token())
@@ -53,21 +56,74 @@ def create_report(
     - report_type: "user" หรือ "store"
     - reported_id: user_id หรือ store_id
     - reason: spam, harassment, inappropriate, scam, fake, copyright, other
-    - description: รายละเอียดอย่างน้อย 10 ตัวอักษร
+    - description: รายละเอียด (optional)
     - image_urls: JSON array เช่น ["url1", "url2"]
     """
+    print("=" * 80)
+    print("🔵 [DEBUG] create_report - START")
+    print("=" * 80)
+    
     try:
-        import json
-        image_urls_list = json.loads(image_urls) if image_urls else []
+        # 🔍 Debug: แสดงข้อมูลที่ได้รับ
+        print(f"📥 [INPUT] report_type: {report_type}")
+        print(f"📥 [INPUT] reported_id: {reported_id}")
+        print(f"📥 [INPUT] reason: {reason}")
+        print(f"📥 [INPUT] description length: {len(description)}")
+        print(f"📥 [INPUT] description: '{description}'")
+        print(f"📥 [INPUT] image_urls (raw): {image_urls}")
+        print(f"📥 [INPUT] auth_user: {auth_user.user_id} ({auth_user.username})")
         
-        data = CreateReportRequest(
-            report_type=ReportType(report_type),
-            reported_id=reported_id,
-            reason=ReportReason(reason),
-            description=description,
-            image_urls=image_urls_list
-        )
+        # 🔍 Debug: Parse image_urls
+        try:
+            image_urls_list = json.loads(image_urls) if image_urls else []
+            print(f"✅ [PARSE] image_urls_list: {image_urls_list} (count: {len(image_urls_list)})")
+        except json.JSONDecodeError as je:
+            print(f"❌ [PARSE ERROR] JSON decode failed: {je}")
+            return error_response(f"รูปแบบ image_urls ไม่ถูกต้อง: {str(je)}", {}, 400)
         
+        # 🔍 Debug: Validate report_type
+        try:
+            validated_report_type = ReportType(report_type)
+            print(f"✅ [VALIDATE] report_type: {validated_report_type}")
+        except ValueError as ve:
+            print(f"❌ [VALIDATE ERROR] Invalid report_type: {ve}")
+            return error_response(f"report_type ไม่ถูกต้อง ต้องเป็น 'user' หรือ 'store'", {}, 400)
+        
+        # 🔍 Debug: Validate reason
+        try:
+            validated_reason = ReportReason(reason)
+            print(f"✅ [VALIDATE] reason: {validated_reason}")
+        except ValueError as ve:
+            print(f"❌ [VALIDATE ERROR] Invalid reason: {ve}")
+            valid_reasons = [r.value for r in ReportReason]
+            return error_response(f"reason ไม่ถูกต้อง ต้องเป็นหนึ่งใน: {valid_reasons}", {}, 400)
+        
+        # 🔍 Debug: Create request object
+        print(f"🔨 [CREATE] Creating CreateReportRequest object...")
+        try:
+            data = CreateReportRequest(
+                report_type=validated_report_type,
+                reported_id=reported_id,
+                reason=validated_reason,
+                description=description if description else "",  # ✅ ให้เป็น empty string ถ้าไม่มี
+                image_urls=image_urls_list
+            )
+            print(f"✅ [CREATE] CreateReportRequest created successfully")
+            print(f"   - report_type: {data.report_type}")
+            print(f"   - reported_id: {data.reported_id}")
+            print(f"   - reason: {data.reason}")
+            print(f"   - description: '{data.description}'")
+            print(f"   - image_urls: {data.image_urls}")
+        except ValueError as ve:
+            print(f"❌ [CREATE ERROR] Validation failed: {ve}")
+            return error_response(f"ข้อมูลไม่ถูกต้อง: {str(ve)}", {}, 400)
+        except Exception as e:
+            print(f"❌ [CREATE ERROR] Unexpected error: {e}")
+            print(f"   Traceback: {traceback.format_exc()}")
+            return error_response(f"เกิดข้อผิดพลาดในการสร้าง request: {str(e)}", {}, 400)
+        
+        # 🔍 Debug: Call service
+        print(f"🔨 [SERVICE] Calling create_report_service...")
         result, error = create_report_service(
             db,
             str(auth_user.user_id),
@@ -75,12 +131,23 @@ def create_report(
         )
         
         if error:
+            print(f"❌ [SERVICE ERROR] {error}")
             return error_response(error, {}, 400)
+        
+        print(f"✅ [SERVICE] Report created successfully!")
+        print(f"   - report_id: {result.get('report_id', 'N/A')}")
+        print("=" * 80)
+        print("🔵 [DEBUG] create_report - END (SUCCESS)")
+        print("=" * 80)
         
         return success_response("สร้างรายงานสำเร็จ", result)
         
     except Exception as e:
-        print(f"❌ [create_report] Error: {e}")
+        print(f"❌ [EXCEPTION] Unexpected error: {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
+        print("=" * 80)
+        print("🔵 [DEBUG] create_report - END (ERROR)")
+        print("=" * 80)
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
 
 
@@ -106,10 +173,17 @@ def get_all_reports(
     - รองรับการกรองตามประเภท, สถานะ, เหตุผล
     - รองรับ pagination
     """
+    print("🔵 [DEBUG] get_all_reports - START")
+    
     try:
         # ตรวจสอบ admin
         if not auth_user.role or auth_user.role.role_name.upper() != "ADMIN":
+            print(f"❌ [AUTH] User {auth_user.username} is not admin")
             return error_response("ไม่มีสิทธิ์เข้าถึง", {}, 403)
+        
+        print(f"✅ [AUTH] Admin user: {auth_user.username}")
+        print(f"📥 [PARAMS] report_type={report_type}, status={status}, reason={reason}")
+        print(f"📥 [PARAMS] skip={skip}, limit={limit}")
         
         params = ReportFilterParams(
             report_type=ReportType(report_type) if report_type else None,
@@ -122,12 +196,15 @@ def get_all_reports(
         data, error = get_all_reports_service(db, params)
         
         if error:
+            print(f"❌ [SERVICE ERROR] {error}")
             return error_response(error, {}, 400)
         
+        print(f"✅ [SUCCESS] Found {data.get('total', 0)} reports")
         return success_response("ดึงรายการรายงานสำเร็จ", data)
         
     except Exception as e:
-        print(f"❌ [get_all_reports] Error: {e}")
+        print(f"❌ [EXCEPTION] {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
 
 
@@ -141,19 +218,25 @@ def get_report_statistics(
     auth_user: User = Depends(authenticate_token())
 ):
     """**สถิติรายงาน (Admin only)**"""
+    print("🔵 [DEBUG] get_report_statistics - START")
+    
     try:
         if not auth_user.role or auth_user.role.role_name.upper() != "ADMIN":
+            print(f"❌ [AUTH] User {auth_user.username} is not admin")
             return error_response("ไม่มีสิทธิ์เข้าถึง", {}, 403)
         
         data, error = get_report_statistics_service(db)
         
         if error:
+            print(f"❌ [SERVICE ERROR] {error}")
             return error_response(error, {}, 400)
         
+        print(f"✅ [SUCCESS] Statistics retrieved")
         return success_response("ดึงสถิติสำเร็จ", data)
         
     except Exception as e:
-        print(f"❌ [get_report_statistics] Error: {e}")
+        print(f"❌ [EXCEPTION] {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
 
 
@@ -168,19 +251,25 @@ def get_report_detail(
     auth_user: User = Depends(authenticate_token())
 ):
     """**ดูรายละเอียดรายงาน (Admin only)**"""
+    print(f"🔵 [DEBUG] get_report_detail - START (report_id: {report_id})")
+    
     try:
         if not auth_user.role or auth_user.role.role_name.upper() != "ADMIN":
+            print(f"❌ [AUTH] User {auth_user.username} is not admin")
             return error_response("ไม่มีสิทธิ์เข้าถึง", {}, 403)
         
         data, error = get_report_detail_service(db, report_id)
         
         if error:
+            print(f"❌ [SERVICE ERROR] {error}")
             return error_response(error, {}, 404 if error == "ไม่พบรายงาน" else 400)
         
+        print(f"✅ [SUCCESS] Report detail retrieved")
         return success_response("ดึงข้อมูลสำเร็จ", data)
         
     except Exception as e:
-        print(f"❌ [get_report_detail] Error: {e}")
+        print(f"❌ [EXCEPTION] {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
 
 
@@ -202,9 +291,15 @@ def update_report_status(
     - status: pending, reviewing, resolved, rejected
     - admin_note: หมายเหตุจาก Admin (optional)
     """
+    print(f"🔵 [DEBUG] update_report_status - START (report_id: {report_id})")
+    
     try:
         if not auth_user.role or auth_user.role.role_name.upper() != "ADMIN":
+            print(f"❌ [AUTH] User {auth_user.username} is not admin")
             return error_response("ไม่มีสิทธิ์เข้าถึง", {}, 403)
+        
+        print(f"📥 [INPUT] status: {status}")
+        print(f"📥 [INPUT] admin_note: {admin_note}")
         
         data = UpdateReportStatusRequest(
             status=ReportStatus(status),
@@ -219,10 +314,13 @@ def update_report_status(
         )
         
         if error:
+            print(f"❌ [SERVICE ERROR] {error}")
             return error_response(error, {}, 400)
         
+        print(f"✅ [SUCCESS] Status updated")
         return success_response("อัปเดตสถานะสำเร็จ", result)
         
     except Exception as e:
-        print(f"❌ [update_report_status] Error: {e}")
+        print(f"❌ [EXCEPTION] {e}")
+        print(f"   Traceback: {traceback.format_exc()}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)

@@ -1,4 +1,4 @@
-// app/(chat)/chat.tsx - Chat with Smooth Cursor-Based Pagination
+// app/(chat)/chat.tsx - Chat with Report Button Added
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -17,6 +17,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -25,7 +26,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { chatAPI, ChatMessage } from "@/api/chat";
+import { createReport } from "@/api/report";
 import ChatInput from "@/components/chat/chat-input";
+import ReportModal from "@/components/report/report-modal";
 import { getCurrentUserId } from "@/utils/fetch-interceptor";
 import { getToken } from "@/utils/secure-store";
 import { WS_DOMAIN } from "@/้host";
@@ -103,6 +106,8 @@ export default function ChatScreen() {
   const [resolvedStoreName, setResolvedStoreName] = useState<
     string | undefined
   >();
+  // 🆕 เพิ่ม state สำหรับเก็บ storeId
+  const [resolvedStoreId, setResolvedStoreId] = useState<string | undefined>();
 
   const cid = resolvedConversationId;
   const headerTitle = resolvedStoreName ?? paramStoreName ?? "แชท";
@@ -117,10 +122,14 @@ export default function ChatScreen() {
   const [isInChat, setIsInChat] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  // 🆕 Report states
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+
   const flatListRef = useRef<FlatList>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const isLoadingMoreRef = useRef(false);
-  const shouldScrollToEndRef = useRef(false); // ✅ เพิ่มตัวควบคุมว่าควร scroll หรือไม่
+  const shouldScrollToEndRef = useRef(false);
   const PAGE_SIZE = 20;
 
   useFocusEffect(
@@ -135,6 +144,7 @@ export default function ChatScreen() {
     if (paramConversationId) {
       setResolvedConversationId(paramConversationId);
       setResolvedStoreName(paramStoreName ?? "แชท");
+      setResolvedStoreId(paramStoreId); // 🆕 เก็บ storeId
       return;
     }
 
@@ -144,6 +154,7 @@ export default function ChatScreen() {
           const conv = await chatAPI.createOrGetConversation(paramStoreId);
           setResolvedConversationId(conv.conversation_id);
           setResolvedStoreName(conv.store_name ?? paramStoreName ?? "ร้านค้า");
+          setResolvedStoreId(conv.store_id); // 🆕 เก็บ storeId จาก response
         } catch (e: any) {
           Alert.alert(
             "ข้อผิดพลาด",
@@ -164,7 +175,51 @@ export default function ChatScreen() {
     setCurrentUserId(userId);
   }, []);
 
-  // ✅ Fetch initial messages (ล่าสุด 20 ข้อความ)
+  // 🆕 Handle report store
+  const handleReportStore = () => {
+    setMenuVisible(false);
+    if (!resolvedStoreId) {
+      Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลร้านค้า");
+      return;
+    }
+    setReportModalVisible(true);
+  };
+
+  // 🆕 Submit report
+  const handleSubmitReport = async (data: any) => {
+    if (!resolvedStoreId) return;
+
+    try {
+      const reportData = {
+        report_type: "store" as const,
+        reported_id: resolvedStoreId,
+        reason: data.reason,
+        description: data.description,
+        image_urls: data.imageUrls,
+      };
+
+      await createReport(reportData);
+
+      Alert.alert(
+        "รายงานสำเร็จ",
+        "ขอบคุณที่แจ้งเรา เราจะตรวจสอบและดำเนินการต่อไป",
+        [
+          {
+            text: "ตกลง",
+            onPress: () => setReportModalVisible(false),
+          },
+        ],
+      );
+    } catch (error) {
+      console.error("Submit report error:", error);
+      Alert.alert(
+        "เกิดข้อผิดพลาด",
+        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง",
+      );
+    }
+  };
+
+  // Fetch initial messages
   const fetchMessages = useCallback(async () => {
     if (!cid) return;
 
@@ -182,13 +237,11 @@ export default function ChatScreen() {
       setMessages(data.reverse());
       setHasMore(data.length === PAGE_SIZE);
 
-      // ✅ บอกว่าควร scroll ลงล่าง
       shouldScrollToEndRef.current = true;
 
-      // ✅ Scroll ลงล่างเฉพาะตอนโหลดครั้งแรก
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: false });
-        shouldScrollToEndRef.current = false; // ✅ รีเซ็ตหลัง scroll เสร็จ
+        shouldScrollToEndRef.current = false;
       }, 300);
     } catch (err: any) {
       console.log("[fetchMessages] ❌ error =", err);
@@ -198,7 +251,7 @@ export default function ChatScreen() {
     }
   }, [cid]);
 
-  // ✅ Load more messages (ข้อความเก่ากว่า)
+  // Load more messages
   const loadMoreMessages = useCallback(async () => {
     if (!cid || !hasMore || loadingMore || loading || messages.length === 0)
       return;
@@ -208,7 +261,7 @@ export default function ChatScreen() {
     console.log(`[loadMoreMessages] Loading older than ${oldestMessageId}`);
     setLoadingMore(true);
     isLoadingMoreRef.current = true;
-    shouldScrollToEndRef.current = false; // ✅ ห้าม scroll ตอน load more
+    shouldScrollToEndRef.current = false;
 
     try {
       const data = await chatAPI.getConversationMessages(
@@ -284,10 +337,8 @@ export default function ChatScreen() {
                 return [...prev, newMessage];
               });
 
-              // ✅ บอกว่าควร scroll (มีข้อความใหม่)
               shouldScrollToEndRef.current = true;
 
-              // ✅ Auto scroll เมื่อมีข้อความใหม่
               setTimeout(() => {
                 flatListRef.current?.scrollToEnd({ animated: true });
                 shouldScrollToEndRef.current = false;
@@ -369,10 +420,8 @@ export default function ChatScreen() {
           return [...prev, newMessage];
         });
 
-        // ✅ บอกว่าควร scroll (ส่งรูป)
         shouldScrollToEndRef.current = true;
 
-        // ✅ Scroll ลงล่างหลังส่งรูป
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
           shouldScrollToEndRef.current = false;
@@ -507,14 +556,24 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* 🆕 Header with Report Button */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.headerButton}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {headerTitle}
         </Text>
-        <View style={{ width: 24 }} />
+        {/* 🆕 Report Menu Button */}
+        <TouchableOpacity
+          onPress={() => setMenuVisible(true)}
+          style={styles.headerButton}
+        >
+          <Ionicons name="ellipsis-vertical" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -538,11 +597,9 @@ export default function ChatScreen() {
             maxToRenderPerBatch={10}
             windowSize={10}
             removeClippedSubviews={true}
-            // ✅ Smooth pagination: ยึดตำแหน่งที่ผู้ใช้มองเห็นอยู่
             maintainVisibleContentPosition={{
               minIndexForVisible: 0,
             }}
-            // ✅ ตรวจจับการ scroll ถึงด้านบน
             scrollEventThrottle={16}
             onScroll={({ nativeEvent }) => {
               const isNearTop = nativeEvent.contentOffset.y <= 50;
@@ -550,8 +607,6 @@ export default function ChatScreen() {
                 loadMoreMessages();
               }
             }}
-            // ✅ ลบ onContentSizeChange ออก เพราะมันทำให้ scroll อัตโนมัติ
-            // แทนที่จะใช้ onContentSizeChange เราจะควบคุมการ scroll ด้วย shouldScrollToEndRef
           />
         )}
 
@@ -568,6 +623,29 @@ export default function ChatScreen() {
           disabled={sendingImage || !wsReady}
         />
       </KeyboardAvoidingView>
+
+      {/* 🆕 Report Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable
+          style={styles.menuOverlay}
+          onPress={() => setMenuVisible(false)}
+        >
+          <View style={styles.menuContainer}>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleReportStore}
+            >
+              <Ionicons name="flag-outline" size={20} color="#EF4444" />
+              <Text style={styles.menuItemText}>รายงานร้านค้า</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* Image Viewer */}
       <Modal
@@ -591,6 +669,18 @@ export default function ChatScreen() {
           )}
         </View>
       </Modal>
+
+      {/* 🆕 Report Modal */}
+      {resolvedStoreId && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          onSubmit={handleSubmitReport}
+          reportType="store"
+          reportedId={resolvedStoreId}
+          reportedName={headerTitle}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -601,12 +691,19 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: "#fff",
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
+  },
+  // 🆕 Header button style
+  headerButton: {
+    padding: 4,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     flex: 1,
@@ -614,7 +711,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#333",
     textAlign: "center",
-    marginHorizontal: 16,
+    marginHorizontal: 8,
   },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   messagesList: { padding: 16, flexGrow: 1 },
@@ -688,4 +785,36 @@ const styles = StyleSheet.create({
   },
   closeButton: { position: "absolute", top: 50, right: 20, zIndex: 10 },
   fullImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
+
+  // 🆕 Menu Modal Styles
+  menuOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+    paddingTop: Platform.OS === "ios" ? 100 : 80,
+    paddingRight: 16,
+  },
+  menuContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    minWidth: 200,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: "#333",
+    fontWeight: "500",
+  },
 });

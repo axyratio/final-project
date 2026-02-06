@@ -1,22 +1,37 @@
-// client/app/(admin)/reports.tsx
-import React, { useState, useEffect } from "react";
+// client/app/(admin)/reports.tsx - with Image Gallery & Zoom
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
+  formatReportReason,
+  formatReportStatus,
+  getAllReports,
+} from "@/api/report";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
+import {
   ActivityIndicator,
   Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { getAllReports, formatReportReason, formatReportStatus } from "@/api/report";
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function AdminReportsScreen() {
   const router = useRouter();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // 🆕 Image viewer states
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -45,42 +60,115 @@ export default function AdminReportsScreen() {
     }
   };
 
-  const renderReportItem = ({ item }: any) => (
-    <TouchableOpacity
-      style={styles.reportCard}
-      onPress={() => handleReportPress(item)}
-    >
-      <View style={styles.reportHeader}>
-        <Ionicons 
-          name={item.report_type === "user" ? "person" : "storefront"} 
-          size={20} 
-          color="#ef4444" 
-        />
-        <Text style={styles.reportType}>
-          {item.report_type === "user" ? "รายงานผู้ใช้" : "รายงานร้านค้า"}
+  // 🆕 เปิดดูรูปภาพ
+  const handleImagePress = (images: string[], index: number) => {
+    setSelectedImages(images);
+    setCurrentImageIndex(index);
+    setImageViewerVisible(true);
+  };
+
+  // 🆕 รูปถัดไป
+  const handleNextImage = () => {
+    if (currentImageIndex < selectedImages.length - 1) {
+      setCurrentImageIndex(currentImageIndex + 1);
+    }
+  };
+
+  // 🆕 รูปก่อนหน้า
+  const handlePreviousImage = () => {
+    if (currentImageIndex > 0) {
+      setCurrentImageIndex(currentImageIndex - 1);
+    }
+  };
+
+  const renderReportItem = ({ item }: any) => {
+    // แปลง image_urls จาก string เป็น array (ถ้าเป็น JSON string)
+    let imageUrls: string[] = [];
+    try {
+      if (typeof item.image_urls === "string") {
+        imageUrls = JSON.parse(item.image_urls);
+      } else if (Array.isArray(item.image_urls)) {
+        imageUrls = item.image_urls;
+      }
+    } catch (e) {
+      console.log("Parse image_urls error:", e);
+    }
+
+    return (
+      <TouchableOpacity
+        style={styles.reportCard}
+        onPress={() => handleReportPress(item)}
+      >
+        <View style={styles.reportHeader}>
+          <Ionicons
+            name={item.report_type === "user" ? "person" : "storefront"}
+            size={20}
+            color="#ef4444"
+          />
+          <Text style={styles.reportType}>
+            {item.report_type === "user" ? "รายงานผู้ใช้" : "รายงานร้านค้า"}
+          </Text>
+          <View style={[styles.statusBadge, getStatusColor(item.status)]}>
+            <Text style={styles.statusText}>
+              {formatReportStatus(item.status)}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.reportedName}>
+          ผู้ถูกรายงาน: {item.reported_name}
         </Text>
-        <View style={[styles.statusBadge, getStatusColor(item.status)]}>
-          <Text style={styles.statusText}>{formatReportStatus(item.status)}</Text>
+        <Text style={styles.reason}>
+          เหตุผล: {formatReportReason(item.reason)}
+        </Text>
+
+        {item.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+
+        <Text style={styles.reporter}>โดย: {item.reporter_username}</Text>
+
+        {/* 🆕 แสดงรูปภาพ Thumbnails */}
+        {imageUrls.length > 0 && (
+          <View style={styles.imagesContainer}>
+            <View style={styles.imageHeader}>
+              <Ionicons name="images" size={16} color="#6b7280" />
+              <Text style={styles.imageHeaderText}>
+                รูปภาพหลักฐาน ({imageUrls.length})
+              </Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.imagesGrid}>
+                {imageUrls.map((url, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.thumbnailWrapper}
+                    onPress={() => handleImagePress(imageUrls, index)}
+                  >
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.thumbnail}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.thumbnailOverlay}>
+                      <Ionicons name="eye" size={20} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+          </View>
+        )}
+
+        <View style={styles.viewButton}>
+          <Text style={styles.viewButtonText}>ดูรายละเอียด</Text>
+          <Ionicons name="chevron-forward" size={18} color="#3b82f6" />
         </View>
-      </View>
-
-      <Text style={styles.reportedName}>ผู้ถูกรายงาน: {item.reported_name}</Text>
-      <Text style={styles.reason}>เหตุผล: {formatReportReason(item.reason)}</Text>
-      <Text style={styles.reporter}>โดย: {item.reporter_username}</Text>
-
-      {item.image_count > 0 && (
-        <View style={styles.imageInfo}>
-          <Ionicons name="image" size={16} color="#6b7280" />
-          <Text style={styles.imageCount}>{item.image_count} รูป</Text>
-        </View>
-      )}
-
-      <View style={styles.viewButton}>
-        <Text style={styles.viewButtonText}>ดูรายละเอียด</Text>
-        <Ionicons name="chevron-forward" size={18} color="#3b82f6" />
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   const getStatusColor = (status: string) => {
     const colors: any = {
@@ -115,6 +203,97 @@ export default function AdminReportsScreen() {
         renderItem={renderReportItem}
         contentContainerStyle={styles.listContent}
       />
+
+      {/* 🆕 Image Viewer Modal with Zoom */}
+      <Modal
+        visible={imageViewerVisible}
+        transparent
+        onRequestClose={() => setImageViewerVisible(false)}
+      >
+        <View style={styles.imageViewerContainer}>
+          {/* Close Button */}
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setImageViewerVisible(false)}
+          >
+            <Ionicons name="close-circle" size={40} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Image Counter */}
+          <View style={styles.imageCounter}>
+            <Text style={styles.imageCounterText}>
+              {currentImageIndex + 1} / {selectedImages.length}
+            </Text>
+          </View>
+
+          {/* Main Image with Zoom */}
+          {selectedImages.length > 0 && (
+            <ScrollView
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+              showsHorizontalScrollIndicator={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.zoomScrollContent}
+            >
+              <Image
+                source={{ uri: selectedImages[currentImageIndex] }}
+                style={styles.fullImage}
+                resizeMode="contain"
+              />
+            </ScrollView>
+          )}
+
+          {/* Navigation Buttons */}
+          {selectedImages.length > 1 && (
+            <>
+              {/* Previous Button */}
+              {currentImageIndex > 0 && (
+                <TouchableOpacity
+                  style={[styles.navButton, styles.prevButton]}
+                  onPress={handlePreviousImage}
+                >
+                  <Ionicons name="chevron-back" size={30} color="#fff" />
+                </TouchableOpacity>
+              )}
+
+              {/* Next Button */}
+              {currentImageIndex < selectedImages.length - 1 && (
+                <TouchableOpacity
+                  style={[styles.navButton, styles.nextButton]}
+                  onPress={handleNextImage}
+                >
+                  <Ionicons name="chevron-forward" size={30} color="#fff" />
+                </TouchableOpacity>
+              )}
+            </>
+          )}
+
+          {/* Thumbnail Strip */}
+          {selectedImages.length > 1 && (
+            <View style={styles.thumbnailStrip}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {selectedImages.map((url, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => setCurrentImageIndex(index)}
+                    style={[
+                      styles.thumbnailStripItem,
+                      currentImageIndex === index &&
+                        styles.thumbnailStripItemActive,
+                    ]}
+                  >
+                    <Image
+                      source={{ uri: url }}
+                      style={styles.thumbnailStripImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -155,9 +334,54 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 12, fontWeight: "600", color: "#374151" },
   reportedName: { fontSize: 16, fontWeight: "bold", color: "#1f2937" },
   reason: { fontSize: 14, color: "#6b7280" },
+  description: { fontSize: 14, color: "#6b7280", fontStyle: "italic" },
   reporter: { fontSize: 13, color: "#9ca3af" },
-  imageInfo: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  imageCount: { fontSize: 13, color: "#6b7280" },
+
+  // 🆕 Images Container
+  imagesContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+  imageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  imageHeaderText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  imagesGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  thumbnailWrapper: {
+    position: "relative",
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  thumbnail: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#f3f4f6",
+  },
+  thumbnailOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
   viewButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -169,4 +393,86 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   viewButtonText: { fontSize: 15, fontWeight: "600", color: "#3b82f6" },
+
+  // 🆕 Image Viewer Modal
+  imageViewerContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 50,
+    right: 20,
+    zIndex: 10,
+  },
+  imageCounter: {
+    position: "absolute",
+    top: 55,
+    left: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    zIndex: 10,
+  },
+  imageCounterText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  zoomScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.7,
+  },
+
+  // 🆕 Navigation Buttons
+  navButton: {
+    position: "absolute",
+    top: "50%",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  prevButton: {
+    left: 20,
+  },
+  nextButton: {
+    right: 20,
+  },
+
+  // 🆕 Thumbnail Strip
+  thumbnailStrip: {
+    position: "absolute",
+    bottom: 30,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+  },
+  thumbnailStripItem: {
+    width: 60,
+    height: 60,
+    marginRight: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  thumbnailStripItemActive: {
+    borderColor: "#3b82f6",
+  },
+  thumbnailStripImage: {
+    width: "100%",
+    height: "100%",
+  },
 });
