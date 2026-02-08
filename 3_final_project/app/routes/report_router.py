@@ -1,7 +1,7 @@
 # app/routes/report_router.py
 """
 Report Router - ระบบรายงาน
-Enhanced with detailed debugging
+Enhanced with detailed debugging and auto status change
 """
 from fastapi import APIRouter, Depends, Query, Form, UploadFile, File
 from sqlalchemy.orm import Session
@@ -45,7 +45,7 @@ def create_report(
     report_type: str = Form(..., description="user หรือ store"),
     reported_id: str = Form(..., description="ID ของผู้ถูกรายงาน"),
     reason: str = Form(..., description="เหตุผล"),
-    description: str = Form("", description="รายละเอียด"),  # ✅ เปลี่ยนเป็น default=""
+    description: str = Form("", description="รายละเอียด"),
     image_urls: str = Form("[]", description="JSON array ของ image URLs"),
     db: Session = Depends(get_db),
     auth_user: User = Depends(authenticate_token())
@@ -105,7 +105,7 @@ def create_report(
                 report_type=validated_report_type,
                 reported_id=reported_id,
                 reason=validated_reason,
-                description=description if description else "",  # ✅ ให้เป็น empty string ถ้าไม่มี
+                description=description if description else "",
                 image_urls=image_urls_list
             )
             print(f"✅ [CREATE] CreateReportRequest created successfully")
@@ -243,22 +243,32 @@ def get_report_statistics(
 @router.get(
     "/{report_id}",
     summary="ดูรายละเอียดรายงาน (Admin)",
-    description="Admin ดูรายละเอียดรายงาน"
+    description="Admin ดูรายละเอียดรายงาน พร้อมเปลี่ยนสถานะอัตโนมัติ"
 )
 def get_report_detail(
     report_id: str,
+    auto_mark_reviewing: bool = Query(False, description="เปลี่ยนสถานะเป็น reviewing อัตโนมัติ"),
     db: Session = Depends(get_db),
     auth_user: User = Depends(authenticate_token())
 ):
-    """**ดูรายละเอียดรายงาน (Admin only)**"""
-    print(f"🔵 [DEBUG] get_report_detail - START (report_id: {report_id})")
+    """
+    **ดูรายละเอียดรายงาน (Admin only)**
+    
+    - auto_mark_reviewing=true: เปลี่ยนสถานะจาก pending -> reviewing อัตโนมัติ
+    """
+    print(f"🔵 [DEBUG] get_report_detail - START (report_id: {report_id}, auto_mark_reviewing: {auto_mark_reviewing})")
     
     try:
         if not auth_user.role or auth_user.role.role_name.upper() != "ADMIN":
             print(f"❌ [AUTH] User {auth_user.username} is not admin")
             return error_response("ไม่มีสิทธิ์เข้าถึง", {}, 403)
         
-        data, error = get_report_detail_service(db, report_id)
+        data, error = get_report_detail_service(
+            db, 
+            report_id,
+            admin_id=str(auth_user.user_id),
+            auto_mark_reviewing=auto_mark_reviewing
+        )
         
         if error:
             print(f"❌ [SERVICE ERROR] {error}")

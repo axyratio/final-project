@@ -58,9 +58,18 @@ export async function getAllReports(params?: {
   return await response.json();
 }
 
-export async function getReportDetail(reportId: string) {
+// ✅ อัพเดท: เพิ่ม autoMarkReviewing parameter
+export async function getReportDetail(reportId: string, autoMarkReviewing: boolean = false) {
   const token = await getToken();
-  const response = await fetch(`${DOMAIN}/reports/${reportId}`, {
+  const queryParams = new URLSearchParams();
+  
+  if (autoMarkReviewing) {
+    queryParams.append("auto_mark_reviewing", "true");
+  }
+  
+  const url = `${DOMAIN}/reports/${reportId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  
+  const response = await fetch(url, {
     method: "GET",
     headers: {
       Authorization: `Bearer ${token}`,

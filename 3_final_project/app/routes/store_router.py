@@ -10,7 +10,7 @@ from app.db.database import get_db
 from app.core.authz import authenticate_token, authorize_role
 from app.services.store_service import (
     create_store_and_connect_stripe,
-    create_store_service,
+    # create_store_service,
     create_stripe_onboarding_link,
     get_my_store_service,
     update_store_service,
@@ -52,18 +52,18 @@ def create_store(
 
 
 # ✅ สร้างร้านใหม่
-@router.post("/create")
-def create_store(
-    name: str = Form(...),
-    description: str = Form(None),
-    address: str = Form(None),
-    logo: UploadFile = File(None),
-    db: Session = Depends(get_db),
-    auth_current_user=Depends(authenticate_token()),
-    auth_role=Depends(authorize_role(["user"]))
-):
-    data = StoreCreate(name=name, description=description, address=address).dict()
-    return create_store_service(db, auth_current_user, data, logo)
+# @router.post("/create")
+# def create_store(
+#     name: str = Form(...),
+#     description: str = Form(None),
+#     address: str = Form(None),
+#     logo: UploadFile = File(None),
+#     db: Session = Depends(get_db),
+#     auth_current_user=Depends(authenticate_token()),
+#     auth_role=Depends(authorize_role(["user"]))
+# ):
+#     data = StoreCreate(name=name, description=description, address=address).dict()
+#     return create_store_service(db, auth_current_user, data, logo)
 
 
 # ✅ ดึงร้านของฉัน
@@ -78,19 +78,39 @@ def get_my_store(
 
 # ✅ อัปเดตร้าน
 @router.patch("/update")
+# app/routes/store_router.py - Update endpoint
+
+# ✅ อัปเดตร้าน (แก้ไขให้รองรับ remove_logo)
+@router.patch("/update")
 def update_store(
     name: str = Form(None),
     description: str = Form(None),
     address: str = Form(None),
     logo: UploadFile = File(None),
+    remove_logo: bool = Form(False),  # ✅ เพิ่ม parameter สำหรับลบโลโก้
     db: Session = Depends(get_db),
     auth_current_user=Depends(authenticate_token()),
     auth_role=Depends(authorize_role(["seller"])),
 ):
-    data = StoreUpdate(name=name, description=description, address=address).dict()
-    print(name, "name of patch store")
-    return update_store_service(db, auth_current_user, data, logo)
-
+    """
+    อัพเดทข้อมูลร้านค้า
+    
+    Form Data:
+    - name: ชื่อร้าน (optional)
+    - description: คำอธิบาย (optional)
+    - address: ที่อยู่ (optional)
+    - logo: ไฟล์โลโก้ใหม่ (optional)
+    - remove_logo: true = ลบโลโก้ (optional)
+    """
+    return update_store_service(
+        db, 
+        auth_current_user, 
+        name=name,
+        description=description,
+        address=address,
+        logo=logo,
+        remove_logo=remove_logo
+    )
 
 # ✅ ลบร้าน
 @router.delete("/delete")

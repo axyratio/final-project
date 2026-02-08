@@ -1,8 +1,10 @@
-// client/app/(admin)/reports.tsx - with Image Gallery & Zoom
+// client/app/(admin)/report.tsx - Enhanced with Status Filter & Action Buttons
 import {
   formatReportReason,
   formatReportStatus,
   getAllReports,
+  getReportDetail,
+  updateReportStatus,
 } from "@/api/report";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -23,23 +25,40 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+// สถานะที่มี
+const STATUS_OPTIONS = [
+  { value: null, label: "ทั้งหมด" },
+  { value: "pending", label: "รอตรวจสอบ" },
+  { value: "reviewing", label: "กำลังตรวจสอบ" },
+  { value: "resolved", label: "ตรวจสอบแล้ว" },
+  { value: "rejected", label: "ปฏิเสธ" },
+];
+
 export default function AdminReportsScreen() {
   const router = useRouter();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // 🆕 Image viewer states
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [imageViewerVisible, setImageViewerVisible] = useState(false);
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null);
 
   useEffect(() => {
     loadReports();
-  }, []);
+  }, [selectedStatus]);
 
   const loadReports = async () => {
     try {
-      const response = await getAllReports({ skip: 0, limit: 50 });
+      const params: any = { skip: 0, limit: 100 };
+      if (selectedStatus) {
+        params.status = selectedStatus;
+      }
+
+      const response = await getAllReports(params);
       if (response.success) {
         setReports(response.data.reports);
       }
@@ -47,6 +66,7 @@ export default function AdminReportsScreen() {
       Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดรายงานได้");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -60,11 +80,61 @@ export default function AdminReportsScreen() {
     }
   };
 
-  // 🆕 เปิดดูรูปภาพ
-  const handleImagePress = (images: string[], index: number) => {
+  // 🆕 เปิดดูรูปภาพ + เปลี่ยนสถานะเป็น reviewing อัตโนมัติ
+  const handleImagePress = async (
+    images: string[],
+    index: number,
+    reportId: string,
+  ) => {
     setSelectedImages(images);
     setCurrentImageIndex(index);
+    setCurrentReportId(reportId);
     setImageViewerVisible(true);
+
+    // ✅ เปลี่ยนสถานะเป็น reviewing อัตโนมัติเมื่อดูรูป
+    try {
+      await getReportDetail(reportId, true); // auto_mark_reviewing=true
+      console.log("✅ Auto-changed status to reviewing");
+      // Reload reports to update UI
+      loadReports();
+    } catch (error) {
+      console.error("❌ Failed to auto-update status:", error);
+    }
+  };
+
+  // 🆕 เปลี่ยนสถานะรายงาน
+  const handleChangeStatus = async (reportId: string, newStatus: string) => {
+    try {
+      const statusLabels: any = {
+        resolved: "ตรวจสอบแล้ว",
+        rejected: "ปฏิเสธ",
+      };
+
+      Alert.alert(
+        "ยืนยันการเปลี่ยนสถานะ",
+        `คุณต้องการเปลี่ยนสถานะเป็น "${statusLabels[newStatus]}" ใช่หรือไม่?`,
+        [
+          { text: "ยกเลิก", style: "cancel" },
+          {
+            text: "ยืนยัน",
+            onPress: async () => {
+              const response = await updateReportStatus(reportId, newStatus);
+              if (response.success) {
+                Alert.alert("สำเร็จ", "เปลี่ยนสถานะเรียบร้อยแล้ว");
+                loadReports(); // Reload รายการ
+              } else {
+                Alert.alert(
+                  "ข้อผิดพลาด",
+                  response.message || "ไม่สามารถเปลี่ยนสถานะได้",
+                );
+              }
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการเปลี่ยนสถานะ");
+    }
   };
 
   // 🆕 รูปถัดไป
@@ -95,10 +165,7 @@ export default function AdminReportsScreen() {
     }
 
     return (
-      <TouchableOpacity
-        style={styles.reportCard}
-        onPress={() => handleReportPress(item)}
-      >
+      <View style={styles.reportCard}>
         <View style={styles.reportHeader}>
           <Ionicons
             name={item.report_type === "user" ? "person" : "storefront"}
@@ -115,20 +182,22 @@ export default function AdminReportsScreen() {
           </View>
         </View>
 
-        <Text style={styles.reportedName}>
-          ผู้ถูกรายงาน: {item.reported_name}
-        </Text>
-        <Text style={styles.reason}>
-          เหตุผล: {formatReportReason(item.reason)}
-        </Text>
-
-        {item.description && (
-          <Text style={styles.description} numberOfLines={2}>
-            {item.description}
+        <TouchableOpacity onPress={() => handleReportPress(item)}>
+          <Text style={styles.reportedName}>
+            ผู้ถูกรายงาน: {item.reported_name}
           </Text>
-        )}
+          <Text style={styles.reason}>
+            เหตุผล: {formatReportReason(item.reason)}
+          </Text>
 
-        <Text style={styles.reporter}>โดย: {item.reporter_username}</Text>
+          {item.description && (
+            <Text style={styles.description} numberOfLines={2}>
+              {item.description}
+            </Text>
+          )}
+
+          <Text style={styles.reporter}>โดย: {item.reporter_username}</Text>
+        </TouchableOpacity>
 
         {/* 🆕 แสดงรูปภาพ Thumbnails */}
         {imageUrls.length > 0 && (
@@ -145,7 +214,9 @@ export default function AdminReportsScreen() {
                   <TouchableOpacity
                     key={index}
                     style={styles.thumbnailWrapper}
-                    onPress={() => handleImagePress(imageUrls, index)}
+                    onPress={() =>
+                      handleImagePress(imageUrls, index, item.report_id)
+                    }
                   >
                     <Image
                       source={{ uri: url }}
@@ -162,11 +233,35 @@ export default function AdminReportsScreen() {
           </View>
         )}
 
-        <View style={styles.viewButton}>
+        {/* ✅ ปุ่มเปลี่ยนสถานะ */}
+        {(item.status === "pending" || item.status === "reviewing") && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity
+              style={[styles.actionButton, styles.resolvedButton]}
+              onPress={() => handleChangeStatus(item.report_id, "resolved")}
+            >
+              <Ionicons name="checkmark-circle" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>ตรวจสอบแล้ว</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionButton, styles.rejectedButton]}
+              onPress={() => handleChangeStatus(item.report_id, "rejected")}
+            >
+              <Ionicons name="close-circle" size={18} color="#fff" />
+              <Text style={styles.actionButtonText}>ปฏิเสธ</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={styles.viewButton}
+          onPress={() => handleReportPress(item)}
+        >
           <Text style={styles.viewButtonText}>ดูรายละเอียด</Text>
           <Ionicons name="chevron-forward" size={18} color="#3b82f6" />
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -197,11 +292,47 @@ export default function AdminReportsScreen() {
         <Text style={styles.headerTitle}>รายงานทั้งหมด</Text>
       </View>
 
+      {/* ✅ Status Filter */}
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={styles.filterButtons}>
+            {STATUS_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.value || "all"}
+                style={[
+                  styles.filterButton,
+                  selectedStatus === option.value && styles.filterButtonActive,
+                ]}
+                onPress={() => {
+                  setSelectedStatus(option.value);
+                  setRefreshing(true);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.filterButtonText,
+                    selectedStatus === option.value &&
+                      styles.filterButtonTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
       <FlatList
         data={reports}
         keyExtractor={(item: any) => item.report_id}
         renderItem={renderReportItem}
         contentContainerStyle={styles.listContent}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          loadReports();
+        }}
       />
 
       {/* 🆕 Image Viewer Modal with Zoom */}
@@ -311,6 +442,40 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerTitle: { fontSize: 20, fontWeight: "bold", color: "#1f2937" },
+
+  // ✅ Filter Styles
+  filterContainer: {
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  filterButtons: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#f3f4f6",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  filterButtonActive: {
+    backgroundColor: "#3b82f6",
+    borderColor: "#3b82f6",
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  filterButtonTextActive: {
+    color: "#fff",
+  },
+
   listContent: { padding: 16, gap: 12 },
   reportCard: {
     backgroundColor: "#fff",
@@ -337,7 +502,7 @@ const styles = StyleSheet.create({
   description: { fontSize: 14, color: "#6b7280", fontStyle: "italic" },
   reporter: { fontSize: 13, color: "#9ca3af" },
 
-  // 🆕 Images Container
+  // Images Container
   imagesContainer: {
     marginTop: 8,
     paddingTop: 8,
@@ -382,6 +547,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  // ✅ Action Buttons Styles
+  actionButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#f3f4f6",
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 6,
+  },
+  resolvedButton: {
+    backgroundColor: "#10b981",
+  },
+  rejectedButton: {
+    backgroundColor: "#ef4444",
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+
   viewButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -394,7 +589,7 @@ const styles = StyleSheet.create({
   },
   viewButtonText: { fontSize: 15, fontWeight: "600", color: "#3b82f6" },
 
-  // 🆕 Image Viewer Modal
+  // Image Viewer Modal
   imageViewerContainer: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.95)",
@@ -432,7 +627,7 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.7,
   },
 
-  // 🆕 Navigation Buttons
+  // Navigation Buttons
   navButton: {
     position: "absolute",
     top: "50%",
@@ -451,7 +646,7 @@ const styles = StyleSheet.create({
     right: 20,
   },
 
-  // 🆕 Thumbnail Strip
+  // Thumbnail Strip
   thumbnailStrip: {
     position: "absolute",
     bottom: 30,

@@ -14,17 +14,20 @@ type HomeProductGridProps = {
   products: HomeProduct[];
   isSeller?: boolean;
   onToggleFavorite?: (productId: string) => void;
+  isShowTitle?: boolean;
+  title?: string;
 };
 
 export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
   products,
   isSeller = false,
+  isShowTitle = false,
+  title,
   onToggleFavorite,
 }) => {
   const router = useRouter();
 
   console.log("HomeProductGrid received products:", products);
-
 
   if (!products || products.length === 0) {
     return (
@@ -38,9 +41,11 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
 
   return (
     <Box mt={6} px={4}>
-      <Text mb={3} fontWeight="600" fontSize="md">
-        แนะนำสำหรับคุณ
-      </Text>
+      {isShowTitle && (
+        <Text mb={3} fontWeight="600" fontSize="md">
+          {title}
+        </Text>
+      )}
 
       <View
         style={{
@@ -55,23 +60,22 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
             : p.imageUrl;
 
           // components/grid.tsx
-return (
-  <ProductCard
-    key={p.id}
-    productId={p.id}
-    title={p.title}
-    price={p.price}
-    star={p.rating}
-    imageUrl={imageUrl}
-    // ✅ ส่ง productId ไปเป็น query param
-    route={`/(home)/product-detail?productId=${encodeURIComponent(p.id)}`}
-    isSeller={isSeller}
-    onToggleFavorite={
-      onToggleFavorite ? () => onToggleFavorite(p.id) : undefined
-    }
-  />
-);
-
+          return (
+            <ProductCard
+              key={p.id}
+              productId={p.id}
+              title={p.title}
+              price={p.price}
+              star={p.rating}
+              imageUrl={imageUrl}
+              // ✅ ส่ง productId ไปเป็น query param
+              route={`/(home)/product-detail?productId=${encodeURIComponent(p.id)}`}
+              isSeller={isSeller}
+              onToggleFavorite={
+                onToggleFavorite ? () => onToggleFavorite(p.id) : undefined
+              }
+            />
+          );
         })}
       </View>
     </Box>

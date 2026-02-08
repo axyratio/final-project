@@ -1,6 +1,7 @@
 # app/services/report_service.py
 """
 Report Service - ระบบรายงาน
+Updated: เพิ่มการเปลี่ยนสถานะอัตโนมัติเมื่อดูรายงาน
 """
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, desc
@@ -44,8 +45,8 @@ def format_report_for_list(report: Report, db: Session) -> Dict[str, Any]:
         'reported_name': reported_name,
         'reported_id': reported_id,
         'image_count': len(report.image_urls) if report.image_urls else 0,
-        'image_urls': report.image_urls or [],  # ✅ เพิ่มบรรทัดนี้
-        'description': report.description,       # ✅ เพิ่มบรรทัดนี้
+        'image_urls': report.image_urls or [],
+        'description': report.description,
     }
 
 
@@ -225,10 +226,18 @@ def get_all_reports_service(
 
 def get_report_detail_service(
     db: Session,
-    report_id: str
+    report_id: str,
+    admin_id: Optional[str] = None,
+    auto_mark_reviewing: bool = False
 ) -> Tuple[Optional[Dict], Optional[str]]:
     """
     ดูรายละเอียดรายงาน
+    
+    Args:
+        db: Database session
+        report_id: ID ของรายงาน
+        admin_id: ID ของ Admin (ถ้ามี)
+        auto_mark_reviewing: เปลี่ยนสถานะเป็น reviewing อัตโนมัติ (เมื่อกดดูรูป)
     
     Returns:
         (report_data, error)
@@ -239,11 +248,23 @@ def get_report_detail_service(
         if not report:
             return None, "ไม่พบรายงาน"
         
+        # ✅ เปลี่ยนสถานะอัตโนมัติจาก pending -> reviewing เมื่อ admin ดูรายงาน
+        if auto_mark_reviewing and admin_id:
+            if report.status == ReportStatusEnum.PENDING:
+                report.status = ReportStatusEnum.REVIEWING
+                report.reviewed_by = admin_id
+                report.reviewed_at = datetime.utcnow()
+                report.updated_at = datetime.utcnow()
+                db.commit()
+                db.refresh(report)
+                print(f"✅ [AUTO] Changed status to REVIEWING for report {report_id}")
+        
         report_data = format_report_detail(report, db)
         
         return report_data, None
         
     except Exception as e:
+        db.rollback()
         print(f"❌ [get_report_detail_service] Error: {e}")
         return None, f"เกิดข้อผิดพลาด: {str(e)}"
 

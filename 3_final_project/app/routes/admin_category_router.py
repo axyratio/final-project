@@ -1,7 +1,10 @@
 # File: app/routes/admin_category_router.py
-
-from fastapi import APIRouter, Depends, Body
+"""
+Admin Category Router - Updated with Image Upload Support
+"""
+from fastapi import APIRouter, Depends, Body, Form, File, UploadFile
 from sqlalchemy.orm import Session
+from typing import Optional
 from app.db.database import get_db
 from app.core.authz import authenticate_token, authorize_role
 from app.services import category_service
@@ -11,21 +14,30 @@ router = APIRouter(prefix="/admin/categories", tags=["Admin - Categories"])
 
 @router.post("")
 def create_category(
-    data: dict = Body(...),
+    name: str = Form(...),
+    slug: str = Form(...),
+    description: str = Form(None),
+    image: UploadFile = File(None),
     db: Session = Depends(get_db),
     auth_user=Depends(authenticate_token()),
     auth_role=Depends(authorize_role(["admin"]))
 ):
     """
-    สร้างหมวดหมู่ใหม่ (เฉพาะ Admin)
+    สร้างหมวดหมู่ใหม่ พร้อมรูปภาพ (เฉพาะ Admin)
     
-    Body:
-    {
-        "name": "เสื้อยืด",
-        "slug": "tshirt"
-    }
+    Form Data:
+    - name: ชื่อหมวดหมู่ (required)
+    - slug: slug สำหรับ URL (required)
+    - description: คำอธิบาย (optional)
+    - image: ไฟล์รูปภาพ (optional)
     """
-    return category_service.create_category_service(db, data)
+    return category_service.create_category_service(
+        db, 
+        name=name,
+        slug=slug,
+        description=description,
+        image=image
+    )
 
 
 @router.get("")
@@ -60,7 +72,12 @@ def get_category_by_id(
 @router.patch("/{category_id}")
 def update_category(
     category_id: str,
-    data: dict = Body(...),
+    name: str = Form(None),
+    slug: str = Form(None),
+    description: str = Form(None),
+    is_active: bool = Form(None),
+    image: UploadFile = File(None),
+    remove_image: bool = Form(False),
     db: Session = Depends(get_db),
     auth_user=Depends(authenticate_token()),
     auth_role=Depends(authorize_role(["admin"]))
@@ -68,14 +85,24 @@ def update_category(
     """
     อัพเดทหมวดหมู่ (เฉพาะ Admin)
     
-    Body (ส่งเฉพาะที่ต้องการแก้):
-    {
-        "name": "เสื้อยืด V2",
-        "slug": "tshirt-v2",
-        "is_active": false
-    }
+    Form Data (ส่งเฉพาะที่ต้องการแก้):
+    - name: ชื่อหมวดหมู่
+    - slug: slug
+    - description: คำอธิบาย
+    - is_active: สถานะการใช้งาน
+    - image: ไฟล์รูปภาพใหม่
+    - remove_image: true = ลบรูปภาพ
     """
-    return category_service.update_category_service(db, category_id, data)
+    return category_service.update_category_service(
+        db, 
+        category_id,
+        name=name,
+        slug=slug,
+        description=description,
+        is_active=is_active,
+        image=image,
+        remove_image=remove_image
+    )
 
 
 @router.delete("/{category_id}")

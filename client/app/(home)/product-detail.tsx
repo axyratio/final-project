@@ -5,7 +5,13 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Box, Text } from "native-base";
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, View, ScrollView } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  View,
+  ScrollView,
+} from "react-native";
 
 import { addToCart, getCartSummary } from "@/api/cart";
 import {
@@ -78,7 +84,7 @@ export default function ProductDetailScreen() {
   const hasAnyVtonImage = (p: ProductDetailDto | null) => {
     if (!p?.variants?.length) return false;
     return p.variants.some((v) =>
-      (v.images || []).some((img) => img.imageType === "VTON")
+      (v.images || []).some((img) => img.imageType === "VTON"),
     );
   };
 
@@ -127,7 +133,7 @@ export default function ProductDetailScreen() {
       };
 
       await createReport(reportData);
-      
+
       Alert.alert(
         "รายงานสำเร็จ",
         "ขอบคุณที่แจ้งเรา เราจะตรวจสอบและดำเนินการต่อไป",
@@ -136,13 +142,13 @@ export default function ProductDetailScreen() {
             text: "ตกลง",
             onPress: () => setReportModalVisible(false),
           },
-        ]
+        ],
       );
     } catch (error) {
       console.error("Submit report error:", error);
       Alert.alert(
         "เกิดข้อผิดพลาด",
-        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง"
+        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง",
       );
     }
   };
@@ -350,13 +356,15 @@ export default function ProductDetailScreen() {
           product={product}
           onPressViewStore={() =>
             router.push({
-              pathname: "/(customer)/store-detail",
+              pathname: "/(home)/store-detail",
               params: { storeId: product.store.storeId },
             } as any)
           }
           onPressChat={async () => {
             try {
-              const conv = await chatAPI.createOrGetConversation(product.store.storeId);
+              const conv = await chatAPI.createOrGetConversation(
+                product.store.storeId,
+              );
 
               router.push({
                 pathname: "/(chat)/chat",

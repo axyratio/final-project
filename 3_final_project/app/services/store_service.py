@@ -92,57 +92,57 @@ def create_store_and_connect_stripe(
         )
 
 # ✅ สร้างร้านค้า
-def create_store_service(db: Session, auth_current_user, data: dict, logo: UploadFile = None):
-    logo_path = None
-    try:
-        # ✅ ตรวจสอบว่า user มีใบสมัครเปิดร้านหรือยัง
-        application = store_application_repository.get_application_by_user(db, auth_current_user.user_id)
-        if not application:
-            return error_response(
-                "ไม่สามารถสร้างร้านค้าได้",
-                {"application": "คุณยังไม่ได้ส่งคำขอเปิดร้าน"},
-                status_code=403
-            )
+# def create_store_service(db: Session, auth_current_user, data: dict, logo: UploadFile = None):
+#     logo_path = None
+#     try:
+#         # ✅ ตรวจสอบว่า user มีใบสมัครเปิดร้านหรือยัง
+#         application = store_application_repository.get_application_by_user(db, auth_current_user.user_id)
+#         if not application:
+#             return error_response(
+#                 "ไม่สามารถสร้างร้านค้าได้",
+#                 {"application": "คุณยังไม่ได้ส่งคำขอเปิดร้าน"},
+#                 status_code=403
+#             )
 
-        # ✅ ตรวจสอบสถานะและการยืนยันบัตร
-        if not application.card_is_verified:
-            return error_response(
-                "ไม่สามารถสร้างร้านค้าได้",
-                {"verification": "บัญชียังไม่ผ่านการยืนยันบัตรประชาชน"},
-                status_code=403
-            )
+#         # ✅ ตรวจสอบสถานะและการยืนยันบัตร
+#         if not application.card_is_verified:
+#             return error_response(
+#                 "ไม่สามารถสร้างร้านค้าได้",
+#                 {"verification": "บัญชียังไม่ผ่านการยืนยันบัตรประชาชน"},
+#                 status_code=403
+#             )
 
-        if application.status != "APPROVED":
-            return error_response(
-                "ไม่สามารถสร้างร้านค้าได้",
-                {"status": "ใบสมัครยังไม่ได้รับการอนุมัติ"},
-                status_code=403
-            )
+#         if application.status != "APPROVED":
+#             return error_response(
+#                 "ไม่สามารถสร้างร้านค้าได้",
+#                 {"status": "ใบสมัครยังไม่ได้รับการอนุมัติ"},
+#                 status_code=403
+#             )
         
-        existing = store_repository.get_store_by_user(db, auth_current_user.user_id)
-        if existing:
-            return error_response("ผู้ใช้นี้มีร้านค้าอยู่แล้ว", {"store": "ร้านค้านี้มีอยู่แล้ว"}, status_code=400)
+#         existing = store_repository.get_store_by_user(db, auth_current_user.user_id)
+#         if existing:
+#             return error_response("ผู้ใช้นี้มีร้านค้าอยู่แล้ว", {"store": "ร้านค้านี้มีอยู่แล้ว"}, status_code=400)
 
-        if logo:
-            filename = f"{uuid.uuid4()}_{logo.filename}"
-            logo_path = save_file(UPLOAD_DIR, logo, filename)
+#         if logo:
+#             filename = f"{uuid.uuid4()}_{logo.filename}"
+#             logo_path = save_file(UPLOAD_DIR, logo, filename)
 
-        new_store = Store(
-            user_id=auth_current_user.user_id,
-            name=data["name"],
-            description=data.get("description"),
-            address=data.get("address"),
-            logo_path=logo_path
-        )
+#         new_store = Store(
+#             user_id=auth_current_user.user_id,
+#             name=data["name"],
+#             description=data.get("description"),
+#             address=data.get("address"),
+#             logo_path=logo_path
+#         )
 
-        db.add(new_store)
-        db.commit()
-        db.refresh(new_store)
-        return success_response("สร้างร้านค้าสำเร็จ", new_store, status_code=201)
+#         db.add(new_store)
+#         db.commit()
+#         db.refresh(new_store)
+#         return success_response("สร้างร้านค้าสำเร็จ", new_store, status_code=201)
 
-    except Exception as e:
-        rollback_and_cleanup(db, logo_path)
-        return error_response("เกิดข้อผิดพลาดขณะสร้างร้านค้า", {"error": str(e)}, status_code=500)
+#     except Exception as e:
+#         rollback_and_cleanup(db, logo_path)
+#         return error_response("เกิดข้อผิดพลาดขณะสร้างร้านค้า", {"error": str(e)}, status_code=500)
 
 
 # ✅ ดึงร้านของผู้ใช้
@@ -154,29 +154,92 @@ def get_my_store_service(db: Session, auth_current_user):
 
 
 # ✅ อัปเดตร้านค้า
-def update_store_service(db: Session, auth_current_user, data: dict, logo: UploadFile = None):
+def update_store_service(
+    db: Session, 
+    auth_current_user, 
+    name: str = None,
+    description: str = None, 
+    address: str = None,
+    logo: UploadFile = None,
+    remove_logo: bool = False
+):
+    """
+    อัพเดทข้อมูลร้านค้า รองรับ:
+    - แก้ไขชื่อ, คำอธิบาย, ที่อยู่
+    - อัพโหลดโลโก้ใหม่
+    - ลบโลโก้เดิม
+    """
     store = store_repository.get_store_by_user(db, auth_current_user.user_id)
     if not store:
-        return error_response("ไม่พบร้านค้าของคุณ", {"store": "ไม่พบข้อมูลร้านค้า"}, status_code=404)
+        return error_response(
+            "ไม่พบร้านค้าของคุณ", 
+            {"store": "ไม่พบข้อมูลร้านค้า"}, 
+            status_code=404
+        )
 
     try:
-        if logo:
-            filename = f"{uuid.uuid4()}_{logo.filename}"
-            new_logo_path = update_file(store.logo_path, UPLOAD_DIR, logo, filename)
-            store.logo_path = new_logo_path
+        # เก็บ logo เดิมไว้เผื่อต้องลบ
+        old_logo_path = store.logo_path
 
-        if data.get("name"): store.name = data["name"]
-        if data.get("description"): store.description = data["description"]
-        if data.get("address"): store.address = data["address"]
+        # จัดการรูปภาพ
+        if remove_logo:
+            # ลบรูปภาพเดิม
+            if old_logo_path:
+                try:
+                    delete_file(old_logo_path)
+                except Exception as e:
+                    print(f"⚠️ [update_store] Failed to delete old logo: {e}")
+            store.logo_path = None
+            
+        elif logo and logo.filename:
+            # อัพโหลดรูปใหม่
+            try:
+                filename = f"{uuid.uuid4()}_{logo.filename}"
+                new_logo_path = save_file(UPLOAD_DIR, logo, filename)
+                
+                # ลบรูปเดิม (ถ้ามี)
+                if old_logo_path:
+                    try:
+                        delete_file(old_logo_path)
+                    except Exception as e:
+                        print(f"⚠️ [update_store] Failed to delete old logo: {e}")
+                
+                store.logo_path = new_logo_path
+            except Exception as e:
+                print(f"❌ [update_store] Logo upload error: {e}")
+                return error_response(
+                    f"ไม่สามารถอัพโหลดโลโก้ได้: {str(e)}", 
+                    {}, 
+                    400
+                )
+
+        # อัพเดทข้อมูลอื่นๆ
+        if name is not None:
+            store.name = name
+        if description is not None:
+            store.description = description
+        if address is not None:
+            store.address = address
 
         db.commit()
         db.refresh(store)
-        return success_response("อัปเดตร้านค้าสำเร็จ", store)
+        
+        return success_response("อัปเดตร้านค้าสำเร็จ", {
+            "store_id": str(store.store_id),
+            "name": store.name,
+            "description": store.description,
+            "address": store.address,
+            "logo_path": store.logo_path,
+        })
 
     except Exception as e:
         db.rollback()
-        return error_response("อัปเดตร้านค้าไม่สำเร็จ", {"error": str(e)}, status_code=500)
-
+        print(f"❌ [update_store_service] Error: {e}")
+        return error_response(
+            "อัปเดตร้านค้าไม่สำเร็จ", 
+            {"error": str(e)}, 
+            status_code=500
+        )
 
 # ✅ ลบร้านค้า
 def delete_store_service(db: Session, auth_current_user):

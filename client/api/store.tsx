@@ -1,3 +1,4 @@
+
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import axios from "axios";
@@ -9,6 +10,7 @@ export type AppliedStoreType = {
     image?: File;
 };
 
+// ✅ แก้ไข: ใช้ GET /store/me แทน POST /store
 export const getMyStore = async () => {
     try {
         const token = await getToken();
@@ -17,12 +19,13 @@ export const getMyStore = async () => {
             throw new Error("Token not found. Please log in again.");
         }
 
-        const response = await axios.post(`${DOMAIN}/store`, {}, {
+        // ✅ เปลี่ยนจาก POST เป็น GET
+        const response = await axios.get(`${DOMAIN}/store/me`, {
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            validateStatus: (status) => status < 500, // ✅ จะไม่ throw สำหรับ 400/404 แล้ว
+            validateStatus: (status) => status < 500,
         });
 
         return response.data;
@@ -33,7 +36,13 @@ export const getMyStore = async () => {
     }
 };
 
-export const updateStore = async (storeId: string, data: Partial<AppliedStoreType & { logo?: File }>) => {
+export const updateStore = async (
+    storeId: string, 
+    data: Partial<AppliedStoreType & { 
+        logo?: any; 
+        remove_logo?: boolean;
+    }>
+) => {
     try {
         const token = await getToken();
         if (!token) {
@@ -41,16 +50,27 @@ export const updateStore = async (storeId: string, data: Partial<AppliedStoreTyp
         }
 
         const formData = new FormData();
-        // วนลูปเพื่อ append ข้อมูลทั้งหมดใน data ลงใน formData
-        Object.entries(data).forEach(([key, value]) => {
-            if (value !== undefined && value !== null) {
-                formData.append(key, value as any);
-            }
-        });
+        
+        // เพิ่มข้อมูลแต่ละฟิลด์
+        if (data.name !== undefined) {
+            formData.append("name", data.name);
+        }
+        if (data.description !== undefined) {
+            formData.append("description", data.description);
+        }
+        if (data.address !== undefined) {
+            formData.append("address", data.address);
+        }
+        if (data.logo) {
+            formData.append("logo", data.logo);
+        }
+        if (data.remove_logo) {
+            formData.append("remove_logo", "true");
+        }
 
         const response = await axios.patch(`${DOMAIN}/store/update`, formData, {
             headers: {
-                "Content-Type": "multipart/form-data", // <--- เปลี่ยนเป็น multipart/form-data
+                "Content-Type": "multipart/form-data",
                 Authorization: `Bearer ${token}`,
             },
             validateStatus: (status) => status < 500,
@@ -76,7 +96,7 @@ export const appliedStore = async (store: AppliedStoreType) => {
         const formData = new FormData();
         formData.append("name", store.name);
         formData.append("description", store.description);
-        formData.append("address", store.address || ""); // ให้แน่ใจว่าเป็น string
+        formData.append("address", store.address || "");
         if (store.image) formData.append("image", store.image);
 
         const response = await axios.post(`${DOMAIN}/store/create-with-stripe`, formData, {
@@ -84,7 +104,7 @@ export const appliedStore = async (store: AppliedStoreType) => {
                 "Content-Type": "multipart/form-data",
                 Authorization: `Bearer ${token}`,
             },
-            validateStatus: (status) => status < 500, // ✅ จะไม่ throw สำหรับ 400/404 แล้ว
+            validateStatus: (status) => status < 500,
         });
 
     

@@ -1,9 +1,19 @@
 // components/card.tsx
+import { DOMAIN } from "@/้host";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Box, Text } from "native-base";
 import React from "react";
-import { Image, Pressable } from "react-native";
+import {
+  Dimensions,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 48) / 2; // 2 columns with padding
 
 type ProductCardProps = {
   productId: string;
@@ -14,10 +24,10 @@ type ProductCardProps = {
   route: string;
   isSeller?: boolean;
   onToggleFavorite?: () => void;
-
-  isActive?: boolean;       // true=กำลังขาย, false=ปิดการขาย
+  isActive?: boolean; // true=กำลังขาย, false=ปิดการขาย
   onCloseSale?: () => void; // ปิดการขาย
-  onOpenSale?: () => void;  // เปิดการขาย
+  onOpenSale?: () => void; // เปิดการขาย
+  categoryName?: string; // ✅ เพิ่มชื่อหมวดหมู่
 };
 
 function EditIconButton({ route }: { route: string }) {
@@ -29,9 +39,9 @@ function EditIconButton({ route }: { route: string }) {
         if (!route) return;
         router.push(route as any);
       }}
-      style={{ padding: 4 }}
+      style={styles.editButton}
     >
-      <Ionicons name="create-outline" size={18} color="#8025ca" />
+      <Ionicons name="create-outline" size={18} color="white" />
     </Pressable>
   );
 }
@@ -48,6 +58,7 @@ export default function ProductCard({
   isActive = true,
   onCloseSale,
   onOpenSale,
+  categoryName, // ✅ เพิ่ม
 }: ProductCardProps) {
   const router = useRouter();
 
@@ -55,126 +66,122 @@ export default function ProductCard({
     if (route) {
       router.push(route as any);
     } else {
-      router.push({ pathname: `/(store)/add-product?productId=${productId}` } as any);
+      router.push({
+        pathname: `/(store)/add-product?productId=${productId}`,
+      } as any);
     }
   };
 
+  // Format image URL
+  const formattedImageUrl = imageUrl?.startsWith("http")
+    ? imageUrl
+    : imageUrl
+      ? `${DOMAIN}${imageUrl}`
+      : undefined;
+
   return (
-    <Pressable style={{ width: "48%", marginBottom: 16 }} onPress={handlePressCard}>
-      <Box bg="white" borderRadius={16} overflow="hidden" shadow={2}>
-        <Box position="relative">
-          {imageUrl ? (
+    <Pressable
+      style={styles.cardWrapper}
+      onPress={handlePressCard}
+      android_ripple={{ color: "#e0e0e0" }}
+    >
+      <View style={styles.card}>
+        {/* Image Container */}
+        <View style={styles.imageContainer}>
+          {formattedImageUrl ? (
             <Image
-              source={{ uri: imageUrl }}
-              style={{ width: "100%", height: 180 }}
+              source={{ uri: formattedImageUrl }}
+              style={styles.image}
               resizeMode="cover"
             />
           ) : (
-            <Box width="100%" height={180} bg="gray.200" alignItems="center" justifyContent="center">
-              <Ionicons name="image-outline" size={32} color="#9ca3af" />
-            </Box>
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="image-outline" size={40} color="#d1d5db" />
+            </View>
           )}
 
+          {/* Inactive Badge */}
           {!isActive && (
-            <Box
-              position="absolute"
-              top={8}
-              left={8}
-              bg="rgba(0,0,0,0.55)"
-              px={2}
-              py={1}
-              borderRadius={999}
-            >
-              <Text color="white" fontSize="2xs" fontWeight="bold">
-                ปิดการขาย
-              </Text>
-            </Box>
+            <View style={styles.inactiveBadge}>
+              <Text style={styles.inactiveBadgeText}>ปิดการขาย</Text>
+            </View>
           )}
 
-          <Box
-            position="absolute"
-            top={2}
-            right={2}
-            flexDirection="row"
-            alignItems="center"
-            bg="rgba(0,0,0,0.35)"
-            borderRadius={999}
-            px={2}
-            py={1}
-          >
+          {/* Action Buttons (Top Right) */}
+          <View style={styles.actionButtons}>
+            {/* Wishlist/Heart Button */}
             <Pressable
               onPress={(e) => {
                 e.stopPropagation();
-                onToggleFavorite && onToggleFavorite();
+                onToggleFavorite?.();
               }}
-              style={{ paddingHorizontal: 4, paddingVertical: 2 }}
+              style={styles.iconButton}
             >
-              <Ionicons name="heart-outline" size={16} color="#fff" />
+              <Ionicons name="heart-outline" size={18} color="white" />
             </Pressable>
 
+            {/* Seller Actions */}
             {isSeller && (
-              <Box
-                marginLeft={2}
-                borderLeftWidth={1}
-                borderLeftColor="rgba(255,255,255,0.4)"
-                paddingLeft={2}
-                flexDirection="row"
-                alignItems="center"
-              >
-                {isActive ? (
-                  onCloseSale ? (
-                    <Pressable
-                      onPress={(e) => {
-                        e.stopPropagation();
-                        onCloseSale();
-                      }}
-                      style={{ padding: 4, marginRight: 2 }}
-                    >
-                      <Ionicons name="ban-outline" size={18} color="#fff" />
-                    </Pressable>
-                  ) : null
-                ) : onOpenSale ? (
-                  <Pressable
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      onOpenSale();
-                    }}
-                    style={{ padding: 4, marginRight: 2 }}
-                  >
-                    <Ionicons name="refresh-outline" size={18} color="#fff" />
-                  </Pressable>
-                ) : null}
-
+              <>
+                {isActive
+                  ? onCloseSale && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          onCloseSale();
+                        }}
+                        style={styles.iconButton}
+                      >
+                        <Ionicons name="ban-outline" size={18} color="white" />
+                      </Pressable>
+                    )
+                  : onOpenSale && (
+                      <Pressable
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          onOpenSale();
+                        }}
+                        style={styles.iconButton}
+                      >
+                        <Ionicons
+                          name="refresh-outline"
+                          size={18}
+                          color="white"
+                        />
+                      </Pressable>
+                    )}
                 <EditIconButton route={route} />
-              </Box>
+              </>
             )}
-          </Box>
-        </Box>
+          </View>
+        </View>
 
-        <Box px={3} py={3}>
-          <Box minHeight={10} justifyContent="flex-start">
-            <Text fontSize="xs" color="gray.700" numberOfLines={2} ellipsizeMode="tail">
-              {title}
-            </Text>
-          </Box>
+        {/* Product Info */}
+        <View style={styles.info}>
+          {/* ✅ Category Badge */}
 
-          <Box mt={2} flexDirection="row" justifyContent="space-between" alignItems="center">
-            <Text fontSize="sm" fontWeight="bold" color="#8b5cf6">
-              ฿{price.toFixed(0)}
-            </Text>
+          <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
+            {title}
+          </Text>
 
-            <Box flexDirection="row" alignItems="center">
-              <Ionicons name="star" size={14} color="#facc15" />
-              <Text fontSize="xs" color="gray.700" ml={1}>
-                {star.toFixed(1)}
-              </Text>
-            </Box>
-          </Box>
-        </Box>
-      </Box>
+          <View style={styles.footer}>
+            <Text style={styles.price}>฿{price.toLocaleString()}</Text>
+            {star > 0 && (
+              <View style={styles.ratingBadge}>
+                <Ionicons name="star" size={12} color="#fbbf24" />
+                <Text style={styles.ratingText}>{star.toFixed(1)}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
     </Pressable>
   );
 }
+
+// ========================================
+// Category Card Component
+// ========================================
 
 type CategoryCardProps = {
   categoryName: string;
@@ -183,29 +190,202 @@ type CategoryCardProps = {
   onPress: () => void;
 };
 
-export function CategoryCard({ categoryName, productCount, coverImageUrl, onPress }: CategoryCardProps) {
-  return (
-    <Pressable style={{ width: "48%", marginBottom: 16 }} onPress={onPress}>
-      <Box bg="white" borderRadius={16} overflow="hidden" shadow={2}>
-        <Box position="relative" height={120}>
-          {coverImageUrl ? (
-            <Image source={{ uri: coverImageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
-          ) : (
-            <Box width="100%" height="100%" bg="gray.200" alignItems="center" justifyContent="center">
-              <Ionicons name="albums-outline" size={32} color="#9ca3af" />
-            </Box>
-          )}
-        </Box>
+export function CategoryCard({
+  categoryName,
+  productCount,
+  coverImageUrl,
+  onPress,
+}: CategoryCardProps) {
+  const formattedImageUrl = coverImageUrl?.startsWith("http")
+    ? coverImageUrl
+    : coverImageUrl
+      ? `${DOMAIN}${coverImageUrl}`
+      : undefined;
 
-        <Box px={3} py={2}>
-          <Text fontSize="sm" fontWeight="bold" numberOfLines={1}>
+  return (
+    <Pressable
+      style={styles.cardWrapper}
+      onPress={onPress}
+      android_ripple={{ color: "#e0e0e0" }}
+    >
+      <View style={styles.card}>
+        <View style={styles.categoryImageContainer}>
+          {formattedImageUrl ? (
+            <Image
+              source={{ uri: formattedImageUrl }}
+              style={styles.categoryImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.categoryImagePlaceholder}>
+              <Ionicons name="albums-outline" size={32} color="#9ca3af" />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.categoryInfo}>
+          <Text style={styles.categoryName} numberOfLines={1}>
             {categoryName}
           </Text>
-          <Text fontSize="xs" color="gray.500">
-            {productCount} รายการ
-          </Text>
-        </Box>
-      </Box>
+          <Text style={styles.categoryCount}>{productCount} รายการ</Text>
+        </View>
+      </View>
     </Pressable>
   );
 }
+
+// ========================================
+// Styles
+// ========================================
+
+const styles = StyleSheet.create({
+  cardWrapper: {
+    width: CARD_WIDTH,
+    marginBottom: 16,
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 12,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+
+  // Image Styles
+  imageContainer: {
+    width: "100%",
+    height: CARD_WIDTH,
+    position: "relative",
+    backgroundColor: "#f9fafb",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  imagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Inactive Badge
+  inactiveBadge: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  inactiveBadgeText: {
+    color: "white",
+    fontSize: 11,
+    fontWeight: "bold",
+  },
+
+  // Action Buttons (Top Right)
+  actionButtons: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    flexDirection: "row",
+    gap: 6,
+  },
+  iconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // Product Info
+  info: {
+    padding: 12,
+    gap: 8,
+  },
+  // ✅ Category Badge Styles
+  categoryBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#ede9fe",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginBottom: 4,
+  },
+  categoryBadgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#7c3aed",
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1f2937",
+    minHeight: 36,
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  price: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#8b5cf6",
+  },
+  ratingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  ratingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+
+  // Category Card Styles
+  categoryImageContainer: {
+    width: "100%",
+    height: 120,
+    backgroundColor: "#f9fafb",
+  },
+  categoryImage: {
+    width: "100%",
+    height: "100%",
+  },
+  categoryImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  categoryInfo: {
+    padding: 12,
+  },
+  categoryName: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1f2937",
+    marginBottom: 2,
+  },
+  categoryCount: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+});

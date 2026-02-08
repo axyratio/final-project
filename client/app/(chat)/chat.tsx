@@ -148,23 +148,28 @@ export default function ChatScreen() {
       return;
     }
 
+    // app/(chat)/chat.tsx line ~150
     if (paramStoreId) {
       (async () => {
         try {
+          setLoading(true); // ← เพิ่มบรรทัดนี้
           const conv = await chatAPI.createOrGetConversation(paramStoreId);
           setResolvedConversationId(conv.conversation_id);
           setResolvedStoreName(conv.store_name ?? paramStoreName ?? "ร้านค้า");
-          setResolvedStoreId(conv.store_id); // 🆕 เก็บ storeId จาก response
+          setResolvedStoreId(conv.store_id);
+          setLoading(false); // ← เพิ่มบรรทัดนี้
         } catch (e: any) {
-          Alert.alert(
-            "ข้อผิดพลาด",
-            e?.response?.data?.detail || "ไม่สามารถสร้างบทสนทนาได้",
-          );
-          setLoading(false);
-          router.back();
+          setLoading(false); // ← เพิ่มบรรทัดนี้
+          setTimeout(() => {
+            // ← เพิ่ม setTimeout
+            Alert.alert(
+              "ไม่พบแชท", // ← เปลี่ยนข้อความ
+              e?.response?.data?.detail || "ไม่สามารถสร้างบทสนทนาได้",
+              [{ text: "ตกลง", onPress: () => router.back() }],
+            );
+          }, 300);
         }
       })();
-      return;
     }
     setLoading(false);
   }, [paramConversationId, paramStoreId, paramStoreName]);
