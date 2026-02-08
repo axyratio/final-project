@@ -20,8 +20,9 @@ export type HomeBanner = {
 export type HomeCategory = {
   id: string;
   name: string;
+  slug?: string;
   backgroundColor?: string; // เช่น "#fee2e2", "#e0f2fe"
-  iconUrl: string; // ถ้า front มี asset local ก็เอา id ไป map เป็น require()
+  iconUrl: string; // URL รูปภาพจาก backend
 };
 
 export type HomeProduct = {
@@ -72,9 +73,9 @@ export async function fetchHomeData(): Promise<HomeData> {
 // api/home/categoryApi.ts
 
 
-// product ในหน้า category มี categoryId เพิ่มขึ้นมา (ชื่อหมวดเป็นภาษาไทย)
+// product ในหน้า category มี categoryId เพิ่มขึ้นมา (ใช้ UUID แทนชื่อภาษาไทย)
 export type CategoryProduct = HomeProduct & {
-  categoryId: string;  // เช่น "เสื้อกีฬา", "ชุดนอน"
+  categoryId: string;  // เช่น UUID ของหมวดหมู่
 };
 
 export type CategoryPageData = {

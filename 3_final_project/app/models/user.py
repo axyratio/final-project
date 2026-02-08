@@ -24,6 +24,9 @@ class User(Base):
     # ถ้าจะเก็บเป็น Date ให้ใช้ date.today ไม่ใช่ datetime
     birth_date = Column(Date, nullable=True)
 
+    # ✅ เพิ่มฟิลด์รูปโปรไฟล์
+    profile_picture = Column(String(500), nullable=True, comment="URL รูปโปรไฟล์ของผู้ใช้")
+
     is_active = Column(Boolean, default=False)
     pending_email = Column(String, nullable=True)
 
@@ -42,4 +45,3 @@ class User(Base):
     shipping_addresses = relationship("ShippingAddress", back_populates="user", cascade="all, delete-orphan")
     uploaded_backgrounds = relationship("VTONBackground", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
-
