@@ -1,11 +1,11 @@
 import { FormProfile } from "@/components/form";
 import { AppBar } from "@/components/navbar";
 import { getToken } from "@/utils/secure-store";
-import { ADDRESS_IP, DOMAIN, PORT } from "@/้host";
+import { DOMAIN } from "@/้host";
 import axios from "axios";
 import { router } from "expo-router";
 import { useState } from "react";
-import { Text } from "react-native";
+import { Alert, Text, View } from "react-native";
 
 type Password = {
   password: string;
@@ -21,30 +21,16 @@ type PasswordError = {
 
 export default function PasswordScreen() {
   const [password, setPassword] = useState<Password>({
-
     password: "",
     new_password: "",
     confirm_password: "",
   });
   const [passwordError, setPasswordError] = useState<PasswordError>({});
-  const [passwordOld, setPasswordOld] = useState<string>("");
 
   const handleChange = (key: keyof Password) => (value: string) => {
     setPassword((prev) => ({ ...prev, [key]: value }));
     // เคลียร์ error ของ field ที่แก้ไขแล้ว
     setPasswordError((prev) => ({ ...prev, [key]: undefined }));
-  };
-
-  // จัดการ error จาก FastAPI dynamic
-  const handleServerErrors = (errors: any[]) => {
-    const newErrors: PasswordError = {};
-    errors.forEach((item) => {
-      const field = item.loc?.[1]; // ดึงชื่อ field
-      if (field) {
-        newErrors[field as keyof PasswordError] = item.msg;
-      }
-    });
-    setPasswordError(newErrors);
   };
 
   const handleSubmit = async (password: Password) => {
@@ -67,57 +53,87 @@ export default function PasswordScreen() {
         },
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
-      console.log("Saved:", res.data);
+      console.log("Response:", res.data);
 
-      // สมมติ server ส่ง success = true
+      // ✅ กรณีสำเร็จ
       if (res.data.success) {
-        console.log("แก้ไขรหัสผ่านสําเร็จ");
-        router.replace("/me");
+        Alert.alert("สำเร็จ", "เปลี่ยนรหัสผ่านสำเร็จ", [
+          {
+            text: "ตกลง",
+            onPress: () => router.back(),
+          },
+        ]);
       } else {
-        // กรณี server ส่ง validation errors
-        console.log("hello")
-        setPasswordOld(res.data.password);
-        console.log(passwordOld, "passwordOld")
+        // ❌ กรณี error จาก backend
+        if (res.data.password) {
+          setPasswordError({ password: res.data.password });
+        } else {
+          Alert.alert("ข้อผิดพลาด", res.data.message || "เกิดข้อผิดพลาด");
+        }
       }
     } catch (err: any) {
-      if (err.response?.data?.detail) {
-        // จัดการ 422 validation errors ของ FastAPI
-        handleServerErrors(err.response.data.detail);
+      console.error("Error:", err);
+
+      // จัดการ error
+      if (err.response?.data?.password) {
+        setPasswordError({ password: err.response.data.password });
+      } else if (err.response?.data?.message) {
+        Alert.alert("ข้อผิดพลาด", err.response.data.message);
       } else {
-        console.log("Error:", err.message);
+        Alert.alert("ข้อผิดพลาด", "ไม่สามารถเปลี่ยนรหัสผ่านได้");
       }
     }
   };
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <AppBar
-        title="แก้ไขรหัสผ่าน"
+        title="เปลี่ยนรหัสผ่าน"
         onSave={async () => {
           await handleSubmit(password);
         }}
       />
-      <FormProfile
-        value={password.password}
-        title="รหัสผ่าน"
-        onChange={handleChange("password")}
-      />
 
-      <FormProfile
-        value={password.new_password}
-        title="รหัสผ่านใหม่"
-        onChange={handleChange("new_password")}
-      />
+      <View style={{ padding: 16 }}>
+        <FormProfile
+          value={password.password}
+          title="รหัสผ่านเดิม"
+          onChange={handleChange("password")}
+        />
 
-      <FormProfile
-        value={password.confirm_password}
-        title="ยืนยันรหัสผ่าน"
-        onChange={handleChange("confirm_password")}
-      />
-      <Text style={{ color: "red", fontSize: 12, marginHorizontal: 15, textAlign: "right" }}>{passwordError.password || passwordError.new_password || passwordError.confirm_password || passwordOld}</Text>
-    </>
+        <FormProfile
+          value={password.new_password}
+          title="รหัสผ่านใหม่"
+          onChange={handleChange("new_password")}
+        />
+
+        <FormProfile
+          value={password.confirm_password}
+          title="ยืนยันรหัสผ่านใหม่"
+          onChange={handleChange("confirm_password")}
+        />
+
+        {/* แสดง error */}
+        {(passwordError.password ||
+          passwordError.new_password ||
+          passwordError.confirm_password) && (
+          <Text
+            style={{
+              color: "red",
+              fontSize: 12,
+              marginTop: 8,
+              textAlign: "right",
+            }}
+          >
+            {passwordError.password ||
+              passwordError.new_password ||
+              passwordError.confirm_password}
+          </Text>
+        )}
+      </View>
+    </View>
   );
 }

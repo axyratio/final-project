@@ -53,16 +53,11 @@ export default function CategoryScreen() {
     load();
   }, [params.categoryId]);
 
-  // แปลง id → name ก่อน แล้วค่อยเอาไปกรองกับ product.categoryId (ภาษาไทย)
-  const selectedCategoryName = useMemo(() => {
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    return cat?.name ?? null; // เช่น "เสื้อกีฬา"
-  }, [categories, selectedCategoryId]);
-
+  // กรองสินค้าตาม selectedCategoryId (UUID)
   const filteredProducts = useMemo(() => {
-    if (!selectedCategoryName) return [];
-    return products.filter((p) => p.categoryId === selectedCategoryName);
-  }, [products, selectedCategoryName]);
+    if (!selectedCategoryId) return [];
+    return products.filter((p) => p.categoryId === selectedCategoryId);
+  }, [products, selectedCategoryId]);
 
   const handleSubmitSearch = () => {
     console.log("search in category:", search);

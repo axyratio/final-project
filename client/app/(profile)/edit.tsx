@@ -4,12 +4,20 @@ import { AppBar } from "@/components/navbar";
 import { useProfileContext } from "@/context/Refresh";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import axios from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { debounce } from "lodash"; // ต้องติดตั้ง: npm install lodash
-import { Box } from "native-base";
+import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Text, TextInput, View } from "react-native";
+import { 
+  ActivityIndicator, 
+  Alert, 
+  ScrollView,
+  StyleSheet,
+  Text, 
+  TextInput, 
+  View 
+} from "react-native";
 import { Profile } from "./me";
 
 export default function EditForm() {
@@ -93,7 +101,7 @@ export default function EditForm() {
       } finally {
         setCheckingUsername(false);
       }
-    }, 500), // รอ 500ms หลังจากหยุดพิมพ์
+    }, 500),
     [initialValue],
   );
 
@@ -218,7 +226,7 @@ export default function EditForm() {
   const isMultiline = fieldKey === "description" || fieldKey === "address";
 
   return (
-    <View style={{}}>
+    <View style={{ flex: 1 }}>
       <AppBar
         title={title}
         onSave={async () => {
@@ -226,58 +234,149 @@ export default function EditForm() {
             await handleSubmit(fieldKey as string, initialValue);
         }}
       />
-      <Box style={{ padding: 16 }}>
-        <Text style={{ marginBottom: 8 }}>{title}</Text>
-        <TextInput
-          style={{
-            borderWidth: 1,
-            borderColor: error ? "#ef4444" : "#ccc", // ✅ สีแดงเมื่อมี error
-            padding: 8,
-            borderRadius: 4,
-            marginBottom: 8,
-            minHeight: isMultiline ? 100 : 40,
-            textAlignVertical: isMultiline ? "top" : "center",
-          }}
-          value={value}
-          onChangeText={setValue}
-          multiline={isMultiline}
-          numberOfLines={isMultiline ? 4 : 1}
-          editable={!saving}
-        />
-
-        {/* ✅ แสดงสถานะตรวจสอบ username */}
-        {fieldKey === "username" && checkingUsername && (
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 8,
-            }}
-          >
-            <ActivityIndicator size="small" color="#6b7280" />
-            <Text style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
-              กำลังตรวจสอบ...
+      
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+        <View style={styles.container}>
+          {/* คำอธิบาย */}
+          <View style={styles.infoBox}>
+            <MaterialCommunityIcons
+              name="pencil"
+              size={20}
+              color="#3b82f6"
+            />
+            <Text style={styles.infoText}>
+              กรอกข้อมูลใหม่และกดปุ่ม ✓ เพื่อบันทึก
             </Text>
           </View>
-        )}
 
-        {/* ✅ แสดง error (สีแดง) */}
-        {error && !checkingUsername && (
-          <Text style={{ color: "#ef4444", marginBottom: 8, fontSize: 12 }}>
-            {error}
-          </Text>
-        )}
+          {/* ฟิลด์ข้อมูล */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{title} *</Text>
+            <TextInput
+              style={[
+                isMultiline ? styles.textArea : styles.input,
+                error && styles.inputError
+              ]}
+              value={value}
+              onChangeText={(text) => {
+                setValue(text);
+                setError("");
+              }}
+              placeholder={`กรอก${title}`}
+              multiline={isMultiline}
+              numberOfLines={isMultiline ? 4 : 1}
+              editable={!saving}
+              textAlignVertical={isMultiline ? "top" : "center"}
+            />
 
-        {/* ✅ แสดงว่าใช้งานได้ (สีเขียว) */}
-        {fieldKey === "username" &&
-          usernameAvailable &&
-          !checkingUsername &&
-          value !== initialValue && (
-            <Text style={{ color: "#10b981", marginBottom: 8, fontSize: 12 }}>
-              ✓ Username นี้ใช้งานได้
-            </Text>
-          )}
-      </Box>
+            {/* แสดงสถานะตรวจสอบ username */}
+            {fieldKey === "username" && checkingUsername && (
+              <View style={styles.checkingContainer}>
+                <ActivityIndicator size="small" color="#6b7280" />
+                <Text style={styles.checkingText}>กำลังตรวจสอบ...</Text>
+              </View>
+            )}
+
+            {/* แสดง error */}
+            {error && !checkingUsername && (
+              <Text style={styles.errorText}>{error}</Text>
+            )}
+
+            {/* แสดงว่าใช้งานได้ (สีเขียว) */}
+            {fieldKey === "username" &&
+              usernameAvailable &&
+              !checkingUsername &&
+              value !== initialValue && (
+                <View style={styles.successContainer}>
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={16}
+                    color="#10b981"
+                  />
+                  <Text style={styles.successText}>Username นี้ใช้งานได้</Text>
+                </View>
+              )}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    backgroundColor: "#fff",
+    flex: 1,
+  },
+  infoBox: {
+    flexDirection: "row",
+    backgroundColor: "#dbeafe",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 24,
+    alignItems: "center",
+  },
+  infoText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: "#1e40af",
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+    color: "#374151",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    backgroundColor: "#fff",
+  },
+  textArea: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    padding: 12,
+    borderRadius: 8,
+    fontSize: 16,
+    backgroundColor: "#fff",
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  inputError: {
+    borderColor: "#ef4444",
+    borderWidth: 2,
+  },
+  checkingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  checkingText: {
+    color: "#6b7280",
+    marginLeft: 8,
+    fontSize: 12,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  successContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  successText: {
+    color: "#10b981",
+    fontSize: 12,
+    marginLeft: 6,
+  },
+});

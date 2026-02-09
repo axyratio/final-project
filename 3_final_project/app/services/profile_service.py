@@ -266,35 +266,55 @@ def check_username_available_service(db: Session, username: str, current_user_id
 
 
 # ✅ ฟังก์ชันใหม่: อัปโหลดรูปโปรไฟล์
+# ✅ ฟังก์ชันใหม่: อัปโหลดรูปโปรไฟล์
 def upload_profile_picture_service(db: Session, auth_current_user, file: UploadFile):
     """
     อัปโหลดรูปโปรไฟล์
     """
+    print(f"\n{'='*80}")
+    print(f"📸 [SERVICE] upload_profile_picture_service called")
+    print(f"{'='*80}")
+    print(f"👤 [SERVICE] user_id: {auth_current_user.user_id}")
+    print(f"📁 [SERVICE] filename: {file.filename}")
+    print(f"📄 [SERVICE] content_type: {file.content_type}")
+    print(f"{'='*80}\n")
+    
     try:
         # ตรวจสอบไฟล์
         if not validate_profile_image(file):
+            print(f"❌ [SERVICE] File validation failed!")
             return None, {
                 "success": False,
                 "message": f"ไฟล์ไม่ถูกต้อง: รองรับเฉพาะ {', '.join(ALLOWED_IMAGE_EXTENSIONS)}"
             }
+        
+        print(f"✅ [SERVICE] File validation passed")
 
         # ดึง user
         user = user_repository.get_user_by_user_id(db=db, user_id=auth_current_user.user_id)
         if not user:
+            print(f"❌ [SERVICE] User not found!")
             return None, {"success": False, "message": "User not found"}
 
+        print(f"✅ [SERVICE] User found: {user.username}")
+        
         # เก็บ URL รูปเดิมไว้
         old_profile_picture = user.profile_picture
+        print(f"🖼️  [SERVICE] Old profile picture: {old_profile_picture}")
 
         # อัปโหลดรูปใหม่
         try:
             ext = os.path.splitext(file.filename)[1].lower()
             unique_filename = f"profile_{uuid.uuid4().hex}{ext}"
+            print(f"📝 [SERVICE] Generating unique filename: {unique_filename}")
+            
             new_image_url = save_file(PROFILE_UPLOAD_DIR, file, unique_filename)
             
-            print(f"✅ Profile picture uploaded: {new_image_url}")
+            print(f"✅ [SERVICE] File uploaded successfully!")
+            print(f"🔗 [SERVICE] New image URL: {new_image_url}")
 
             # อัปเดทในฐานข้อมูล
+            print(f"\n💾 [SERVICE] Calling repository to update DB...")
             updated_user = profile_repository.update_user(
                 db=db,
                 user_id=auth_current_user.user_id,
@@ -302,24 +322,38 @@ def upload_profile_picture_service(db: Session, auth_current_user, file: UploadF
             )
 
             if not updated_user:
+                print(f"❌ [SERVICE] Failed to update user in DB!")
                 # ถ้าอัปเดท DB ไม่สำเร็จ ลบไฟล์ที่อัปโหลดไปแล้ว
                 try:
                     delete_file(new_image_url)
+                    print(f"🗑️  [SERVICE] Rolled back uploaded file")
                 except:
                     pass
                 return None, {"success": False, "message": "Failed to update profile picture"}
 
+            print(f"✅ [SERVICE] User updated in DB successfully!")
+            print(f"🖼️  [SERVICE] Updated profile_picture in user object: {updated_user.profile_picture}")
+            
+            print(f"\n💾 [SERVICE] Committing transaction...")
             db.commit()
+            print(f"✅ [SERVICE] Transaction committed!")
+            
+            print(f"🔄 [SERVICE] Refreshing user object...")
             db.refresh(updated_user)
+            print(f"✅ [SERVICE] User refreshed!")
+            print(f"🖼️  [SERVICE] Final profile_picture value: {updated_user.profile_picture}")
 
             # ลบรูปเดิม (ถ้ามี)
             if old_profile_picture:
                 try:
                     delete_file(old_profile_picture)
-                    print(f"🗑️ Deleted old profile picture: {old_profile_picture}")
+                    print(f"🗑️  [SERVICE] Deleted old profile picture: {old_profile_picture}")
                 except Exception as e:
-                    print(f"⚠️ Failed to delete old profile picture: {e}")
+                    print(f"⚠️  [SERVICE] Failed to delete old profile picture: {e}")
 
+            print(f"\n✅ [SERVICE] Upload profile picture completed successfully!")
+            print(f"{'='*80}\n")
+            
             return {
                 "success": True,
                 "message": "อัปโหลดรูปโปรไฟล์สำเร็จ",
@@ -327,14 +361,17 @@ def upload_profile_picture_service(db: Session, auth_current_user, file: UploadF
             }, None
 
         except Exception as e:
-            print(f"❌ Error uploading file: {e}")
+            print(f"❌ [SERVICE] Error uploading file: {e}")
+            import traceback
+            traceback.print_exc()
             return None, {"success": False, "message": f"ไม่สามารถอัปโหลดรูปภาพได้: {str(e)}"}
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Error in upload_profile_picture_service: {e}")
+        print(f"❌ [SERVICE] Critical error in upload_profile_picture_service: {e}")
+        import traceback
+        traceback.print_exc()
         return None, str(e)
-
 
 # ✅ ฟังก์ชันใหม่: ลบรูปโปรไฟล์
 def delete_profile_picture_service(db: Session, auth_current_user):

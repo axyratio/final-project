@@ -9,13 +9,13 @@ import { useRouter } from "expo-router";
 import { Box } from "native-base";
 import { useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
     View,
+    ScrollView,
 } from "react-native";
 
 export default function ChangeEmailScreen() {
@@ -116,98 +116,90 @@ export default function ChangeEmailScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar title="เปลี่ยนอีเมล" />
+      <AppBar 
+        title="เปลี่ยนอีเมล" 
+        onSave={handleChangeEmail}
+      />
 
-      <Box style={styles.container}>
-        {/* คำอธิบาย */}
-        <View style={styles.infoBox}>
-          <MaterialCommunityIcons
-            name="information"
-            size={20}
-            color="#3b82f6"
-          />
-          <Text style={styles.infoText}>
-            กรุณากรอกอีเมลใหม่และรหัสผ่านของคุณเพื่อยืนยันการเปลี่ยนแปลง
-          </Text>
-        </View>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+        <Box style={styles.container}>
+          {/* คำอธิบาย */}
+          <View style={styles.infoBox}>
+            <MaterialCommunityIcons
+              name="information"
+              size={20}
+              color="#3b82f6"
+            />
+            <Text style={styles.infoText}>
+              กรุณากรอกอีเมลใหม่และรหัสผ่านของคุณเพื่อยืนยันการเปลี่ยนแปลง
+            </Text>
+          </View>
 
-        {/* อีเมลใหม่ */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>อีเมลใหม่ *</Text>
-          <TextInput
-            style={[styles.input, emailError && styles.inputError]}
-            value={newEmail}
-            onChangeText={(text) => {
-              setNewEmail(text);
-              setEmailError(""); // Clear error เมื่อพิมพ์
-            }}
-            placeholder="example@email.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            editable={!loading}
-          />
-          {emailError ? (
-            <Text style={styles.errorText}>{emailError}</Text>
-          ) : null}
-        </View>
-
-        {/* รหัสผ่าน */}
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>รหัสผ่าน *</Text>
-          <View style={styles.passwordContainer}>
+          {/* อีเมลใหม่ */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>อีเมลใหม่ *</Text>
             <TextInput
-              style={[styles.passwordInput, passwordError && styles.inputError]}
-              value={password}
+              style={[styles.input, emailError && styles.inputError]}
+              value={newEmail}
               onChangeText={(text) => {
-                setPassword(text);
-                setPasswordError(""); // Clear error เมื่อพิมพ์
+                setNewEmail(text);
+                setEmailError(""); // Clear error เมื่อพิมพ์
               }}
-              placeholder="กรอกรหัสผ่านเพื่อยืนยัน"
-              secureTextEntry={!showPassword}
+              placeholder="example@email.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
               editable={!loading}
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <MaterialCommunityIcons
-                name={showPassword ? "eye-off" : "eye"}
-                size={24}
-                color="#6b7280"
-              />
-            </TouchableOpacity>
+            {emailError ? (
+              <Text style={styles.errorText}>{emailError}</Text>
+            ) : null}
           </View>
-          {passwordError ? (
-            <Text style={styles.errorText}>{passwordError}</Text>
-          ) : null}
-        </View>
 
-        {/* ปุ่มบันทึก */}
-        <TouchableOpacity
-          style={[styles.saveButton, loading && styles.saveButtonDisabled]}
-          onPress={handleChangeEmail}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.saveButtonText}>เปลี่ยนอีเมล</Text>
-          )}
-        </TouchableOpacity>
+          {/* รหัสผ่าน */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>รหัสผ่าน *</Text>
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={[styles.passwordInput, passwordError && styles.inputError]}
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setPasswordError(""); // Clear error เมื่อพิมพ์
+                }}
+                placeholder="กรอกรหัสผ่านเพื่อยืนยัน"
+                secureTextEntry={!showPassword}
+                editable={!loading}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <MaterialCommunityIcons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={24}
+                  color="#6b7280"
+                />
+              </TouchableOpacity>
+            </View>
+            {passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
+          </View>
 
-        {/* คำเตือน */}
-        <View style={styles.warningBox}>
-          <MaterialCommunityIcons
-            name="alert-circle"
-            size={20}
-            color="#f59e0b"
-          />
-          <Text style={styles.warningText}>
-            การเปลี่ยนอีเมลจะมีผลทันที
-            และคุณจะต้องใช้อีเมลใหม่ในการเข้าสู่ระบบครั้งถัดไป
-          </Text>
-        </View>
-      </Box>
+          {/* คำเตือน */}
+          <View style={styles.warningBox}>
+            <MaterialCommunityIcons
+              name="alert-circle"
+              size={20}
+              color="#f59e0b"
+            />
+            <Text style={styles.warningText}>
+              การเปลี่ยนอีเมลจะมีผลทันที
+              และคุณจะต้องใช้อีเมลใหม่ในการเข้าสู่ระบบครั้งถัดไป
+            </Text>
+          </View>
+        </Box>
+      </ScrollView>
     </View>
   );
 }
@@ -274,21 +266,6 @@ const styles = StyleSheet.create({
     color: "#ef4444",
     fontSize: 12,
     marginTop: 4,
-  },
-  saveButton: {
-    backgroundColor: "#7c3aed",
-    padding: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  saveButtonDisabled: {
-    backgroundColor: "#a78bfa",
-  },
-  saveButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
   },
   warningBox: {
     flexDirection: "row",

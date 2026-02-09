@@ -2,6 +2,8 @@
 import { ReviewAPI, ReviewDto } from "@/api/review";
 import { ReviewCard } from "@/components/review/review-card";
 import { ReviewDraft } from "@/components/review/review-draft";
+import ReportModal from "@/components/report/report-modal";
+import { createReport } from "@/api/report";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -12,9 +14,10 @@ import {
   Spinner,
   Text,
   VStack,
+  Menu,
 } from "native-base";
 import React, { useEffect, useState } from "react";
-import { FlatList, RefreshControl, StatusBar } from "react-native";
+import { FlatList, RefreshControl, StatusBar, Alert } from "react-native";
 
 export default function ReviewDetailScreen() {
   const router = useRouter();
@@ -35,6 +38,10 @@ export default function ReviewDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDraftModal, setShowDraftModal] = useState(false);
+  
+  // 🆕 State for report modal
+  const [reportModalVisible, setReportModalVisible] = useState(false);
+  const [selectedReviewForReport, setSelectedReviewForReport] = useState<ReviewDto | null>(null);
   
   // เช็คว่ามี action="write" ใน params หรือไม่
   useEffect(() => {
@@ -85,6 +92,49 @@ export default function ReviewDetailScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadReviews(false);
+  };
+
+  // 🆕 Handle report review
+  const handleReportReview = (review: ReviewDto) => {
+    setSelectedReviewForReport(review);
+    setReportModalVisible(true);
+  };
+
+  // 🆕 Submit report
+  const handleSubmitReport = async (data: any) => {
+    if (!selectedReviewForReport) return;
+
+    try {
+      const reportData = {
+        report_type: "user" as const,
+        reported_id: selectedReviewForReport.userId,
+        reason: data.reason,
+        description: `รายงานรีวิว: ${data.description}`,
+        image_urls: data.imageUrls,
+      };
+
+      await createReport(reportData);
+      
+      Alert.alert(
+        "รายงานสำเร็จ",
+        "ขอบคุณที่แจ้งเรา เราจะตรวจสอบและดำเนินการต่อไป",
+        [
+          {
+            text: "ตกลง",
+            onPress: () => {
+              setReportModalVisible(false);
+              setSelectedReviewForReport(null);
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error("Submit report error:", error);
+      Alert.alert(
+        "เกิดข้อผิดพลาด",
+        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง"
+      );
+    }
   };
 
   // คำนวณคะแนนเฉลี่ย
@@ -236,7 +286,26 @@ export default function ReviewDetailScreen() {
           }
           renderItem={({ item }) => (
             <Box bg="white" mb={2}>
-              <ReviewCard review={item} />
+              <HStack justifyContent="space-between" alignItems="flex-start" p={3}>
+                <Box flex={1}>
+                  <ReviewCard review={item} />
+                </Box>
+                {/* 🆕 Report button for each review */}
+                <Menu
+                  trigger={(triggerProps) => (
+                    <Pressable {...triggerProps} p={2}>
+                      <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
+                    </Pressable>
+                  )}
+                >
+                  <Menu.Item onPress={() => handleReportReview(item)}>
+                    <HStack space={2} alignItems="center">
+                      <Ionicons name="flag-outline" size={18} color="#EF4444" />
+                      <Text>รายงานรีวิว</Text>
+                    </HStack>
+                  </Menu.Item>
+                </Menu>
+              </HStack>
             </Box>
           )}
           refreshControl={
@@ -249,7 +318,7 @@ export default function ReviewDetailScreen() {
           contentContainerStyle={{ paddingBottom: 16 }}
         />
       )}
-            <Pressable
+      <Pressable
         position="absolute"
         bottom={4}
         right={4}
@@ -278,6 +347,21 @@ export default function ReviewDetailScreen() {
           loadReviews(false); // Reload reviews
         }}
       />
+
+      {/* 🆕 Report Modal */}
+      {selectedReviewForReport && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => {
+            setReportModalVisible(false);
+            setSelectedReviewForReport(null);
+          }}
+          onSubmit={handleSubmitReport}
+          reportType="user"
+          reportedId={selectedReviewForReport.userId}
+          reportedName={selectedReviewForReport.userDisplayName}
+        />
+      )}
     </Box>
   );
 }

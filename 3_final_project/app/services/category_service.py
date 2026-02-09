@@ -1,9 +1,9 @@
 # File: app/services/category_service.py
 """
-Category Service - Updated with Image Upload Support
+Category Service - Updated with SVG Image Upload Support
 """
 from sqlalchemy.orm import Session
-from fastapi import UploadFile
+from fastapi import UploadFile, HTTPException
 from typing import Optional
 import os
 import uuid
@@ -26,6 +26,35 @@ UPLOAD_DIR = "app/uploads/categories"
 if not USE_CLOUDINARY:
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# ✅ รองรับไฟล์รูปภาพทั้งหมด รวม SVG
+ALLOWED_IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'}
+ALLOWED_MIME_TYPES = {
+    'image/jpeg', 
+    'image/png', 
+    'image/gif', 
+    'image/webp', 
+    'image/svg+xml',  # ✅ MIME type สำหรับ SVG
+    'image/svg'       # ✅ บาง browser ใช้แบบนี้
+}
+
+
+def validate_image_file(file: UploadFile) -> bool:
+    """
+    ตรวจสอบว่าไฟล์เป็นรูปภาพที่รองรับหรือไม่ (รวม SVG)
+    """
+    # ตรวจสอบ extension
+    if file.filename:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ALLOWED_IMAGE_EXTENSIONS:
+            return False
+    
+    # ตรวจสอบ MIME type (ถ้ามี)
+    if file.content_type:
+        if file.content_type not in ALLOWED_MIME_TYPES:
+            return False
+    
+    return True
+
 
 def create_category_service(
     db: Session,
@@ -35,7 +64,7 @@ def create_category_service(
     image: Optional[UploadFile] = None
 ):
     """
-    สร้างหมวดหมู่ใหม่พร้อมรูปภาพ
+    สร้างหมวดหมู่ใหม่พร้อมรูปภาพ (รองรับ SVG)
     """
     try:
         # ตรวจสอบ slug ซ้ำ
@@ -46,11 +75,20 @@ def create_category_service(
         # อัพโหลดรูปภาพ (ถ้ามี)
         image_url = None
         if image and image.filename:
+            # ✅ ตรวจสอบประเภทไฟล์
+            if not validate_image_file(image):
+                return error_response(
+                    f"ไฟล์ไม่ถูกต้อง: รองรับเฉพาะ {', '.join(ALLOWED_IMAGE_EXTENSIONS)}", 
+                    {}, 
+                    400
+                )
+            
             try:
-                # สร้างชื่อไฟล์ unique
-                ext = os.path.splitext(image.filename)[1] or ".jpg"
+                # สร้างชื่อไฟล์ unique พร้อม extension เดิม
+                ext = os.path.splitext(image.filename)[1].lower()
                 unique_filename = f"category_{uuid.uuid4().hex}{ext}"
                 image_url = save_file(UPLOAD_DIR, image, unique_filename)
+                print(f"✅ Category image uploaded: {image_url}")
             except Exception as e:
                 print(f"❌ [create_category] Image upload error: {e}")
                 return error_response(f"ไม่สามารถอัพโหลดรูปภาพได้: {str(e)}", {}, 400)
@@ -161,7 +199,7 @@ def update_category_service(
     remove_image: bool = False
 ):
     """
-    อัพเดทหมวดหมู่ รองรับการเปลี่ยนรูปภาพ
+    อัพเดทหมวดหมู่ รองรับการเปลี่ยนรูปภาพ (รวม SVG)
     """
     try:
         category = category_repository.get_category_by_id(db, category_id)
@@ -183,13 +221,22 @@ def update_category_service(
             if old_image_url:
                 try:
                     delete_file(old_image_url)
+                    print(f"🗑️ Deleted old category image: {old_image_url}")
                 except Exception as e:
                     print(f"⚠️ [update_category] Failed to delete old image: {e}")
             category.image = None
         elif image and image.filename:
+            # ✅ ตรวจสอบประเภทไฟล์
+            if not validate_image_file(image):
+                return error_response(
+                    f"ไฟล์ไม่ถูกต้อง: รองรับเฉพาะ {', '.join(ALLOWED_IMAGE_EXTENSIONS)}", 
+                    {}, 
+                    400
+                )
+            
             # อัพโหลดรูปใหม่
             try:
-                ext = os.path.splitext(image.filename)[1] or ".jpg"
+                ext = os.path.splitext(image.filename)[1].lower()
                 unique_filename = f"category_{uuid.uuid4().hex}{ext}"
                 new_image_url = save_file(UPLOAD_DIR, image, unique_filename)
                 
@@ -197,10 +244,12 @@ def update_category_service(
                 if old_image_url:
                     try:
                         delete_file(old_image_url)
+                        print(f"🗑️ Deleted old category image: {old_image_url}")
                     except Exception as e:
                         print(f"⚠️ [update_category] Failed to delete old image: {e}")
                 
                 category.image = new_image_url
+                print(f"✅ Category image updated: {new_image_url}")
             except Exception as e:
                 print(f"❌ [update_category] Image upload error: {e}")
                 return error_response(f"ไม่สามารถอัพโหลดรูปภาพได้: {str(e)}", {}, 400)
@@ -258,6 +307,7 @@ def delete_category_service(db: Session, category_id: str, hard_delete: bool = F
             if category.image:
                 try:
                     delete_file(category.image)
+                    print(f"🗑️ Deleted category image: {category.image}")
                 except Exception as e:
                     print(f"⚠️ [delete_category] Failed to delete image: {e}")
             

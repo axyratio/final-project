@@ -4,26 +4,73 @@ import { HomeCategory } from "@/api/home";
 import { useRouter } from "expo-router";
 import { Box, Text } from "native-base";
 import React from "react";
-import { Image, Pressable, ScrollView } from "react-native";
+import { Image, Pressable, ScrollView, View } from "react-native";
+import { SvgUri } from "react-native-svg";
 
-// Map category slug → local image asset
-const categoryIcons: Record<string, any> = {
-  shirt: require("../assets/categories/shirt.png"),
-  tshirt: require("../assets/categories/tshirt.png"),
-  sport: require("../assets/categories/sport.png"),
-  cute: require("../assets/categories/cute.png"),
-};
-
-// Default colors for categories (can be customized)
-const defaultCategoryColors: Record<string, string> = {
-  shirt: "#E3F2FD",
-  tshirt: "#FFF9C4",
-  sport: "#F3E5F5",
-  cute: "#FCE4EC",
-};
+// Default colors for categories (cycling through these colors)
+const defaultCategoryColors: string[] = [
+  "#E3F2FD", // Light Blue
+  "#FFF9C4", // Light Yellow
+  "#F3E5F5", // Light Purple
+  "#FCE4EC", // Light Pink
+  "#E8F5E9", // Light Green
+  "#FFF3E0", // Light Orange
+  "#F3E5F5", // Light Lavender
+  "#FFE0B2", // Light Peach
+];
 
 type Props = {
   categories: HomeCategory[];
+};
+
+/**
+ * Component สำหรับแสดงไอคอนหมวดหมู่
+ * รองรับทั้ง SVG และรูปภาพปกติ (PNG, JPG)
+ */
+const CategoryIcon: React.FC<{
+  iconUrl?: string;
+  categoryName: string;
+  size?: number;
+}> = ({ iconUrl, categoryName, size = 40 }) => {
+  // ไม่มีไอคอน → แสดงตัวอักษรแรก
+  if (!iconUrl) {
+    return (
+      <Text fontSize="2xl" fontWeight="bold" color="gray.600">
+        {categoryName.charAt(0)}
+      </Text>
+    );
+  }
+
+  // ตรวจสอบว่าเป็น SVG หรือไม่
+  const isSvg =
+    iconUrl.toLowerCase().endsWith(".svg") ||
+    iconUrl.includes("image/svg") ||
+    iconUrl.includes(".svg?");
+
+  // แสดง SVG
+  if (isSvg) {
+    return (
+      <SvgUri
+        uri={iconUrl}
+        width={size}
+        height={size}
+        onError={(error) => {
+          console.warn("SVG load error:", error);
+        }}
+      />
+    );
+  }
+
+  // แสดงรูปภาพปกติ (PNG, JPG, etc.)
+  return (
+    <Image
+      source={{ uri: iconUrl }}
+      style={{ width: size, height: size, resizeMode: "contain" }}
+      onError={(error) => {
+        console.warn("Image load error:", error);
+      }}
+    />
+  );
 };
 
 export const HomeCategoryList: React.FC<Props> = ({ categories }) => {
@@ -51,9 +98,10 @@ export const HomeCategoryList: React.FC<Props> = ({ categories }) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16 }}
       >
-        {categories.map((cat) => {
-          const iconSource = categoryIcons[cat.id] || null;
-          const bgColor = defaultCategoryColors[cat.id] || "#f5f5f5";
+        {categories.map((cat, index) => {
+          // Cycle through colors for variety
+          const bgColor =
+            defaultCategoryColors[index % defaultCategoryColors.length];
 
           return (
             <Pressable
@@ -70,14 +118,19 @@ export const HomeCategoryList: React.FC<Props> = ({ categories }) => {
                 justifyContent="center"
                 overflow="hidden"
               >
-                {iconSource && (
-                  <Image
-                    source={iconSource}
-                    style={{ width: 40, height: 40, resizeMode: "contain" }}
-                  />
-                )}
+                <CategoryIcon
+                  iconUrl={cat.iconUrl}
+                  categoryName={cat.name}
+                  size={40}
+                />
               </Box>
-              <Text mt={1} fontSize="xs">
+              <Text
+                mt={1}
+                fontSize="xs"
+                numberOfLines={1}
+                maxW={16}
+                textAlign="center"
+              >
                 {cat.name}
               </Text>
             </Pressable>
