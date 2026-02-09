@@ -90,10 +90,10 @@ def register_service(db: Session, user_data):
         return None, str(e)
     
 
-def login_service(db: Session,  payload):
+def login_service(db: Session,  user_data):
     try:
-        identity = payload.identity
-        password = payload.password
+        identity = user_data.identity
+        password = user_data.password
 
         print(f"service login identity: {identity}, password: {password}")
 

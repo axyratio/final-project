@@ -94,11 +94,11 @@ def safely_bind_images(
 
 def create_product_with_variants_service(
     db: Session,
-    auth_user,
+    user_data,
     data: dict,
 ):
     try:
-        store = store_repository.get_store_by_user(db, auth_user.user_id)
+        store = store_repository.get_store_by_user(db, user_data.user_id)
         if not store:
             return error_response("ไม่พบร้านค้าของคุณ", {}, 403)
 
@@ -269,7 +269,7 @@ def get_product_by_id_service(db: Session, product_id: str):
 
 def update_product_service(
     db: Session,
-    auth_user,
+    user_data,
     product_id: str,
     data: dict,
 ):
@@ -280,7 +280,7 @@ def update_product_service(
         if not product:
             return error_response("ไม่พบสินค้า", {}, 404)
 
-        store = store_repository.get_store_by_user(db, auth_user.user_id)
+        store = store_repository.get_store_by_user(db, user_data.user_id)
         if not store or store.store_id != product.store_id:
             return error_response("คุณไม่มีสิทธิ์แก้ไขสินค้านี้", {}, 403)
 
@@ -509,12 +509,12 @@ def delete_product_service(db: Session, product_id: str):
 # ==================== ปิดการขาย
 
 
-def close_sale_product_service(db, auth_user, product_id: str):
+def close_sale_product_service(db, user_data, product_id: str):
     product = product_repository.get_product_by_id(db, product_id)
     if not product:
         return error_response("ไม่พบสินค้า", status_code=404)
 
-    store = store_repository.get_store_by_user(db, auth_user.user_id)
+    store = store_repository.get_store_by_user(db, user_data.user_id)
     if not store or store.store_id != product.store_id:
         return error_response("คุณไม่มีสิทธิ์ปิดการขายสินค้านี้", status_code=403)
 
@@ -523,12 +523,12 @@ def close_sale_product_service(db, auth_user, product_id: str):
     return success_response("ปิดการขายสินค้าสำเร็จ", {"product_id": str(product.product_id)})
 
 
-def open_sale_product_service(db, auth_user, product_id: str):
+def open_sale_product_service(db, user_data, product_id: str):
     product = product_repository.get_product_by_id(db, product_id)
     if not product:
         return error_response("ไม่พบสินค้า", status_code=404)
 
-    store = store_repository.get_store_by_user(db, auth_user.user_id)
+    store = store_repository.get_store_by_user(db, user_data.user_id)
     if not store or store.store_id != product.store_id:
         return error_response("คุณไม่มีสิทธิ์เปิดการขายสินค้านี้", status_code=403)
 

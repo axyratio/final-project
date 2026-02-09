@@ -92,11 +92,11 @@ def create_store_and_connect_stripe(
         )
 
 # ✅ สร้างร้านค้า
-# def create_store_service(db: Session, auth_current_user, data: dict, logo: UploadFile = None):
+# def create_store_service(db: Session, user_data, data: dict, logo: UploadFile = None):
 #     logo_path = None
 #     try:
 #         # ✅ ตรวจสอบว่า user มีใบสมัครเปิดร้านหรือยัง
-#         application = store_application_repository.get_application_by_user(db, auth_current_user.user_id)
+#         application = store_application_repository.get_application_by_user(db, user_data.user_id)
 #         if not application:
 #             return error_response(
 #                 "ไม่สามารถสร้างร้านค้าได้",
@@ -119,7 +119,7 @@ def create_store_and_connect_stripe(
 #                 status_code=403
 #             )
         
-#         existing = store_repository.get_store_by_user(db, auth_current_user.user_id)
+#         existing = store_repository.get_store_by_user(db, user_data.user_id)
 #         if existing:
 #             return error_response("ผู้ใช้นี้มีร้านค้าอยู่แล้ว", {"store": "ร้านค้านี้มีอยู่แล้ว"}, status_code=400)
 
@@ -128,7 +128,7 @@ def create_store_and_connect_stripe(
 #             logo_path = save_file(UPLOAD_DIR, logo, filename)
 
 #         new_store = Store(
-#             user_id=auth_current_user.user_id,
+#             user_id=user_data.user_id,
 #             name=data["name"],
 #             description=data.get("description"),
 #             address=data.get("address"),
@@ -146,8 +146,8 @@ def create_store_and_connect_stripe(
 
 
 # ✅ ดึงร้านของผู้ใช้
-def get_my_store_service(db: Session, auth_current_user):
-    store = store_repository.get_store_by_user(db, auth_current_user.user_id)
+def get_my_store_service(db: Session, user_data):
+    store = store_repository.get_store_by_user(db, user_data.user_id)
     if not store:
         return error_response("ไม่พบร้านค้าของคุณ", {"store": "ไม่พบข้อมูลร้านค้า"}, status_code=404)
     return success_response("ดึงข้อมูลร้านค้าสำเร็จ", store)
@@ -156,7 +156,7 @@ def get_my_store_service(db: Session, auth_current_user):
 # ✅ อัปเดตร้านค้า
 def update_store_service(
     db: Session, 
-    auth_current_user, 
+    user_data, 
     name: str = None,
     description: str = None, 
     address: str = None,
@@ -169,7 +169,7 @@ def update_store_service(
     - อัพโหลดโลโก้ใหม่
     - ลบโลโก้เดิม
     """
-    store = store_repository.get_store_by_user(db, auth_current_user.user_id)
+    store = store_repository.get_store_by_user(db, user_data.user_id)
     if not store:
         return error_response(
             "ไม่พบร้านค้าของคุณ", 
@@ -242,12 +242,12 @@ def update_store_service(
         )
 
 # ✅ ลบร้านค้า
-def delete_store_service(db: Session, auth_current_user):
-    store = store_repository.get_store_by_user(db, auth_current_user.user_id)
+def delete_store_service(db: Session, user_data):
+    store = store_repository.get_store_by_user(db, user_data.user_id)
     if not store:
         return error_response("ไม่พบร้านค้าของคุณ", {"store": "ไม่พบข้อมูลร้านค้า"}, status_code=404)
     
-    user = user_repository.get_user_by_user_id(db, auth_current_user.user_id)
+    user = user_repository.get_user_by_user_id(db, user_data.user_id)
     if (not user):
         return error_response("ไม่เจอชื่อผู้ใช้งาน", {"user": "ไม่เจอชื่อผู้ใช้งาน"}, status_code=404)
         
