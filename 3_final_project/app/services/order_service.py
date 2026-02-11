@@ -23,6 +23,7 @@ from app.models.return_order import ReturnOrder
 from app.models.product import Product, ProductVariant
 from app.models.store import Store
 from app.services.notification_service import NotificationService
+from app.services.payout_service import PayoutService
 from app.utils.now_utc import now_utc
 
 
@@ -163,7 +164,31 @@ class OrderService:
         return OrderService.format_order_response(order)
 
     @staticmethod
-    def confirm_order_received(db: Session, order_id: UUID, user_id: UUID) -> Dict:
+    async def confirm_order_received(db: Session, order_id: UUID, user_id: UUID) -> Dict:
+        """
+        ยืนยันว่าได้รับสินค้าแล้ว
+        
+        Flow:
+        1. ตรวจสอบสิทธิ์และสถานะออเดอร์
+        2. โอนเงินให้ร้านค้าผ่าน Stripe Connect (รองรับหลายร้าน)
+        3. อัปเดตสถานะเป็น COMPLETED
+        4. ส่ง notification
+        
+        Args:
+            db: Database session
+            order_id: ID ของออเดอร์
+            user_id: ID ของผู้ใช้
+            
+        Returns:
+            Dict: ข้อมูลออเดอร์และผลการโอนเงิน
+        """
+        print(f"\n{'='*80}")
+        print(f"[ORDER_SERVICE] 📦 confirm_order_received CALLED")
+        print(f"[ORDER_SERVICE] order_id: {order_id}")
+        print(f"[ORDER_SERVICE] user_id: {user_id}")
+        print(f"{'='*80}\n")
+
+        # 1. โหลดออเดอร์พร้อม relationships
         order = (
             db.query(Order)
             .options(
@@ -175,21 +200,66 @@ class OrderService:
             .filter(Order.order_id == order_id, Order.user_id == user_id)
             .first()
         )
+
         if not order:
+            print(f"[ORDER_SERVICE] ❌ Order not found")
             raise HTTPException(status_code=404, detail="ไม่พบคำสั่งซื้อ")
+
+        print(f"[ORDER_SERVICE] Current order status: {order.order_status}")
+
+        # 2. ตรวจสอบสถานะ
         if order.order_status != "DELIVERED":
             raise HTTPException(
                 status_code=400,
-                detail=f"ไม่สามารถยืนยันรับสินค้าได้ สถานะปัจจุบัน: {OrderService.get_status_text(order.order_status)}"
+                detail=f"ไม่สามารถยืนยันได้ สถานะปัจจุบัน: {OrderService.get_status_text(order.order_status)}"
             )
-        order.order_status = "COMPLETED"
-        order.order_text_status = OrderService.get_status_text("COMPLETED")
-        order.updated_at = now_utc()
-        order.completed_at = now_utc()
-        db.commit()
-        db.refresh(order)
-        return OrderService.format_order_response(order)
 
+        # 3. โอนเงินให้ร้านค้า (รองรับหลายร้าน)
+        print(f"\n[ORDER_SERVICE] 💰 Processing payout to stores...")
+        
+        payout_result = None
+        try:
+            payout_result = await PayoutService.process_payout_on_delivery_confirmation(
+                db=db,
+                order_id=order_id,
+                platform_fee_rate=0.05  # 5% platform fee
+            )
+            print(f"[ORDER_SERVICE] ✅ Payout completed successfully")
+            print(f"[ORDER_SERVICE] Stores paid: {payout_result['successful_transfers']}/{payout_result['total_stores']}")
+            print(f"[ORDER_SERVICE] Total transferred: ${payout_result['total_amount_transferred']:.2f}")
+            
+        except Exception as e:
+            print(f"[ORDER_SERVICE] ❌ Payout failed: {str(e)}")
+            # ไม่ throw error เพื่อให้ order status ยังอัปเดตได้
+            payout_result = {
+                "error": str(e),
+                "successful_transfers": 0,
+                "failed_transfers": 0
+            }
+
+        # 4. Refresh order (PayoutService อาจจะอัปเดต order status แล้ว)
+        db.refresh(order)
+        
+        # 5. ส่ง notification (ถ้าต้องการ)
+        try:
+            # อาจจะเพิ่ม notification ว่าได้รับเงินแล้ว
+            # await NotificationService.notify_payout_completed(db, order, payout_result)
+            pass
+        except Exception as e:
+            print(f"[ORDER_SERVICE] ⚠️ Notification failed: {str(e)}")
+
+        # 6. สร้าง response
+        response = OrderService.format_order_response(order)
+        
+        # เพิ่มข้อมูลการโอนเงิน
+        response["payout_info"] = payout_result
+
+        print(f"\n[ORDER_SERVICE] ✅ Order confirmed successfully")
+        print(f"[ORDER_SERVICE] New status: {order.order_status}")
+        print(f"{'='*80}\n")
+
+        return response
+    
     @staticmethod
     def reorder_items(db: Session, order_id: UUID, user_id: UUID) -> Dict:
         order = (

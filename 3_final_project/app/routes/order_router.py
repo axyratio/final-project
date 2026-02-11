@@ -58,7 +58,7 @@ def get_order_detail(
 
 
 @router.post("/{order_id}/confirm-received")
-def confirm_order_received(
+async def confirm_order_received(
     order_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticate_token()),
@@ -69,7 +69,7 @@ def confirm_order_received(
     - ตั้งค่า completed_at
     - เปิดให้รีวิวสินค้าได้
     """
-    order = OrderService.confirm_order_received(db, order_id, current_user.user_id)
+    order = await OrderService.confirm_order_received(db, order_id, current_user.user_id)
     
     return success_response(
         message="ยืนยันการรับสินค้าสำเร็จ",

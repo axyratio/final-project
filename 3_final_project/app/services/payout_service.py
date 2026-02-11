@@ -1,105 +1,345 @@
-# app/services/payout_service.py
-from sqlalchemy.orm import Session
-from fastapi import HTTPException
-from uuid import UUID
-import stripe
+# =============================================================
+# FILE: app/services/payout_service_enhanced.py
+# PURPOSE: บริการโอนเงินให้ร้านค้าผ่าน Stripe Connect
+#          รองรับหลายร้านในออเดอร์เดียว (multi-vendor)
+# =============================================================
 
-from app.models.order import Order
-from app.models.store import Store
+import stripe
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from typing import Dict, List, Optional
+from uuid import UUID
+from datetime import datetime
+from decimal import Decimal
+
+from app.core.stripe_client import stripe
+from app.models.order import Order, OrderStatus
+from app.models.order_item import OrderItem
 from app.models.payment import Payment, PaymentStatus
+from app.models.store import Store
 from app.models.store_payout import StorePayout
 from app.utils.now_utc import now_utc
-from app.core.config import settings
+from fastapi import HTTPException
 
-PLATFORM_FEE_PERCENT = 10.0  # สมมติ platform หัก 10%
 
 class PayoutService:
+    """
+    บริการจัดการการโอนเงินให้ร้านค้า
+    - รองรับหลายร้านในออเดอร์เดียว
+    - ใช้ transfer_group จาก PaymentIntent
+    - หักค่าธรรมเนียมแพลตฟอร์ม
+    - บันทึกประวัติการโอนเงิน
+    """
+
+    # ค่าธรรมเนียมแพลตฟอร์ม (5%)
+    DEFAULT_PLATFORM_FEE_RATE = 0.05
 
     @staticmethod
-    def payout_order_to_store(db: Session, order_id: UUID, user_id: UUID) -> StorePayout:
-        # 1) ดึง order
-        order: Order = (
+    def calculate_store_amounts(
+        db: Session,
+        order_id: UUID,
+        platform_fee_rate: float = DEFAULT_PLATFORM_FEE_RATE
+    ) -> List[Dict]:
+        """
+        คำนวณยอดเงินที่แต่ละร้านควรได้รับ
+        
+        Returns:
+            List[Dict]: รายการร้านและยอดเงิน
+            [
+                {
+                    "store_id": UUID,
+                    "store_name": str,
+                    "stripe_account_id": str,
+                    "subtotal": Decimal,
+                    "platform_fee": Decimal,
+                    "transfer_amount": Decimal,
+                    "items": List[OrderItem]
+                }
+            ]
+        """
+        # ดึง order items แยกตามร้าน
+        store_groups = (
+            db.query(
+                OrderItem.store_id,
+                func.sum(OrderItem.quantity * OrderItem.unit_price).label("subtotal")
+            )
+            .filter(OrderItem.order_id == order_id)
+            .group_by(OrderItem.store_id)
+            .all()
+        )
+
+        result = []
+        for store_id, subtotal in store_groups:
+            # ดึงข้อมูลร้าน
+            store = db.query(Store).filter(Store.store_id == store_id).first()
+            
+            if not store:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"ไม่พบร้านค้า ID: {store_id}"
+                )
+            
+            if not store.stripe_account_id:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"ร้าน '{store.name}' ยังไม่เชื่อมต่อกับ Stripe Connect"
+                )
+            
+            # คำนวณค่าธรรมเนียมและยอดโอน
+            platform_fee = Decimal(str(subtotal)) * Decimal(str(platform_fee_rate))
+            transfer_amount = Decimal(str(subtotal)) - platform_fee
+
+            # ดึงรายการสินค้าของร้านนี้
+            items = (
+                db.query(OrderItem)
+                .filter(
+                    OrderItem.order_id == order_id,
+                    OrderItem.store_id == store_id
+                )
+                .all()
+            )
+
+            result.append({
+                "store_id": store_id,
+                "store_name": store.name,
+                "stripe_account_id": store.stripe_account_id,
+                "subtotal": subtotal,
+                "platform_fee": platform_fee,
+                "transfer_amount": transfer_amount,
+                "items": items
+            })
+
+        return result
+
+    @staticmethod
+    async def process_payout_on_delivery_confirmation(
+        db: Session,
+        order_id: UUID,
+        platform_fee_rate: float = DEFAULT_PLATFORM_FEE_RATE
+    ) -> Dict:
+        """
+        โอนเงินให้ร้านค้าเมื่อลูกค้ากดยืนยันรับสินค้า
+        
+        Flow:
+        1. ตรวจสอบ order status = DELIVERED
+        2. ตรวจสอบ payment status = SUCCESS
+        3. คำนวณยอดเงินแต่ละร้าน
+        4. โอนเงินผ่าน Stripe Transfer (ใช้ transfer_group)
+        5. บันทึกประวัติการโอน
+        6. อัปเดต order status -> COMPLETED
+        
+        Args:
+            db: Database session
+            order_id: ID ของออเดอร์
+            platform_fee_rate: อัตราค่าธรรมเนียม (default 5%)
+            
+        Returns:
+            Dict: ผลลัพธ์การโอนเงิน
+        """
+        print(f"\n{'='*80}")
+        print(f"[PAYOUT_SERVICE] 💰 Starting payout process")
+        print(f"[PAYOUT_SERVICE] Order ID: {order_id}")
+        print(f"[PAYOUT_SERVICE] Platform Fee Rate: {platform_fee_rate * 100}%")
+        print(f"{'='*80}\n")
+
+        # 1. ตรวจสอบออเดอร์
+        order = (
             db.query(Order)
-            .filter(
-                Order.order_id == order_id,
-                Order.user_id == user_id,   # กันคนอื่นมากดของชาวบ้าน
-            )
+            .filter(Order.order_id == order_id)
             .first()
         )
+        
         if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
-
+            raise HTTPException(status_code=404, detail="ไม่พบออเดอร์")
+        
+        print(f"[PAYOUT_SERVICE] Order Status: {order.order_status}")
+        
         if order.order_status != "DELIVERED":
-            # ตรงนี้แล้วแต่ policy มึง จะให้กดยืนยันตอนสถานะไหน
-            raise HTTPException(status_code=400, detail="Order ยังไม่อยู่ในสถานะ DELIVERED")
+            raise HTTPException(
+                status_code=400,
+                detail=f"ไม่สามารถโอนเงินได้ สถานะออเดอร์: {order.order_status}"
+            )
 
-        store: Store = order.store
-        if not store or not store.stripe_account_id:
-            raise HTTPException(status_code=400, detail="ร้านค้านี้ยังไม่ผูก Stripe Connect")
-
-        # 2) หา Payment เดิม
-        payment: Payment = (
+        # 2. ตรวจสอบการชำระเงิน
+        payment = (
             db.query(Payment)
-            .filter(Payment.order_id == order.order_id)  # ตอนนี้มึงผูก payment กับ order แรกเท่านั้น
+            .filter(Payment.payment_id == order.payment_id)
             .first()
         )
+        
         if not payment or payment.status != PaymentStatus.SUCCESS:
-            raise HTTPException(status_code=400, detail="ยังไม่มีการชำระเงินสำเร็จ")
-
-        # 3) เช็คว่าเคยโอนให้ order นี้แล้วหรือยัง
-        existing = (
-            db.query(StorePayout)
-            .filter(
-                StorePayout.order_id == order.order_id,
-                StorePayout.store_id == store.store_id,
+            raise HTTPException(
+                status_code=400,
+                detail="ออเดอร์นี้ยังไม่ได้ชำระเงิน"
             )
-            .first()
-        )
-        if existing and existing.status == "SUCCESS":
-            raise HTTPException(status_code=400, detail="Order นี้โอนเงินเข้าร้านไปแล้ว")
+        
+        # ✅ ถูก
+        print(f"[PAYOUT_SERVICE] Payment Intent ID: {payment.payment_intent_id}")
+        print(f"[PAYOUT_SERVICE] Total Amount: ${order.total_price:.2f}")
 
-        # 4) คำนวณจำนวนเงินสำหรับร้านนี้
-        order_amount = order.total_price  # รวมสินค้าของร้านนี้ + shipping (แล้วแต่มึง)
-        platform_fee = (order_amount * PLATFORM_FEE_PERCENT) / 100.0
-        transfer_amount = order_amount - platform_fee
-        if transfer_amount <= 0:
-            raise HTTPException(status_code=400, detail="จำนวนเงินหลังหัก fee น้อยกว่าหรือเท่ากับ 0")
-
-        # 5) สร้าง StorePayout ใน DB (สถานะ PENDING ก่อน)
-        payout = StorePayout(
-            store_id=store.store_id,
-            order_id=order.order_id,
-            payment_id=payment.payment_id,
-            amount=transfer_amount,
-            platform_fee=platform_fee,
-            status="PENDING",
+        # 3. คำนวณยอดเงินแต่ละร้าน
+        store_amounts = PayoutService.calculate_store_amounts(
+            db, order_id, platform_fee_rate
         )
-        db.add(payout)
+        
+        print(f"\n[PAYOUT_SERVICE] 🏪 Found {len(store_amounts)} store(s)")
+        for idx, store_data in enumerate(store_amounts, 1):
+            print(f"\n  Store {idx}: {store_data['store_name']}")
+            print(f"    - Subtotal: ${store_data['subtotal']:.2f}")
+            print(f"    - Platform Fee: ${store_data['platform_fee']:.2f}")
+            print(f"    - Transfer Amount: ${store_data['transfer_amount']:.2f}")
+            print(f"    - Stripe Account: {store_data['stripe_account_id']}")
+
+        # 4. ดึง transfer_group จาก PaymentIntent
+        transfer_group = f"order_{order_id}"
+        print(f"\n[PAYOUT_SERVICE] 📦 Transfer Group: {transfer_group}")
+
+        # 5. โอนเงินให้แต่ละร้าน
+        transfer_results = []
+        
+        for store_data in store_amounts:
+            try:
+                print(f"\n[PAYOUT_SERVICE] 💸 Creating transfer for: {store_data['store_name']}")
+                
+                # แปลงเป็นสตางค์ (cents)
+                amount_cents = int(float(store_data['transfer_amount']) * 100)
+                
+                # สร้าง Stripe Transfer
+                transfer = stripe.Transfer.create(
+                    amount=amount_cents,
+                    currency="sgd",
+                    destination=store_data['stripe_account_id'],
+                    transfer_group=transfer_group,
+                    description=f"Payout for Order {order_id} - {store_data['store_name']}",
+                    metadata={
+                        "order_id": str(order_id),
+                        "store_id": str(store_data['store_id']),
+                        "store_name": store_data['store_name'],
+                        "platform_fee": str(store_data['platform_fee'])
+                    }
+                )
+                
+                print(f"[PAYOUT_SERVICE] ✅ Transfer created: {transfer.id}")
+                
+                # บันทึกประวัติการโอนเงิน
+                payout_record = StorePayout(
+                    store_id=store_data['store_id'],
+                    order_id=order_id,
+                    transfer_id=transfer.id,
+                    transfer_group=transfer_group,
+                    amount=store_data['subtotal'],
+                    platform_fee=store_data['platform_fee'],
+                    net_amount=store_data['transfer_amount'],
+                    status="completed",
+                    transferred_at=now_utc()
+                )
+                db.add(payout_record)
+                
+                transfer_results.append({
+                    "store_id": str(store_data['store_id']),
+                    "store_name": store_data['store_name'],
+                    "transfer_id": transfer.id,
+                    "amount": float(store_data['transfer_amount']),
+                    "platform_fee": float(store_data['platform_fee']),
+                    "status": "success"
+                })
+                
+            except stripe.error.StripeError as e:
+                print(f"[PAYOUT_SERVICE] ❌ Stripe error: {str(e)}")
+                
+                # บันทึกความล้มเหลว
+                payout_record = StorePayout(
+                    store_id=store_data['store_id'],
+                    order_id=order_id,
+                    transfer_group=transfer_group,
+                    amount=store_data['subtotal'],
+                    platform_fee=store_data['platform_fee'],
+                    net_amount=store_data['transfer_amount'],
+                    status="failed",
+                    error_message=str(e)
+                )
+                db.add(payout_record)
+                
+                transfer_results.append({
+                    "store_id": str(store_data['store_id']),
+                    "store_name": store_data['store_name'],
+                    "transfer_id": None,
+                    "amount": float(store_data['transfer_amount']),
+                    "platform_fee": float(store_data['platform_fee']),
+                    "status": "failed",
+                    "error": str(e)
+                })
+
+        # 6. อัปเดตสถานะออเดอร์เป็น COMPLETED
+        order.order_status = "COMPLETED"
+        order.order_text_status = "ได้รับสินค้าแล้ว"
+        order.completed_at = now_utc()
+        order.updated_at = now_utc()
+        
         db.commit()
-        db.refresh(payout)
+        
+        print(f"\n[PAYOUT_SERVICE] ✅ Payout process completed")
+        print(f"[PAYOUT_SERVICE] Order Status: {order.order_status}")
+        print(f"{'='*80}\n")
 
-        # 6) สั่ง Stripe Transfer (เงินจาก platform → ร้าน)
-        try:
-            transfer = stripe.Transfer.create(
-                amount=int(transfer_amount * 100),       # เป็นสตางค์
-                currency="thb",
-                destination=store.stripe_account_id,     # connected account
-                source_transaction=payment.payment_intent_id, # tie กลับไปที่ charge เดิม
-                transfer_group=str(payment.payment_id),  # ให้มันอยู่กรุ๊ปเดียวกับ charge
-            )
+        # สรุปผลลัพธ์
+        successful_transfers = [r for r in transfer_results if r["status"] == "success"]
+        failed_transfers = [r for r in transfer_results if r["status"] == "failed"]
+        
+        total_transferred = sum(r["amount"] for r in successful_transfers)
+        total_platform_fee = sum(r["platform_fee"] for r in successful_transfers)
 
-            payout.stripe_transfer_id = transfer.id
-            payout.status = "SUCCESS"
-            payout.paid_at = now_utc()
-            db.commit()
-            db.refresh(payout)
+        return {
+            "order_id": str(order_id),
+            "order_status": order.order_status,
+            "completed_at": order.completed_at.isoformat() if order.completed_at else None,
+            "transfer_group": transfer_group,
+            "total_stores": len(store_amounts),
+            "successful_transfers": len(successful_transfers),
+            "failed_transfers": len(failed_transfers),
+            "total_amount_transferred": total_transferred,
+            "total_platform_fee": total_platform_fee,
+            "transfers": transfer_results
+        }
 
-        except Exception as e:
-            db.rollback()
-            # mark เป็น FAILED เพื่อจะได้เห็นว่าพยายามโอนแล้วแต่ fail
-            payout.status = "FAILED"
-            db.add(payout)
-            db.commit()
-            raise HTTPException(status_code=500, detail=f"โอนเงินให้ร้านล้มเหลว: {str(e)}")
-
-        return payout
+    @staticmethod
+    def get_payout_history(
+        db: Session,
+        store_id: Optional[UUID] = None,
+        order_id: Optional[UUID] = None
+    ) -> List[Dict]:
+        """
+        ดึงประวัติการโอนเงิน
+        
+        Args:
+            db: Database session
+            store_id: กรองตามร้าน (optional)
+            order_id: กรองตามออเดอร์ (optional)
+        """
+        query = db.query(StorePayout)
+        
+        if store_id:
+            query = query.filter(StorePayout.store_id == store_id)
+        
+        if order_id:
+            query = query.filter(StorePayout.order_id == order_id)
+        
+        payouts = query.order_by(StorePayout.created_at.desc()).all()
+        
+        return [
+            {
+                "payout_id": str(payout.payout_id),
+                "store_id": str(payout.store_id),
+                "order_id": str(payout.order_id),
+                "transfer_id": payout.transfer_id,
+                "transfer_group": payout.transfer_group,
+                "amount": float(payout.amount),
+                "platform_fee": float(payout.platform_fee),
+                "net_amount": float(payout.net_amount),
+                "status": payout.status,
+                "error_message": payout.error_message,
+                "transferred_at": payout.transferred_at.isoformat() if payout.transferred_at else None,
+                "created_at": payout.created_at.isoformat() if payout.created_at else None
+            }
+            for payout in payouts
+        ]

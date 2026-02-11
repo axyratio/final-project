@@ -20,6 +20,10 @@ from app.utils.file_util import rollback_and_cleanup, save_file, delete_file
 from app.utils.now_utc import now_utc
 from app.utils.response_handler import success_response, error_response
 from sqlalchemy.orm.attributes import flag_modified
+# เพิ่มใน imports ด้านบน
+# import stripe
+from app.core.stripe_client import stripe
+from app.models.payment import Payment, PaymentStatus
 
 class OrderReturnService:
     """Service สำหรับจัดการการคืนสินค้า"""

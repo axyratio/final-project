@@ -15,6 +15,9 @@ class OrderItem(Base):
 
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Float, nullable=False)
+    # product_name = Column(String, nullable=True)
+    # variant_name = Column(String, nullable=True)
+    
 
     store = relationship("Store", back_populates="order_items")
     order = relationship("Order", back_populates="order_items")

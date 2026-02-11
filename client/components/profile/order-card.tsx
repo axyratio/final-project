@@ -3,17 +3,21 @@ import { Order, OrderItem } from "@/api/order";
 import { formatDateTimeTH } from "@/utils/datetime";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+// เพิ่มหลัง import อื่นๆ
+import { confirmOrderReceived } from "@/api/order"; // ✅ เพิ่มบรรทัดนี้
+import { getToken } from "@/utils/secure-store"; // ✅ เพิ่มบรรทัดนี้
 import {
+  AlertDialog,
+  Badge,
   Box,
+  Button,
   HStack,
-  VStack,
-  Text,
   Image,
   Pressable,
-  Badge,
-  Button,
-  AlertDialog,
-} from "native-base";
+  Text,
+  useToast,
+  VStack,
+} from "native-base"; // ✅ เพิ่ม (ถ้ายังไม่มี)
 import React, { useRef, useState } from "react";
 
 type OrderCardProps = {
@@ -100,7 +104,6 @@ function getStatusBadgeColor(status: string): string {
   }
 }
 
-
 const _OrderCard: React.FC<OrderCardProps> = ({
   order,
   onConfirmReceived,
@@ -110,8 +113,13 @@ const _OrderCard: React.FC<OrderCardProps> = ({
   reviewedMap,
 }) => {
   const router = useRouter();
+  const toast = useToast(); // ✅ เพิ่มบรรทัดนี้
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // ✅ เพิ่มบรรทัดนี้
   const cancelRef = useRef(null);
+
+
+  const [currentOrderStatus, setCurrentOrderStatus] = useState(order.order_status);
 
   const handlePressOrder = () => {
     router.push(`/(profile)/order-detail?orderId=${order.order_id}` as any);
@@ -121,13 +129,69 @@ const _OrderCard: React.FC<OrderCardProps> = ({
     setIsConfirmDialogOpen(true);
   };
 
-  const handleConfirmReceivedConfirm = () => {
-    setIsConfirmDialogOpen(false);
+  // ✅ แทนที่ function เดิมทั้งหมด
+const handleConfirmReceivedConfirm = async () => {
+  setIsConfirmDialogOpen(false);
+  setIsProcessing(true);
+
+  try {
+    const token = await getToken();
+    if (!token) {
+      toast.show({
+        description: "กรุณาเข้าสู่ระบบใหม่",
+        duration: 2000,
+        bg: "red.500",
+      });
+      router.replace("/login");
+      return;
+    }
+
+    const result = await confirmOrderReceived(token, order.order_id);
+
+    // ✅ เช็ค response และอัปเดต status
+    if (result.order?.order_status) {
+      setCurrentOrderStatus(result.order.order_status);
+    }
+
+    toast.show({
+      description: result.message || "ยืนยันการรับสินค้าสำเร็จ",
+      duration: 2000,
+      bg: "green.500",
+    });
+
+    // เรียก callback
     onConfirmReceived?.(order.order_id);
-  };
+
+  } catch (error: any) {
+    console.error("❌ Error confirming order:", error);
+    
+    // ✅ เช็ค error ว่าเป็นเพราะ status COMPLETED ไหม
+    const errorMessage = 
+      error.response?.data?.detail || 
+      error.response?.data?.message || 
+      error.message || 
+      "เกิดข้อผิดพลาด กรุณาลองใหม่";
+    
+    // ถ้า error เป็นเพราะยืนยันแล้ว ให้ซ่อนปุ่ม
+    if (errorMessage.includes("ยืนยันรับสินค้าแล้ว") || 
+        errorMessage.includes("COMPLETED")) {
+      setCurrentOrderStatus("COMPLETED");
+    }
+    
+    toast.show({
+      description: errorMessage,
+      duration: 3000,
+      bg: "red.500",
+    });
+  } finally {
+    setIsProcessing(false);
+  }
+};
 
   const firstProduct = order.order_items[0];
-  const hasReviewed = firstProduct ? !!reviewedMap?.[`${order.order_id}:${firstProduct.product_id}`] : false;
+  const hasReviewed = firstProduct
+    ? !!reviewedMap?.[`${order.order_id}:${firstProduct.product_id}`]
+    : false;
 
   return (
     <Box bg="white" borderRadius={12} p={4} mb={3} shadow={1}>
@@ -186,29 +250,35 @@ const _OrderCard: React.FC<OrderCardProps> = ({
       )}
 
       <Box bg="coolGray.50" p={3} borderRadius={8} mb={3}>
-  <VStack space={1}>
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">ชำระเงิน</Text>
-      <Text fontSize="xs" fontWeight="medium" color="gray.800">
-        {formatDateTimeTH(order.paid_at)}
-      </Text>
-    </HStack>
+        <VStack space={1}>
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              ชำระเงิน
+            </Text>
+            <Text fontSize="xs" fontWeight="medium" color="gray.800">
+              {formatDateTimeTH(order.paid_at)}
+            </Text>
+          </HStack>
 
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">จัดส่งสำเร็จ</Text>
-      <Text fontSize="xs" fontWeight="medium" color="gray.800">
-        {formatDateTimeTH(order.delivered_at)}
-      </Text>
-    </HStack>
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              จัดส่งสำเร็จ
+            </Text>
+            <Text fontSize="xs" fontWeight="medium" color="gray.800">
+              {formatDateTimeTH(order.delivered_at)}
+            </Text>
+          </HStack>
 
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">ยืนยันรับสินค้า</Text>
-      <Text fontSize="xs" fontWeight="medium" color="gray.800">
-        {formatDateTimeTH(order.completed_at)}
-      </Text>
-    </HStack>
-  </VStack>
-</Box>
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              ยืนยันรับสินค้า
+            </Text>
+            <Text fontSize="xs" fontWeight="medium" color="gray.800">
+              {formatDateTimeTH(order.completed_at)}
+            </Text>
+          </HStack>
+        </VStack>
+      </Box>
 
       {/* Total Price */}
       <HStack
@@ -226,7 +296,6 @@ const _OrderCard: React.FC<OrderCardProps> = ({
           ฿{order.total_price.toFixed(0)}
         </Text>
       </HStack>
-
 
       {/* Action Buttons */}
       <HStack space={2} justifyContent="flex-end" flexWrap="wrap">
@@ -257,11 +326,14 @@ const _OrderCard: React.FC<OrderCardProps> = ({
         )}
 
         {/* ✅ ปุ่มได้รับสินค้าแล้ว: เฉพาะตอน DELIVERED */}
+        {/* ✅ แก้ปุ่มนี้ */}
         {order.order_status === "DELIVERED" && order.can_confirm_received && (
           <Button
             size="sm"
             colorScheme="violet"
             onPress={handleConfirmReceived}
+            isLoading={isProcessing} // ✅ เพิ่ม
+            isLoadingText="กำลังโอนเงิน..." // ✅ เพิ่ม
             _text={{ fontSize: "xs" }}
           >
             ได้รับสินค้าแล้ว
@@ -269,21 +341,27 @@ const _OrderCard: React.FC<OrderCardProps> = ({
         )}
 
         {/* ✅ ปุ่มให้คะแนน: แสดงเฉพาะหลังได้รับสินค้าแล้ว */}
-        {order.order_status === "COMPLETED" && order.can_review && !hasReviewed && (
-          <Button
-            size="sm"
-            colorScheme="violet"
-            onPress={() => {
-              const firstProduct = order.order_items[0];
-              if (firstProduct) {
-                onReview?.(order.order_id, firstProduct.product_id, firstProduct.variant_id);
-              }
-            }}
-            _text={{ fontSize: "xs" }}
-          >
-            ให้คะแนน
-          </Button>
-        )}
+        {order.order_status === "COMPLETED" &&
+          order.can_review &&
+          !hasReviewed && (
+            <Button
+              size="sm"
+              colorScheme="violet"
+              onPress={() => {
+                const firstProduct = order.order_items[0];
+                if (firstProduct) {
+                  onReview?.(
+                    order.order_id,
+                    firstProduct.product_id,
+                    firstProduct.variant_id,
+                  );
+                }
+              }}
+              _text={{ fontSize: "xs" }}
+            >
+              ให้คะแนน
+            </Button>
+          )}
       </HStack>
 
       {/* Confirm Dialog */}
