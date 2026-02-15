@@ -170,7 +170,7 @@ def get_home_data(
         print(f"❌ Error in get_home_data: {e}")
         return error_response("Failed to fetch home data", {"error": str(e)}, 500)
 
-
+#  สำหรับดึงหน้าหมวดหมู่ทั้งหมด (Categories Page) category page
 @router.get("/categories-page")
 def get_category_page_data(
     db: Session = Depends(get_db),
@@ -259,9 +259,9 @@ def get_category_page_data(
                 }
             )
 
-        payload = {"categories": categories, "products": products}
+        data = {"categories": categories, "products": products}
         return success_response(
-            "Category page data retrieved successfully", payload
+            "Category page data retrieved successfully", data
         )
 
     except Exception as e:

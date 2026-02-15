@@ -33,6 +33,7 @@ class Notification(Base):
         Enum(NotificationType, name="notification_type_enum"),
         nullable=False
     )
+    receiver_role = Column(String(50), nullable=True)  # เช่น "customer", "seller", "admin"
     
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)

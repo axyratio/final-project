@@ -14,6 +14,11 @@ from app.repositories import cart_repository
 from app.services.stock_service import commit_stock_for_order
 from app.utils.now_utc import now_utc
 
+from app.services.notification_service import NotificationService
+from sqlalchemy.orm import joinedload
+from app.models.order_item import OrderItem
+from app.models.product import Product
+
 router = APIRouter(prefix="/stripe", tags=["Stripe"])
 
 # ✅ อ้างอิงตาม enum ฝั่ง client ที่ให้มา
@@ -189,9 +194,24 @@ async def stripe_webhook(
             # ✅ เปลี่ยนจาก PAID -> PREPARING
             _update_orders_paid(db, payment_id)
 
+            # 🔔 แจ้งเตือน buyer ว่าออเดอร์อนุมัติแล้ว (ORDER_APPROVED)
+
+
+            # ดึง orders พร้อม order_items + product (สำหรับ preview ชื่อสินค้า + รูป)
+
+
             # commit stock + clear cart
             _commit_stock_for_payment_orders(db, payment_id)
             _clear_purchased_cart_items(db, payment)
+            
+            orders = db.query(Order).options(
+                joinedload(Order.order_items)
+                .joinedload(OrderItem.product)
+                .joinedload(Product.images)
+            ).filter(Order.payment_id == payment_id).all()
+
+            for order in orders:
+                await NotificationService.notify(db, event="ORDER_CREATED", order=order)
 
             _mark_processed(db, event_id, event_type)
             return {"received": True}
