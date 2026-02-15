@@ -97,6 +97,7 @@ export type SellerNotification = {
   notification_id: string;
   type: "ORDER_RECEIVED" | "ORDER_COMPLETED" | "RETURN_REQUEST" | "LOW_STOCK";
   title: string;
+  receiver_role?: string | null; // 🎯 เพิ่มบรรทัดนี้
   message: string;
   order_id?: string;
   is_read: boolean;
@@ -276,23 +277,36 @@ export async function fetchSellerOrders(token: string, status?: string): Promise
 }
 
 // ✅ เพิ่มใหม่: อนุมัติออเดอร์ (PAID → PREPARING)
-export async function approveOrder(
-  token: string,
-  orderId: string
-): Promise<{ message: string }> {
-  if (USE_MOCK_DATA) {
-    await delay(500);
-    const order = MOCK_SELLER_ORDERS.find((o) => o.order_id === orderId);
-    if (order) {
-      order.order_status = "PREPARING";
-      order.order_text_status = "กำลังเตรียมสินค้า";
-    }
-    return { message: "อนุมัติออเดอร์สำเร็จ" };
-  }
+// export async function approveOrder(
+//   token: string,
+//   orderId: string
+// ): Promise<{ message: string }> {
+//   if (USE_MOCK_DATA) {
+//     await delay(500);
+//     const order = MOCK_SELLER_ORDERS.find((o) => o.order_id === orderId);
+//     if (order) {
+//       order.order_status = "PREPARING";
+//       order.order_text_status = "กำลังเตรียมสินค้า";
+//     }
+//     return { message: "อนุมัติออเดอร์สำเร็จ" };
+//   }
 
+//   const res = await axios.post(
+//     `${DOMAIN}/seller/orders/${orderId}/approve`,
+//     {},
+//     { headers: { Authorization: `Bearer ${token}` } }
+//   );
+//   return res.data;
+// }
+
+export async function rejectOrder(
+  token: string,
+  orderId: string,
+  reason: string
+): Promise<{ message: string }> {
   const res = await axios.post(
-    `${DOMAIN}/seller/orders/${orderId}/approve`,
-    {},
+    `${DOMAIN}/seller/orders/${orderId}/reject`,
+    { reason },
     { headers: { Authorization: `Bearer ${token}` } }
   );
   return res.data;
@@ -416,7 +430,7 @@ export async function fetchSellerBadgeCounts(token: string): Promise<BadgeCounts
 export const sellerAPI = {
   fetchSellerDashboard,
   fetchSellerOrders,
-  approveOrder, // ✅ เพิ่มบรรทัดนี้
+  // approveOrder, // ✅ เพิ่มบรรทัดนี้
   confirmOrderShipped,
   fetchReturnRequests,
   handleReturnRequest,

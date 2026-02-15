@@ -15,6 +15,7 @@ class NotificationResponse(BaseModel):
     conversation_id: Optional[UUID] = None
     image_url: Optional[str] = None
     is_read: bool
+    receiver_role: Optional[str] = "buyer"
     created_at: datetime
     read_at: Optional[datetime] = None
 

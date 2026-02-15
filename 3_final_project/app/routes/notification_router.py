@@ -1,5 +1,5 @@
 # app/routes/notification_router.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from uuid import UUID
@@ -21,20 +21,23 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 async def get_my_notifications(
     limit: int = 50,
     offset: int = 0,
+    role: Optional[str] = Query(None, description="Filter by receiver_role: buyer or seller"),
     current_user: User = Depends(authenticate_token()),
     db: Session = Depends(get_db)
 ):
-    """ดึงการแจ้งเตือนของฉัน"""
+    """ดึงการแจ้งเตือนของฉัน (แยกตาม role ได้)"""
     notifications, total = await NotificationService.get_user_notifications(
         db=db,
         user_id=current_user.user_id,
         limit=limit,
-        offset=offset
+        offset=offset,
+        receiver_role=role
     )
     
     unread_count = await NotificationService.get_unread_count(
         db=db,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        receiver_role=role
     )
     
     return {
@@ -46,30 +49,42 @@ async def get_my_notifications(
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
+    role: Optional[str] = Query(None, description="Filter by receiver_role: buyer or seller"),
     current_user: User = Depends(authenticate_token()),
     db: Session = Depends(get_db)
 ):
     """นับจำนวนการแจ้งเตือนที่ยังไม่อ่าน"""
     unread_count = await NotificationService.get_unread_count(
         db=db,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        receiver_role=role
     )
     
     return {"unread_count": unread_count}
 
 
-@router.get("/badge-count", response_model=UnreadCountResponse)
+@router.get("/badge-count")
 async def get_badge_count(
     current_user: User = Depends(authenticate_token()),
     db: Session = Depends(get_db)
 ):
-    """ดึง badge count ของการแจ้งเตือนที่ยังไม่อ่าน"""
-    unread_count = await NotificationService.get_unread_count(
+    """ดึง badge count แยกตาม role (buyer + seller)"""
+    buyer_count = await NotificationService.get_unread_count(
         db=db,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        receiver_role="buyer"
+    )
+    seller_count = await NotificationService.get_unread_count(
+        db=db,
+        user_id=current_user.user_id,
+        receiver_role="seller"
     )
     
-    return {"unread_count": unread_count}
+    return {
+        "unread_count": buyer_count + seller_count,
+        "buyer_unread": buyer_count,
+        "seller_unread": seller_count
+    }
 
 
 @router.post("/{notification_id}/read")
@@ -93,13 +108,15 @@ async def mark_notification_as_read(
 
 @router.post("/read-all")
 async def mark_all_as_read(
+    role: Optional[str] = Query(None, description="Filter by receiver_role: buyer or seller"),
     current_user: User = Depends(authenticate_token()),
     db: Session = Depends(get_db)
 ):
-    """ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว"""
+    """ทำเครื่องหมายทั้งหมดว่าอ่านแล้ว (แยกตาม role ได้)"""
     updated = await NotificationService.mark_all_as_read(
         db=db,
-        user_id=current_user.user_id
+        user_id=current_user.user_id,
+        receiver_role=role
     )
     
     return {"message": f"Marked {updated} notifications as read"}

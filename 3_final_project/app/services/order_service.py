@@ -399,27 +399,26 @@ class OrderService:
             db.rollback()
             raise
         
-        # 3. ส่ง notification ตาม status
+        # 3. ส่ง notification ตาม status (ใช้ generic notify)
         print(f"\n[ORDER_SERVICE] 📢 Sending notification for status: {new_status}")
         
+        # Map: order status → notification event name
+        STATUS_TO_EVENT = {
+            "PREPARING": "ORDER_APPROVED",
+            "CANCELLED": "ORDER_CANCELLED",
+            "SHIPPED":   "ORDER_SHIPPED",
+            "DELIVERED":  "ORDER_DELIVERED",
+            "COMPLETED":  "ORDER_COMPLETED",
+        }
+        
         try:
-            if new_status == "PREPARING":
-                print(f"[ORDER_SERVICE] 🎯 Calling NotificationService.notify_order_approved...")
-                await NotificationService.notify_order_approved(db, order)
-                print(f"[ORDER_SERVICE] ✅ notify_order_approved completed")
-                
-            elif new_status == "CANCELLED":
-                print(f"[ORDER_SERVICE] 🎯 Calling NotificationService.notify_order_cancelled_by_store...")
-                await NotificationService.notify_order_cancelled_by_store(db, order)
-                print(f"[ORDER_SERVICE] ✅ notify_order_cancelled_by_store completed")
-                
-            elif new_status == "DELIVERED":
-                print(f"[ORDER_SERVICE] 🎯 Calling NotificationService.notify_order_delivered...")
-                await NotificationService.notify_order_delivered(db, order)
-                print(f"[ORDER_SERVICE] ✅ notify_order_delivered completed")
-            
+            event = STATUS_TO_EVENT.get(new_status)
+            if event:
+                print(f"[ORDER_SERVICE] 🎯 Calling NotificationService.notify(event={event})...")
+                await NotificationService.notify(db, event=event, order=order)
+                print(f"[ORDER_SERVICE] ✅ notify(event={event}) completed")
             else:
-                print(f"[ORDER_SERVICE] ⚠️ No notification handler for status: {new_status}")
+                print(f"[ORDER_SERVICE] ⚠️ No notification event mapped for status: {new_status}")
                 
         except Exception as e:
             print(f"[ORDER_SERVICE] ❌ Notification failed: {e}")

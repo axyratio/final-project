@@ -1,9 +1,15 @@
 // app/(seller)/orders.tsx
-import { confirmOrderShipped, fetchSellerOrders, SellerOrder } from "@/api/seller";
+import {
+  confirmOrderShipped,
+  fetchSellerOrders,
+  rejectOrder,
+  SellerOrder,
+} from "@/api/seller";
 import { formatDateTimeTH } from "@/utils/datetime";
 import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+
 import {
   Box,
   Button,
@@ -21,7 +27,12 @@ import {
   VStack,
 } from "native-base";
 import React, { useCallback, useEffect, useState } from "react";
-import { FlatList, RefreshControl, TextInput } from "react-native";
+import {
+  FlatList,
+  GestureResponderEvent,
+  RefreshControl,
+  TextInput,
+} from "react-native";
 
 type TabType = "PREPARING" | "SHIPPED" | "DELIVERED" | "ALL";
 
@@ -55,6 +66,10 @@ export default function SellerOrdersScreen() {
   const [trackingNumber, setTrackingNumber] = useState("");
   const [courierName, setCourierName] = useState("KERRY");
   const [submitting, setSubmitting] = useState(false);
+  // Modal for reject
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
 
   useEffect(() => {
     loadOrders();
@@ -115,9 +130,15 @@ export default function SellerOrdersScreen() {
       const token = await getToken();
       if (!token) return;
 
-      const courierLabel = COURIERS.find((c) => c.value === courierName)?.label || courierName;
+      const courierLabel =
+        COURIERS.find((c) => c.value === courierName)?.label || courierName;
 
-      await confirmOrderShipped(token, selectedOrder.order_id, trackingNumber, courierLabel);
+      await confirmOrderShipped(
+        token,
+        selectedOrder.order_id,
+        trackingNumber,
+        courierLabel,
+      );
 
       toast.show({
         description: "ยืนยันการจัดส่งสำเร็จ",
@@ -138,6 +159,49 @@ export default function SellerOrdersScreen() {
     }
   };
 
+  const handleRejectOrder = (order: SellerOrder) => {
+    setSelectedOrder(order);
+    setRejectReason("");
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!selectedOrder) return;
+    if (!rejectReason.trim()) {
+      toast.show({
+        description: "กรุณาระบุเหตุผล",
+        duration: 2000,
+        bg: "orange.500",
+      });
+      return;
+    }
+
+    try {
+      setRejecting(true);
+      const token = await getToken();
+      if (!token) return;
+
+      await rejectOrder(token, selectedOrder.order_id, rejectReason);
+
+      toast.show({
+        description: "ปฏิเสธออเดอร์สำเร็จ",
+        duration: 2000,
+        bg: "green.500",
+      });
+
+      setShowRejectModal(false);
+      loadOrders(false);
+    } catch (error) {
+      toast.show({
+        description: "เกิดข้อผิดพลาด กรุณาลองใหม่",
+        duration: 2000,
+        bg: "red.500",
+      });
+    } finally {
+      setRejecting(false);
+    }
+  };
+
   const renderOrderCard = ({ item }: { item: SellerOrder }) => (
     <Box bg="white" rounded="lg" p={4} mb={3} shadow={1}>
       {/* Header */}
@@ -155,8 +219,8 @@ export default function SellerOrdersScreen() {
             item.order_status === "PREPARING"
               ? "orange.100"
               : item.order_status === "SHIPPED"
-              ? "blue.100"
-              : "green.100"
+                ? "blue.100"
+                : "green.100"
           }
           px={3}
           py={1}
@@ -169,8 +233,8 @@ export default function SellerOrdersScreen() {
               item.order_status === "PREPARING"
                 ? "orange.600"
                 : item.order_status === "SHIPPED"
-                ? "blue.600"
-                : "green.600"
+                  ? "blue.600"
+                  : "green.600"
             }
           >
             {item.order_text_status}
@@ -179,37 +243,44 @@ export default function SellerOrdersScreen() {
       </HStack>
 
       {/* Time Info */}
-<Box bg="coolGray.50" p={3} rounded="md" mt={2} mb={3}>
-  <VStack space={1}>
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">ชำระเงิน</Text>
-      <Text fontSize="xs" fontWeight="medium">
-        {formatDateTimeTH(item.paid_at)}
-      </Text>
-    </HStack>
+      <Box bg="coolGray.50" p={3} rounded="md" mt={2} mb={3}>
+        <VStack space={1}>
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              ชำระเงิน
+            </Text>
+            <Text fontSize="xs" fontWeight="medium">
+              {formatDateTimeTH(item.paid_at)}
+            </Text>
+          </HStack>
 
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">จัดส่งสำเร็จ</Text>
-      <Text fontSize="xs" fontWeight="medium">
-        {formatDateTimeTH(item.delivered_at)}
-      </Text>
-    </HStack>
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              จัดส่งสำเร็จ
+            </Text>
+            <Text fontSize="xs" fontWeight="medium">
+              {formatDateTimeTH(item.delivered_at)}
+            </Text>
+          </HStack>
 
-    <HStack justifyContent="space-between">
-      <Text fontSize="xs" color="gray.600">ลูกค้ายืนยันรับ</Text>
-      <Text fontSize="xs" fontWeight="medium">
-        {formatDateTimeTH(item.completed_at)}
-      </Text>
-    </HStack>
-  </VStack>
-</Box>
-
+          <HStack justifyContent="space-between">
+            <Text fontSize="xs" color="gray.600">
+              ลูกค้ายืนยันรับ
+            </Text>
+            <Text fontSize="xs" fontWeight="medium">
+              {formatDateTimeTH(item.completed_at)}
+            </Text>
+          </HStack>
+        </VStack>
+      </Box>
 
       {/* Items */}
       {item.order_items.map((orderItem) => (
         <HStack key={orderItem.order_item_id} space={3} mb={2}>
           <Image
-            source={{ uri: orderItem.image_url || "https://via.placeholder.com/60" }}
+            source={{
+              uri: orderItem.image_url || "https://via.placeholder.com/60",
+            }}
             alt={orderItem.product_name}
             size="60px"
             rounded="md"
@@ -230,7 +301,7 @@ export default function SellerOrdersScreen() {
 
       {/* Shipping Address */}
       {item.shipping_address && (
-        <Box bg="coolGray.50" p={3 } rounded="md" mt={2} mb={3}>
+        <Box bg="coolGray.50" p={3} rounded="md" mt={2} mb={3}>
           <HStack space={2} alignItems="flex-start">
             <Ionicons name="location" size={16} color="#6b7280" />
             <VStack flex={1}>
@@ -238,11 +309,14 @@ export default function SellerOrdersScreen() {
                 ที่อยู่จัดส่ง
               </Text>
               <Text fontSize="xs" color="gray.600">
-                {item.shipping_address.full_name} - {item.shipping_address.phone_number}
+                {item.shipping_address.full_name} -{" "}
+                {item.shipping_address.phone_number}
               </Text>
               <Text fontSize="xs" color="gray.600">
-                {item.shipping_address.address_line}, {item.shipping_address.sub_district},{" "}
-                {item.shipping_address.district}, {item.shipping_address.province}{" "}
+                {item.shipping_address.address_line},{" "}
+                {item.shipping_address.sub_district},{" "}
+                {item.shipping_address.district},{" "}
+                {item.shipping_address.province}{" "}
                 {item.shipping_address.postal_code}
               </Text>
             </VStack>
@@ -252,7 +326,7 @@ export default function SellerOrdersScreen() {
 
       {/* Tracking Info */}
       {item.tracking_number && (
-        <Box bg="blue.50" p={2 } rounded="md" mb={3}>
+        <Box bg="blue.50" p={2} rounded="md" mb={3}>
           <Text fontSize="xs" color="blue.700">
             <Text fontWeight="bold">Tracking: </Text>
             {item.tracking_number} ({item.courier_name})
@@ -261,21 +335,41 @@ export default function SellerOrdersScreen() {
       )}
 
       {/* Footer */}
-      <HStack justifyContent="space-between" alignItems="center" pt={2} borderTopWidth={1} borderTopColor="coolGray.200">
+
+      <HStack
+        justifyContent="space-between"
+        alignItems="center"
+        pt={2}
+        borderTopWidth={1}
+        borderTopColor="coolGray.200"
+      >
         <Text fontSize="md" fontWeight="bold" color="violet.600">
           ฿{item.total_price.toLocaleString()}
         </Text>
 
         {item.order_status === "PREPARING" && (
-          <Button
-            size="sm"
-            bg="violet.600"
-            _pressed={{ bg: "violet.700" }}
-            onPress={() => handleShipOrder(item)}
-            leftIcon={<Ionicons name="send" size={16} color="white" />}
-          >
-            จัดส่งสินค้า
-          </Button>
+          <HStack space={2}>
+            <Button
+              size="sm"
+              bg="red.500"
+              _pressed={{ bg: "red.600" }}
+              onPress={() => handleRejectOrder(item)}
+              leftIcon={
+                <Ionicons name="close-circle" size={16} color="white" />
+              }
+            >
+              ปฏิเสธ
+            </Button>
+            <Button
+              size="sm"
+              bg="violet.600"
+              _pressed={{ bg: "violet.700" }}
+              onPress={() => handleShipOrder(item)}
+              leftIcon={<Ionicons name="send" size={16} color="white" />}
+            >
+              จัดส่งสินค้า
+            </Button>
+          </HStack>
         )}
       </HStack>
     </Box>
@@ -346,7 +440,11 @@ export default function SellerOrdersScreen() {
           renderItem={renderOrderCard}
           contentContainerStyle={{ padding: 16 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#7c3aed"]} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#7c3aed"]}
+            />
           }
         />
       )}
@@ -381,7 +479,7 @@ export default function SellerOrdersScreen() {
                 </Select>
               </VStack>
 
-                <VStack space={2}>
+              <VStack space={2}>
                 <Text fontSize="sm" fontWeight="bold">
                   หมายเลข Tracking
                 </Text>
@@ -391,14 +489,14 @@ export default function SellerOrdersScreen() {
                   onChangeText={setTrackingNumber}
                   autoCapitalize="characters"
                   style={{
-                  borderWidth: 1,
-                  borderColor: '#e5e7eb',
-                  borderRadius: 6,
-                  padding: 10,
-                  fontSize: 14,
+                    borderWidth: 1,
+                    borderColor: "#e5e7eb",
+                    borderRadius: 6,
+                    padding: 10,
+                    fontSize: 14,
                   }}
                 />
-                </VStack>
+              </VStack>
             </VStack>
           </Modal.Body>
           <Modal.Footer>
@@ -418,6 +516,64 @@ export default function SellerOrdersScreen() {
                 isLoadingText="กำลังบันทึก..."
               >
                 ยืนยัน
+              </Button>
+            </Button.Group>
+          </Modal.Footer>
+        </Modal.Content>
+      </Modal>
+      {/* Reject Modal */}
+      <Modal isOpen={showRejectModal} onClose={() => setShowRejectModal(false)}>
+        <Modal.Content maxWidth="400px">
+          <Modal.CloseButton />
+          <Modal.Header>ปฏิเสธคำสั่งซื้อ</Modal.Header>
+          <Modal.Body>
+            <VStack space={4}>
+              <Text fontSize="sm" color="gray.600">
+                Order ID: {selectedOrder?.order_id.substring(0, 12)}...
+              </Text>
+              <Text fontSize="sm" color="red.500">
+                ⚠️ การปฏิเสธจะคืนเงินให้ลูกค้าอัตโนมัติ
+              </Text>
+              <VStack space={2}>
+                <Text fontSize="sm" fontWeight="bold">
+                  เหตุผลในการปฏิเสธ *
+                </Text>
+                <TextInput
+                  placeholder="เช่น สินค้าหมด, ไม่สามารถจัดส่งได้"
+                  value={rejectReason}
+                  onChangeText={setRejectReason}
+                  multiline
+                  numberOfLines={3}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: "#e5e7eb",
+                    borderRadius: 6,
+                    padding: 10,
+                    fontSize: 14,
+                    textAlignVertical: "top",
+                    minHeight: 80,
+                  }}
+                />
+              </VStack>
+            </VStack>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button.Group space={2}>
+              <Button
+                variant="ghost"
+                colorScheme="blueGray"
+                onPress={() => setShowRejectModal(false)}
+              >
+                ยกเลิก
+              </Button>
+              <Button
+                bg="red.500"
+                _pressed={{ bg: "red.600" }}
+                onPress={confirmReject}
+                isLoading={rejecting}
+                isLoadingText="กำลังดำเนินการ..."
+              >
+                ยืนยันปฏิเสธ
               </Button>
             </Button.Group>
           </Modal.Footer>

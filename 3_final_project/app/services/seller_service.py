@@ -13,6 +13,17 @@ from app.models.shipping_address import ShippingAddress
 from app.tasks.order_tasks import simulate_delivery
 from app.utils.now_utc import now_utc
 from fastapi import HTTPException
+from app.core.stripe_client import stripe  # ใช้ stripe ที่ตั้ง api_key แล้ว
+from app.models.payment import Payment, PaymentStatus
+from app.services.notification_service import NotificationService
+from sqlalchemy.orm import joinedload
+from app.models.order_item import OrderItem
+from app.models.product import Product
+
+import time
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SellerService:
@@ -315,15 +326,22 @@ class SellerService:
         return result
     
     @staticmethod
-    def confirm_order_shipped(
+    async def confirm_order_shipped(
         db: Session, 
         store_id: str, 
         order_id: str, 
         tracking_number: str, 
         courier_name: str
     ):
-        """ยืนยันการจัดส่งสินค้า"""
-        order = db.query(Order).filter(
+        """ยืนยันการจัดส่งสินค้า + แจ้งเตือน buyer"""
+        from sqlalchemy.orm import joinedload
+        from app.models.product import Product, ProductImage
+        
+        order = db.query(Order).options(
+            joinedload(Order.order_items)
+            .joinedload(OrderItem.product)
+            .joinedload(Product.images)
+        ).filter(
             Order.order_id == order_id,
             Order.store_id == store_id
         ).first()
@@ -343,8 +361,15 @@ class SellerService:
         
         db.commit()
 
-        # 2. 🔥 เรียกใช้ Celery Task ตรงนี้!
-        # สมมติว่าอยากให้จำลองการส่งสำเร็จในอีก 10 วินาที
+        # 2. 🔔 แจ้งเตือน buyer ว่าสินค้าถูกจัดส่งแล้ว (ORDER_SHIPPED)
+        try:
+            from app.services.notification_service import NotificationService
+            await NotificationService.notify(db, event="ORDER_SHIPPED", order=order)
+            print(f"✅ ORDER_SHIPPED notification sent for order {order_id}", flush=True)
+        except Exception as e:
+            print(f"⚠️ ORDER_SHIPPED notification failed (non-blocking): {e}", flush=True)
+
+        # 3. 🔥 เรียกใช้ Celery Task จำลองการขนส่ง
         simulate_delivery.apply_async(args=[str(order.order_id)], countdown=10)
         
         return {'message': 'ยืนยันการจัดส่งสำเร็จ และเริ่มระบบจำลองการขนส่ง'}
@@ -396,7 +421,7 @@ class SellerService:
             action: str, 
             note: Optional[str] = None
         ):
-            """อนุมัติหรือปฏิเสธคำขอคืนสินค้า และอัปเดตสถานะออเดอร์หลัก"""
+            """อนุมัติหรือปฏิเสธคำขอคืนสินค้า พร้อม Stripe Refund อัตโนมัติ"""
             ret = db.query(ReturnOrder).join(
                 Order, Order.order_id == ReturnOrder.order_id
             ).filter(
@@ -414,8 +439,77 @@ class SellerService:
                 ret.status = ReturnStatus.APPROVED
                 ret.status_text = 'อนุมัติ'
                 ret.approved_at = now_utc()
-                ret.order.order_status = 'APPROVED'
-                ret.order.order_text_status = 'อนุมัติการคืนเงิน'
+
+                # ─── Stripe Refund ───
+                order = ret.order
+                payment = order.payment if order else None
+
+                if payment and payment.payment_intent_id:
+                    refund_amount_cents = int(float(ret.refund_amount) * 100) if ret.refund_amount else None
+                    
+                    # Retry loop: ลองทำ refund จนกว่าจะสำเร็จ (สูงสุด 5 ครั้ง)
+                    max_retries = 5
+                    refund_success = False
+
+                    for attempt in range(1, max_retries + 1):
+                        try:
+                            refund_params = {
+                                "payment_intent": payment.payment_intent_id,
+                                "reason": "requested_by_customer"
+                            }
+                            # ถ้ามี refund_amount ให้ refund เฉพาะจำนวนนั้น (partial refund)
+                            # ถ้าไม่มี Stripe จะ refund เต็มจำนวน
+                            if refund_amount_cents and refund_amount_cents > 0:
+                                refund_params["amount"] = refund_amount_cents
+
+                            stripe_refund = stripe.Refund.create(**refund_params)
+                            
+                            logger.info(f"✅ Stripe refund สำเร็จ: {stripe_refund.id} (attempt {attempt})")
+                            print(f"✅ Stripe refund สำเร็จ: {stripe_refund.id} | return_id={return_id} | attempt={attempt}", flush=True)
+
+                            # อัปเดตสถานะทั้งหมด
+                            ret.status = ReturnStatus.REFUNDED
+                            ret.status_text = 'คืนเงินแล้ว'
+                            ret.refunded_at = now_utc()
+
+                            payment.status = PaymentStatus.REFUNDED
+
+                            order.order_status = 'RETURNED'
+                            order.order_text_status = 'คืนเงินแล้ว'
+                            
+                            refund_success = True
+                            break  # สำเร็จแล้ว ออกจาก loop
+
+                        except stripe.error.InvalidRequestError as e:
+                            # เช่น charge already refunded, payment_intent ไม่ถูกต้อง
+                            logger.error(f"❌ Stripe refund InvalidRequestError (attempt {attempt}/{max_retries}): {e}")
+                            print(f"❌ Stripe refund InvalidRequestError: {e} | return_id={return_id}", flush=True)
+                            # ไม่ต้อง retry กรณีนี้เพราะเป็น error ที่ retry แล้วก็ไม่สำเร็จ
+                            break
+
+                        except Exception as e:
+                            logger.error(f"❌ Stripe refund error (attempt {attempt}/{max_retries}): {e}")
+                            print(f"❌ Stripe refund error (attempt {attempt}/{max_retries}): {e} | return_id={return_id}", flush=True)
+                            
+                            if attempt < max_retries:
+                                wait_time = 2 ** attempt  # exponential backoff: 2, 4, 8, 16 วินาที
+                                logger.info(f"⏳ รอ {wait_time} วินาที แล้วลองใหม่...")
+                                time.sleep(wait_time)
+                            else:
+                                logger.error(f"❌ Stripe refund ล้มเหลวทั้ง {max_retries} ครั้ง | return_id={return_id}")
+                                print(f"❌ Stripe refund ล้มเหลวทั้ง {max_retries} ครั้ง | return_id={return_id}", flush=True)
+                    
+                    if not refund_success:
+                        # อนุมัติแล้วแต่ refund ไม่สำเร็จ → ต้อง manual refund
+                        order.order_status = 'APPROVED'
+                        order.order_text_status = 'อนุมัติการคืนเงิน (รอ refund แบบ manual)'
+                        logger.warning(f"⚠️ Return {return_id} approved but refund failed — needs manual refund")
+                else:
+                    # ไม่มี payment_intent_id → อนุมัติแต่ไม่สามารถ refund อัตโนมัติได้
+                    order.order_status = 'APPROVED'
+                    order.order_text_status = 'อนุมัติการคืนเงิน (ไม่มี payment_intent)'
+                    logger.warning(f"⚠️ Return {return_id}: no payment_intent_id found, manual refund needed")
+                    print(f"⚠️ Return {return_id}: ไม่มี payment_intent_id → ต้อง refund แบบ manual", flush=True)
                 
             elif action == 'REJECT':
                 ret.status = ReturnStatus.REJECTED
@@ -433,12 +527,16 @@ class SellerService:
             db.commit()
 
             # ── notify หลัง commit เท่านั้น ──
+            from app.services.notification_service import NotificationService
             if action == 'APPROVE':
-                from app.services.notification_service import NotificationService
-                await NotificationService.notify_return_approved(db, ret.order)
+                await NotificationService.notify(db, event="RETURN_APPROVED", order=ret.order)
+            elif action == 'REJECT':
+                await NotificationService.notify(db, event="RETURN_REJECTED", order=ret.order, store_note=note)
             
-            message = 'อนุมัติการคืนสินค้าสำเร็จ' if action == 'APPROVE' else 'ปฏิเสธการคืนสินค้าสำเร็จ'
-            return {'message': message}
+            if action == 'APPROVE':
+                refund_status = 'คืนเงินสำเร็จ' if ret.status == ReturnStatus.REFUNDED else 'อนุมัติแล้ว (รอ refund)'
+                return {'message': f'อนุมัติการคืนสินค้าสำเร็จ — {refund_status}'}
+            return {'message': 'ปฏิเสธการคืนสินค้าสำเร็จ'}
     
     @staticmethod
     def get_seller_notifications(db: Session, store_id: str):

@@ -195,9 +195,16 @@ export default function ProfilePictureScreen({ currentProfilePicture }: Props) {
     ]);
   };
 
+  // ✅ ฟังก์ชันบันทึกและกลับ
+  const handleSave = () => {
+    // เนื่องจากการอัปโหลดและลบรูปทำแบบ real-time แล้ว
+    // เพียงแค่กลับไปหน้าเดิม
+    router.back();
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      <AppBar title="รูปโปรไฟล์" />
+      <AppBar title="รูปโปรไฟล์" onSave={handleSave} />
 
       <Box style={styles.container}>
         {/* แสดงรูปโปรไฟล์ */}

@@ -115,6 +115,8 @@ class HandleReturnRequest(BaseModel):
     action: str  # "APPROVE" หรือ "REJECT"
     note: Optional[str]
 
+class RejectOrderRequest(BaseModel):
+    reason: Optional[str] = None
 
 # ================== Notification Schemas ==================
 
@@ -126,3 +128,5 @@ class SellerNotificationDetail(BaseModel):
     order_id: Optional[str]
     is_read: bool
     created_at: datetime
+    
+    

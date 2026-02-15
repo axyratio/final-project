@@ -31,6 +31,7 @@ export type Notification = {
   conversation_id?: string;
   image_url?: string;
   is_read: boolean;
+  receiver_role?: string;
   created_at: string;
   read_at?: string;
 };
@@ -45,6 +46,12 @@ export type UnreadCountResponse = {
   unread_count: number;
 };
 
+export type BadgeCountResponse = {
+  unread_count: number;
+  buyer_unread: number;
+  seller_unread: number;
+};
+
 export type WSNotificationEvent = {
   type: "notification";
   notification: Notification;
@@ -57,11 +64,12 @@ export async function fetchNotifications(
   token: string,
   limit: number = 50,
   offset: number = 0,
+  role?: string,
 ): Promise<NotificationListResponse> {
   try {
     const res = await axios.get(`${DOMAIN}/notifications/me`, {
       headers: { Authorization: `Bearer ${token}` },
-      params: { limit, offset },
+      params: { limit, offset, ...(role ? { role } : {}) },
     });
     const responseData = res.data?.data || res.data;
     return {
@@ -80,10 +88,11 @@ export async function fetchNotifications(
   }
 }
 
-export async function fetchUnreadCount(token: string): Promise<number> {
+export async function fetchUnreadCount(token: string, role?: string): Promise<number> {
   try {
     const res = await axios.get(`${DOMAIN}/notifications/unread-count`, {
       headers: { Authorization: `Bearer ${token}` },
+      params: role ? { role } : {},
     });
     const responseData = res.data?.data || res.data;
     return responseData?.unread_count || 0;
@@ -93,6 +102,26 @@ export async function fetchUnreadCount(token: string): Promise<number> {
       error.response?.data || error.message,
     );
     return 0;
+  }
+}
+
+export async function fetchBadgeCount(token: string): Promise<BadgeCountResponse> {
+  try {
+    const res = await axios.get(`${DOMAIN}/notifications/badge-count`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const responseData = res.data?.data || res.data;
+    return {
+      unread_count: responseData?.unread_count || 0,
+      buyer_unread: responseData?.buyer_unread || 0,
+      seller_unread: responseData?.seller_unread || 0,
+    };
+  } catch (error: any) {
+    console.error(
+      "❌ fetchBadgeCount:",
+      error.response?.data || error.message,
+    );
+    return { unread_count: 0, buyer_unread: 0, seller_unread: 0 };
   }
 }
 
@@ -115,12 +144,16 @@ export async function markAsRead(
 
 export async function markAllAsRead(
   token: string,
+  role?: string,
 ): Promise<{ message: string }> {
   try {
     const res = await axios.post(
       `${DOMAIN}/notifications/read-all`,
       {},
-      { headers: { Authorization: `Bearer ${token}` } },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        params: role ? { role } : {},
+      },
     );
     return { message: res.data?.message || "Marked all as read" };
   } catch (error: any) {

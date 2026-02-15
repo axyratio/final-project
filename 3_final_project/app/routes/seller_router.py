@@ -13,7 +13,7 @@ from app.models.user import User
 from app.models.store import Store
 from app.services.order_service import OrderService
 from app.services.seller_service import SellerService
-from app.schemas.seller import ConfirmShipmentRequest, HandleReturnRequest
+from app.schemas.seller import ConfirmShipmentRequest, HandleReturnRequest, RejectOrderRequest
 
 router = APIRouter(prefix="/seller", tags=["Seller"])
 
@@ -71,78 +71,78 @@ async def get_seller_orders(
     return {"data": {"orders": orders}}
 
 
-@router.post("/orders/{order_id}/approve", response_model=dict)
-async def approve_order(
-    order_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(authenticate_token())
-):
-    """
-    อนุมัติออเดอร์ (PAID → PREPARING)
-    → เรียก OrderService.update_order_status_with_notification
-      → notify_order_approved → broadcast ws room "user:<user_id>"
-    """
-    print(f"\n{'='*80}")
-    print(f"[SELLER_ROUTER] 🎯 approve_order CALLED")
-    print(f"[SELLER_ROUTER] order_id: {order_id}")
-    print(f"[SELLER_ROUTER] current_user: {current_user.email} (user_id: {current_user.user_id})")
-    print(f"{'='*80}\n")
+# @router.post("/orders/{order_id}/approve", response_model=dict)
+# async def approve_order(
+#     order_id: str,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(authenticate_token())
+# ):
+#     """
+#     อนุมัติออเดอร์ (PAID → PREPARING)
+#     → เรียก OrderService.update_order_status_with_notification
+#       → notify_order_approved → broadcast ws room "user:<user_id>"
+#     """
+#     print(f"\n{'='*80}")
+#     print(f"[SELLER_ROUTER] 🎯 approve_order CALLED")
+#     print(f"[SELLER_ROUTER] order_id: {order_id}")
+#     print(f"[SELLER_ROUTER] current_user: {current_user.email} (user_id: {current_user.user_id})")
+#     print(f"{'='*80}\n")
     
-    try:
-        store = get_user_store(db, str(current_user.user_id))
-        print(f"[SELLER_ROUTER] ✅ Store found: {store.store_id} - {store.name}")
-    except Exception as e:
-        print(f"[SELLER_ROUTER] ❌ Failed to get store: {e}")
-        raise
+#     try:
+#         store = get_user_store(db, str(current_user.user_id))
+#         print(f"[SELLER_ROUTER] ✅ Store found: {store.store_id} - {store.name}")
+#     except Exception as e:
+#         print(f"[SELLER_ROUTER] ❌ Failed to get store: {e}")
+#         raise
 
-    # ตรวจว่า order นี้เป็นของ store นี้จริง
-    order = db.query(Order).filter(
-        Order.order_id == order_id,
-        Order.store_id == str(store.store_id)
-    ).first()
+#     # ตรวจว่า order นี้เป็นของ store นี้จริง
+#     order = db.query(Order).filter(
+#         Order.order_id == order_id,
+#         Order.store_id == str(store.store_id)
+#     ).first()
     
-    if not order:
-        print(f"[SELLER_ROUTER] ❌ Order not found or not belongs to this store")
-        print(f"[SELLER_ROUTER] Searched for: order_id={order_id}, store_id={store.store_id}")
-        raise HTTPException(status_code=404, detail="Order not found")
+#     if not order:
+#         print(f"[SELLER_ROUTER] ❌ Order not found or not belongs to this store")
+#         print(f"[SELLER_ROUTER] Searched for: order_id={order_id}, store_id={store.store_id}")
+#         raise HTTPException(status_code=404, detail="Order not found")
     
-    print(f"[SELLER_ROUTER] ✅ Order found:")
-    print(f"  - order_id: {order.order_id}")
-    print(f"  - current status: {order.order_status}")
-    print(f"  - user_id (buyer): {order.user_id}")
-    print(f"  - store_id: {order.store_id}")
+#     print(f"[SELLER_ROUTER] ✅ Order found:")
+#     print(f"  - order_id: {order.order_id}")
+#     print(f"  - current status: {order.order_status}")
+#     print(f"  - user_id (buyer): {order.user_id}")
+#     print(f"  - store_id: {order.store_id}")
     
-    if order.order_status != 'PAID':
-        print(f"[SELLER_ROUTER] ❌ Cannot approve. Status is '{order.order_status}', expected 'PAID'")
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot approve. Current status: {order.order_status}"
-        )
+#     if order.order_status != 'PAID':
+#         print(f"[SELLER_ROUTER] ❌ Cannot approve. Status is '{order.order_status}', expected 'PAID'")
+#         raise HTTPException(
+#             status_code=400,
+#             detail=f"Cannot approve. Current status: {order.order_status}"
+#         )
 
-    print(f"\n[SELLER_ROUTER] 🚀 Calling OrderService.update_order_status_with_notification...")
-    print(f"[SELLER_ROUTER] Parameters:")
-    print(f"  - order_id: {order.order_id}")
-    print(f"  - new_status: PREPARING")
+#     print(f"\n[SELLER_ROUTER] 🚀 Calling OrderService.update_order_status_with_notification...")
+#     print(f"[SELLER_ROUTER] Parameters:")
+#     print(f"  - order_id: {order.order_id}")
+#     print(f"  - new_status: PREPARING")
     
-    try:
-        result = await OrderService.update_order_status_with_notification(
-            db=db,
-            order_id=order.order_id,
-            new_status="PREPARING"
-        )
+#     try:
+#         result = await OrderService.update_order_status_with_notification(
+#             db=db,
+#             order_id=order.order_id,
+#             new_status="PREPARING"
+#         )
         
-        print(f"\n[SELLER_ROUTER] ✅ OrderService returned successfully")
-        print(f"[SELLER_ROUTER] Result: {result}")
-        print(f"{'='*80}\n")
+#         print(f"\n[SELLER_ROUTER] ✅ OrderService returned successfully")
+#         print(f"[SELLER_ROUTER] Result: {result}")
+#         print(f"{'='*80}\n")
         
-        return {"data": result, "message": "อนุมัติออเดอร์สำเร็จ"}
+#         return {"data": result, "message": "อนุมัติออเดอร์สำเร็จ"}
         
-    except Exception as e:
-        print(f"\n[SELLER_ROUTER] ❌ OrderService failed: {e}")
-        print(f"[SELLER_ROUTER] Exception type: {type(e).__name__}")
-        import traceback
-        print(f"[SELLER_ROUTER] Traceback:\n{traceback.format_exc()}")
-        raise
+#     except Exception as e:
+#         print(f"\n[SELLER_ROUTER] ❌ OrderService failed: {e}")
+#         print(f"[SELLER_ROUTER] Exception type: {type(e).__name__}")
+#         import traceback
+#         print(f"[SELLER_ROUTER] Traceback:\n{traceback.format_exc()}")
+#         raise
 
 
 @router.post("/orders/{order_id}/cancel", response_model=dict)
@@ -204,6 +204,98 @@ async def cancel_order(
         "message": "ยกเลิกออเดอร์สำเร็จ"
     }
 
+@router.post("/orders/{order_id}/reject", response_model=dict)
+async def reject_order(
+    order_id: str,
+    body: RejectOrderRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticate_token())
+):
+    """
+    ปฏิเสธออเดอร์โดยร้านค้า (PREPARING → CANCELLED)
+    → คืนสต็อก + คืนเงิน Stripe + แจ้งเตือนลูกค้า
+    """
+    from app.services.notification_service import NotificationService
+    from app.models.payment import Payment, PaymentStatus
+    from app.models.order_item import OrderItem
+    from app.models.product import ProductVariant
+    from app.core.stripe_client import stripe
+    from sqlalchemy.orm import joinedload
+
+    store = get_user_store(db, str(current_user.user_id))
+
+    # 1. ตรวจ order เป็นของร้านนี้
+    order = db.query(Order).options(
+        joinedload(Order.order_items),
+        joinedload(Order.payment)
+    ).filter(
+        Order.order_id == order_id,
+        Order.store_id == str(store.store_id)
+    ).first()
+
+    if not order:
+        raise HTTPException(status_code=403, detail="ไม่พบคำสั่งซื้อหรือไม่ใช่ออเดอร์ของร้านคุณ")
+
+    # 2. ตรวจสถานะ — ปฏิเสธได้เฉพาะ PREPARING
+    if order.order_status != "PREPARING":
+        raise HTTPException(
+            status_code=400,
+            detail=f"ไม่สามารถปฏิเสธได้ สถานะปัจจุบัน: {order.order_status}"
+        )
+
+    reason = body.reason or "ร้านค้าปฏิเสธคำสั่งซื้อ"
+
+    # 3. เปลี่ยนสถานะเป็น CANCELLED
+    order.order_status = "CANCELLED"
+    order.order_text_status = f"ร้านค้าปฏิเสธ: {reason}"
+
+    # 4. คืนสต็อกสินค้า
+  # 4. คืนสต็อกสินค้า
+    for item in order.order_items:
+        if item.variant_id:
+            # แก้บรรทัดนี้โดยเพิ่ม (of=ProductVariant)
+            variant = db.query(ProductVariant).filter(
+                ProductVariant.variant_id == item.variant_id
+            ).with_for_update(of=ProductVariant).first() # <--- จุดที่ต้องแก้
+            
+            if variant:
+                variant.stock = (variant.stock or 0) + item.quantity
+
+    # 5. คืนเงิน Stripe
+    refund_result = None
+    payment = order.payment
+    if payment and payment.payment_intent_id:
+        try:
+            stripe_refund = stripe.Refund.create(
+                payment_intent=payment.payment_intent_id,
+                reason="requested_by_customer"
+            )
+            payment.status = PaymentStatus.REFUNDED
+            refund_result = stripe_refund.id
+            print(f"✅ Stripe refund สำเร็จ: {stripe_refund.id}")
+        except Exception as e:
+            print(f"⚠️ Stripe refund failed: {e}")
+            refund_result = f"FAILED: {e}"
+
+    db.commit()
+
+    # 6. แจ้งเตือนลูกค้า
+    try:
+        await NotificationService.notify(db, event="ORDER_CANCELLED", order=order)
+    except Exception as e:
+        print(f"⚠️ Notification failed: {e}")
+
+    return {
+        "success": True,
+        "message": "ปฏิเสธคำสั่งซื้อสำเร็จ",
+        "data": {
+            "order_id": str(order.order_id),
+            "order_status": order.order_status,
+            "reason": reason,
+            "refund": refund_result
+        }
+    }
+
 
 @router.post("/orders/{order_id}/ship", response_model=dict)
 async def confirm_order_shipped(
@@ -221,7 +313,7 @@ async def confirm_order_shipped(
     """
     store = get_user_store(db, str(current_user.user_id))
     
-    result = SellerService.confirm_order_shipped(
+    result = await SellerService.confirm_order_shipped(
         db=db,
         store_id=str(store.store_id),
         order_id=order_id,
@@ -421,36 +513,36 @@ def get_badge_counts(db: Session, store_id: str):
 # ── แก้ 2: เพิ่ม endpoint อนุมัติออเดอร์ ──
 # เดิมไม่มี endpoint นี้เลย ทำให้ PAID → PREPARING ไม่มี notify
 
-@router.post("/orders/{order_id}/approve", response_model=dict)
-async def approve_order(
-    order_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(authenticate_token())
-):
-    """
-    อนุมัติออเดอร์ (เปลี่ยน PAID → PREPARING)
-    → เรียก OrderService.update_order_status_with_notification
-      → notify_order_approved → broadcast ws room "user:<user_id>"
-    """
-    store = get_user_store(db, str(current_user.user_id))
+# @router.post("/orders/{order_id}/approve", response_model=dict)
+# async def approve_order(
+#     order_id: str,
+#     db: Session = Depends(get_db),
+#     current_user: User = Depends(authenticate_token())
+# ):
+#     """
+#     อนุมัติออเดอร์ (เปลี่ยน PAID → PREPARING)
+#     → เรียก OrderService.update_order_status_with_notification
+#       → notify_order_approved → broadcast ws room "user:<user_id>"
+#     """
+#     store = get_user_store(db, str(current_user.user_id))
 
-    # ตรวจว่า order นี้เป็นของ store นี้จริง
-    order = db.query(Order).filter(
-        Order.order_id == order_id,
-        Order.store_id == str(store.store_id)
-    ).first()
-    if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-    if order.order_status != 'PAID':
-        raise HTTPException(status_code=400, detail=f"Cannot approve. Current status: {order.order_status}")
+#     # ตรวจว่า order นี้เป็นของ store นี้จริง
+#     order = db.query(Order).filter(
+#         Order.order_id == order_id,
+#         Order.store_id == str(store.store_id)
+#     ).first()
+#     if not order:
+#         raise HTTPException(status_code=404, detail="Order not found")
+#     if order.order_status != 'PAID':
+#         raise HTTPException(status_code=400, detail=f"Cannot approve. Current status: {order.order_status}")
 
-    result = await OrderService.update_order_status_with_notification(
-        db=db,
-        order_id=order.order_id,
-        new_status="PREPARING"
-    )
+#     result = await OrderService.update_order_status_with_notification(
+#         db=db,
+#         order_id=order.order_id,
+#         new_status="PREPARING"
+#     )
 
-    return {"data": result, "message": "อนุมัติออเดอร์สำเร็จ"}
+#     return {"data": result, "message": "อนุมัติออเดอร์สำเร็จ"}
 
 
 # ========================================

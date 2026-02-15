@@ -263,6 +263,36 @@ class OrderReturnService:
             db.commit()
             
             db.refresh(return_order)
+
+            # 🔔 แจ้งเตือนร้านค้าว่ามีคำขอคืนสินค้า (RETURN_REQUESTED)
+            try:
+                import asyncio
+                from app.services.notification_service import NotificationService
+                from sqlalchemy.orm import joinedload
+                from app.models.order_item import OrderItem
+                from app.models.product import Product
+
+                # reload order พร้อม relationships สำหรับ notification
+                notif_order = (
+                    db.query(Order).options(
+                        joinedload(Order.order_items)
+                        .joinedload(OrderItem.product)
+                        .joinedload(Product.images)
+                    ).filter(Order.order_id == order_id).first()
+                )
+                if notif_order:
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.create_task(
+                            NotificationService.notify(db, event="RETURN_REQUESTED", order=notif_order)
+                        )
+                    except RuntimeError:
+                        asyncio.run(
+                            NotificationService.notify(db, event="RETURN_REQUESTED", order=notif_order)
+                        )
+                    print(f"✅ RETURN_REQUESTED notification sent for order {order_id}", flush=True)
+            except Exception as e:
+                print(f"⚠️ RETURN_REQUESTED notification failed: {e}", flush=True)
             
             return success_response(
                 "สร้างคำขอคืนสินค้าสำเร็จ",
