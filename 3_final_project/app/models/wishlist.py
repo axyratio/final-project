@@ -17,4 +17,4 @@ class Wishlist(Base):
     user = relationship("User", back_populates="wishlists")
     product = relationship("Product", back_populates="wishlists")
 
-# ยังไม่ได้ใส่ ERD
+# ยังไม่ได้ใส่ ERDapp

@@ -173,7 +173,6 @@ export default function MyStoreScreen() {
                 isSeller={isSeller}
                 isActive={true}
                 onCloseSale={() => handleCloseProduct(p.product_id)}
-                onToggleFavorite={() => console.log("toggle favorite", p.product_id)}
               />
             );
           })}

@@ -159,11 +159,13 @@ export const AppBarMore = ({ onClick, title }: AppBarMoreProps) => {
     </Box>
   );
 };
+
 // components/home/HomeNavbar.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { Input } from "native-base";
 import { useCartStore } from "./cart/cart-memo";
 import { IconWithBadge } from "./icon";
+import { TextInput, TouchableOpacity, StyleSheet } from "react-native";
 
 type HomeNavbarProps = {
   searchValue: string;
@@ -171,80 +173,106 @@ type HomeNavbarProps = {
   onSubmitSearch?: () => void;
 };
 
-
 export const HomeNavbar: React.FC<HomeNavbarProps> = ({
   searchValue,
   onChangeSearch,
   onSubmitSearch,
 }) => {
   const router = useRouter();
-
-  const handlePressCart = () => {
-    // ไปหน้า cart
-    router.push("/(cart)/cart" as any);
-  };
-
-  const handlePressFilter = () => {
-    // ไปหน้า filter / search advance ก็ได้
-    router.push("/(customer)/search-filter" as any);
-  };
-
-const cartQuantity = useCartStore((state) => state.getTotalQuantity());
-const backgroundSync = useCartStore((state) => state.backgroundSync);
+  const cartQuantity = useCartStore((state) => state.getTotalQuantity());
+  const backgroundSync = useCartStore((state) => state.backgroundSync);
 
   useEffect(() => {
     backgroundSync();
   }, []);
 
+  const handlePressCart = () => router.push("/(cart)/cart" as any);
+  const handlePressFilter = () => router.push("/(customer)/search-filter" as any);
+  
+  // ฟังก์ชันสำหรับกดค้นหา
+  const handleSearchSubmit = () => {
+    if (onSubmitSearch) {
+      onSubmitSearch();
+    }
+  };
+
   return (
-    <Box bg="#7c3aed" pb={4} px={4} pt={8}>
-      <HStack justifyContent="space-between" alignItems="center" my={1} mt={2}>
-        <Box flex={1} />
+    <Box bg="#7c3aed" pb={4} px={4} pt={10}>
+      {/* ส่วนบน: ตะกร้าสินค้า */}
+      <HStack justifyContent="flex-end" alignItems="center" mb={2}>
         <IconWithBadge
           count={cartQuantity}
           icon={<Ionicons name="cart-outline" size={25} color="#fff" />}
           onPress={handlePressCart}
           containerStyle={{ backgroundColor: "transparent", width: 40, height: 35 }}
         />
-
       </HStack>
 
+      {/* ส่วนค้นหา */}
       <HStack space={2} alignItems="center">
-        <Input
-          flex={1}
-          bg="white"
-          borderRadius={999}
-          placeholder="ค้นหาเสื้อผ้า"
-          value={searchValue}
-          onChangeText={onChangeSearch}
-          onSubmitEditing={onSubmitSearch}
-          InputLeftElement={
-            <Icon
-              as={Ionicons}
-              name="search-outline"
-              size="sm"
-              ml={3}
-              color="gray.400"
-            />
-          }
-          _focus={{ bg: "white" }}
-        />
+        <View style={styles.searchSection}>
+          {/* ทำให้ไอคอนค้นหากดได้ */}
+          <TouchableOpacity 
+            onPress={handleSearchSubmit}
+            style={styles.searchIconButton}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="search-outline" size={20} color="#999" />
+          </TouchableOpacity>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="ค้นหาเสื้อผ้า"
+            placeholderTextColor="#999"
+            value={searchValue}
+            onChangeText={onChangeSearch}
+            onSubmitEditing={handleSearchSubmit}
+            returnKeyType="search"
+            underlineColorAndroid="transparent"
+          />
+        </View>
 
-        <IconButton
-          bg="white"
-          borderRadius={999}
-          onPress={handlePressFilter}
-          accessibilityLabel="ตัวกรอง"
-          icon={
-            <Icon
-              as={Ionicons}
-              name="options-outline"
-              size="md"
-              color="#7c3aed"
-            />
-          }
-        />
+        {/* ปุ่ม Filter */}
+        <TouchableOpacity 
+          onPress={handlePressFilter} 
+          style={styles.filterButton}
+        >
+          <Ionicons name="options-outline" size={24} color="#7c3aed" />
+        </TouchableOpacity>
       </HStack>
     </Box>
   );
 };
+
+// Stylesheet
+const styles = StyleSheet.create({
+  searchSection: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 99,
+    height: 45,
+    paddingHorizontal: 10,
+  },
+  searchIconButton: {
+    padding: 5,
+    marginRight: 3,
+    marginLeft: 0,
+  },
+  input: {
+    flex: 1,
+    height: '100%',
+    color: '#000',
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  filterButton: {
+    backgroundColor: '#fff',
+    width: 45,
+    height: 45,
+    borderRadius: 22.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  }
+});

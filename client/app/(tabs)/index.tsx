@@ -13,6 +13,7 @@ import { HomeBannerSlider } from "@/components/banner";
 import { HomeCategoryList } from "@/components/category-list";
 import { HomeProductGrid } from "@/components/grid";
 import { HomeNavbar } from "@/components/navbar";
+import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
@@ -20,6 +21,8 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<HomeCategory[]>([]);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const router = useRouter();
 
   useEffect(() => {
     const load = async () => {
@@ -37,10 +40,18 @@ export default function HomeScreen() {
     load();
   }, []);
 
+  // ฟังก์ชันสำหรับ submit การค้นหา
   const handleSubmitSearch = () => {
-    // ไว้ทีหลังจะให้วิ่งไปหน้า search ก็ได้
-    console.log("search:", search);
-    // router.push({ pathname: "/(customer)/search", params: { q: search } } as any);
+    const trimmedSearch = search.trim();
+    if (trimmedSearch) {
+      router.push({
+        pathname: "/(home)/search",
+        params: { q: trimmedSearch }
+      } as any);
+    } else {
+      // ถ้าไม่มีคำค้นหา ให้ไปหน้าค้นหาทั้งหมด
+      router.push("/(home)/search" as any);
+    }
   };
 
   return (

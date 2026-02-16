@@ -28,7 +28,7 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
     return success_response(result["message"], data)
 
 
-# ─── Error page (ใช้ .replace เพราะ CSS น้อย) ───
+# ─── Error page (ใช้ SVG แทน emoji) ───
 ERROR_PAGE = """<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -38,17 +38,23 @@ ERROR_PAGE = """<!DOCTYPE html>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Sarabun',-apple-system,sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
 .card{background:#fff;border-radius:16px;padding:40px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.15);text-align:center}
-.icon{font-size:48px;margin-bottom:16px} h1{font-size:22px;color:#dc2626;margin-bottom:12px} p{color:#6b7280;line-height:1.6}
+.icon{margin-bottom:16px} h1{font-size:22px;color:#dc2626;margin-bottom:12px} p{color:#6b7280;line-height:1.6}
 </style>
 </head>
 <body>
-<div class="card"><div class="icon">❌</div><h1>__ERROR__</h1><p>กรุณาขอลิงก์รีเซ็ตรหัสผ่านใหม่อีกครั้ง</p></div>
+<div class="card">
+<div class="icon">
+<svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="12" r="10" stroke="#dc2626" stroke-width="2"/>
+<path d="M15 9L9 15M9 9L15 15" stroke="#dc2626" stroke-width="2" stroke-linecap="round"/>
+</svg>
+</div>
+<h1>__ERROR__</h1><p>กรุณาขอลิงก์รีเซ็ตรหัสผ่านใหม่อีกครั้ง</p></div>
 </body>
 </html>"""
 
 
-# ─── Reset form (ใช้ string.Template → $token เท่านั้นที่แทน) ───
-# CSS/JS ใช้ { } ปกติ ไม่ต้อง {{ }} เลย
+# ─── Reset form (ใช้ SVG แทน emoji) ───
 RESET_FORM = Template(r"""<!DOCTYPE html>
 <html lang="th">
 <head>
@@ -74,7 +80,8 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
         width: 100%;
         box-shadow: 0 20px 60px rgba(0,0,0,0.15);
     }
-    .icon { font-size: 48px; text-align: center; margin-bottom: 16px; }
+    .icon { text-align: center; margin-bottom: 16px; }
+    .icon svg { display: inline-block; }
     h1 { font-size: 22px; color: #1f2937; text-align: center; margin-bottom: 8px; }
     .subtitle { color: #6b7280; text-align: center; margin-bottom: 24px; font-size: 14px; }
     label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px; }
@@ -100,11 +107,12 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
         background: none;
         border: none;
         cursor: pointer;
-        font-size: 18px;
-        color: #9ca3af;
         padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-    .toggle-eye:hover { color: #6b7280; }
+    .toggle-eye:hover { opacity: 0.7; }
     .rules-box { margin-bottom: 16px; display: none; }
     .rule {
         display: flex;
@@ -170,7 +178,13 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
 <body>
 
 <div class="card" id="form-card">
-    <div class="icon">🔒</div>
+    <div class="icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="11" width="14" height="10" rx="2" stroke="#7c3aed" stroke-width="2"/>
+            <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="12" cy="16" r="1.5" fill="#7c3aed"/>
+        </svg>
+    </div>
     <h1>ตั้งรหัสผ่านใหม่</h1>
     <p class="subtitle">กรุณากรอกรหัสผ่านใหม่ของคุณ</p>
 
@@ -179,7 +193,12 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
     <label for="password">รหัสผ่านใหม่</label>
     <div class="input-wrapper">
         <input type="password" id="password" placeholder="กรอกรหัสผ่านใหม่" oninput="validate()" />
-        <button type="button" class="toggle-eye" onclick="toggleEye('password', this)">👁</button>
+        <button type="button" class="toggle-eye" onclick="toggleEye('password', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5C7 5 2.73 8.11 1 12.5C2.73 16.89 7 20 12 20C17 20 21.27 16.89 23 12.5C21.27 8.11 17 5 12 5Z" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="12" cy="12.5" r="3" stroke="#9ca3af" stroke-width="2"/>
+            </svg>
+        </button>
     </div>
 
     <div class="rules-box" id="rules-box">
@@ -193,7 +212,12 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
     <label for="confirm">ยืนยันรหัสผ่าน</label>
     <div class="input-wrapper">
         <input type="password" id="confirm" placeholder="กรอกรหัสผ่านอีกครั้ง" oninput="validate()" />
-        <button type="button" class="toggle-eye" onclick="toggleEye('confirm', this)">👁</button>
+        <button type="button" class="toggle-eye" onclick="toggleEye('confirm', this)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5C7 5 2.73 8.11 1 12.5C2.73 16.89 7 20 12 20C17 20 21.27 16.89 23 12.5C21.27 8.11 17 5 12 5Z" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"/>
+                <circle cx="12" cy="12.5" r="3" stroke="#9ca3af" stroke-width="2"/>
+            </svg>
+        </button>
     </div>
     <div class="confirm-error" id="confirm-error"></div>
 
@@ -201,7 +225,12 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
 </div>
 
 <div class="card success-card" id="success-card">
-    <div class="icon">✅</div>
+    <div class="icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+            <path d="M8 12L11 15L16 9" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    </div>
     <h1>เปลี่ยนรหัสผ่านสำเร็จ!</h1>
     <p class="subtitle">คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้แล้ว</p>
 </div>
@@ -209,12 +238,14 @@ RESET_FORM = Template(r"""<!DOCTYPE html>
 <script>
 function toggleEye(inputId, btn) {
     const input = document.getElementById(inputId);
+    const svg = btn.querySelector('svg');
+    
     if (input.type === 'password') {
         input.type = 'text';
-        btn.textContent = '🙈';
+        svg.innerHTML = '<path d="M3 3L21 21M10.5 10.5C10.0353 10.9647 9.75 11.6022 9.75 12.3C9.75 13.6912 10.8088 14.75 12.2 14.75C12.8978 14.75 13.5353 14.4647 14 14M12 5C7 5 2.73 8.11 1 12.5C2.13 14.84 4 16.78 6.34 17.77M12 5C17 5 21.27 8.11 23 12.5C22.5 13.6 21.85 14.61 21.03 15.48M12 5V3M17.66 6.23C16.52 5.47 15.28 5 12 5" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/>';
     } else {
         input.type = 'password';
-        btn.textContent = '👁';
+        svg.innerHTML = '<path d="M12 5C7 5 2.73 8.11 1 12.5C2.73 16.89 7 20 12 20C17 20 21.27 16.89 23 12.5C21.27 8.11 17 5 12 5Z" stroke="#9ca3af" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12.5" r="3" stroke="#9ca3af" stroke-width="2"/>';
     }
 }
 
@@ -247,11 +278,11 @@ function validate() {
     });
 
     if (cf.length > 0 && pw !== cf) {
-        confirmErr.textContent = '❌ รหัสผ่านไม่ตรงกัน';
+        confirmErr.textContent = '✗ รหัสผ่านไม่ตรงกัน';
         confirmErr.style.display = 'block';
         confirmErr.style.color = '#dc2626';
     } else if (cf.length > 0 && pw === cf) {
-        confirmErr.textContent = '✅ รหัสผ่านตรงกัน';
+        confirmErr.textContent = '✓ รหัสผ่านตรงกัน';
         confirmErr.style.display = 'block';
         confirmErr.style.color = '#059669';
     } else {
@@ -325,7 +356,6 @@ def show_reset_form(token: str = Query(...), db: Session = Depends(get_db)):
         html = ERROR_PAGE.replace("__ERROR__", result["error"])
         return HTMLResponse(content=html, status_code=400)
 
-    # ✅ safe_substitute แทนเฉพาะ $token ไม่แตะ { } ใน CSS/JS
     html = RESET_FORM.safe_substitute(token=token)
     return HTMLResponse(content=html)
 

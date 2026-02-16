@@ -167,11 +167,20 @@ export default function Login() {
           )}
         </Box>
       </Box>
+      <Box style={{ width: "100%", alignItems: "flex-end", marginBottom: 10 }}>
+        <TouchableOpacity
+          onPress={() => router.push("/(auth)/forgot-password" as any)}
+        >
+          <Text color="blue.500" fontSize={12}>
+            ลืมรหัสผ่าน?
+          </Text>
+        </TouchableOpacity>
+      </Box>
 
       <View style={{ width: "100%" }}>
         <Box display="flex" justifyContent="flex-end" alignItems="flex-end">
           <TouchableOpacity onPress={() => router.replace("/(auth)/register")}>
-            <Text color="blue.500">หากไม่มีบัญชี</Text>
+            <Text marginBottom={2} fontSize={12} color="blue.500">หากไม่มีบัญชี</Text>
           </TouchableOpacity>
         </Box>
         <Button

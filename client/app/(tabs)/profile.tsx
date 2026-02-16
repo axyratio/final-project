@@ -120,7 +120,7 @@ export default function ProfileScreen() {
             iconPosition="left"
           />
           
-          {/* 👇 เพิ่มปุ่มการซื้อของฉัน */}
+          {/* ปุ่มการซื้อของฉัน */}
           <CustomPressable
             onPress={() => router.push("/(profile)/orders" as any)}
             fontSize={12}
@@ -141,7 +141,10 @@ export default function ProfileScreen() {
             icon={<MaterialCommunityIcons name="history" size={24} color="black" />}
             iconPosition="left"
           />
+          
+          {/* ✅ ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
           <CustomPressable
+            onPress={() => router.push("/(profile)/wishlist" as any)}
             mx={1}
             p={3}
             justifyContent="flex-start"
@@ -150,6 +153,7 @@ export default function ProfileScreen() {
             icon={<MaterialCommunityIcons name="heart" size={24} color="black" />}
             iconPosition="left"
           />
+          
           <CustomPressable
             onPress={() => router.push("/(store)/create-store")}
             mx={1}

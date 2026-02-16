@@ -58,7 +58,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
 
 def send_password_reset_email(to_email: str, reset_url: str, user_name: str = "") -> bool:
     """
-    ส่งอีเมล reset password พร้อม HTML template สวย ๆ
+    ส่งอีเมล reset password พร้อม HTML template สวย ๆ (ใช้ SVG แทน emoji)
     """
     display_name = user_name or to_email
 
@@ -78,7 +78,13 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = ""
                         <!-- Header -->
                         <tr>
                             <td style="background:linear-gradient(135deg,#7c3aed,#6d28d9); padding:32px 30px; text-align:center;">
-                                <div style="font-size:32px; margin-bottom:8px;">🔒</div>
+                                <div style="margin-bottom:12px;">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:inline-block;">
+                                        <rect x="5" y="11" width="14" height="10" rx="2" stroke="#ffffff" stroke-width="2"/>
+                                        <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                                        <circle cx="12" cy="16" r="1.5" fill="#ffffff"/>
+                                    </svg>
+                                </div>
                                 <h1 style="margin:0; color:#ffffff; font-size:22px; font-weight:700;">
                                     รีเซ็ตรหัสผ่าน
                                 </h1>
@@ -109,9 +115,21 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = ""
 
                                 <!-- Expiry Warning -->
                                 <div style="background-color:#fef3c7; border-left:4px solid #f59e0b; padding:12px 16px; border-radius:0 8px 8px 0; margin-bottom:24px;">
-                                    <p style="margin:0; color:#92400e; font-size:13px;">
-                                        ⏳ ลิงก์นี้จะหมดอายุใน <strong>30 นาที</strong> และใช้ได้เพียงครั้งเดียว
-                                    </p>
+                                    <table cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="padding-right:8px; vertical-align:top;">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin-top:2px;">
+                                                    <circle cx="12" cy="12" r="10" stroke="#f59e0b" stroke-width="2"/>
+                                                    <path d="M12 6V12L16 14" stroke="#f59e0b" stroke-width="2" stroke-linecap="round"/>
+                                                </svg>
+                                            </td>
+                                            <td>
+                                                <p style="margin:0; color:#92400e; font-size:13px; line-height:1.5;">
+                                                    ลิงก์นี้จะหมดอายุใน <strong>30 นาที</strong> และใช้ได้เพียงครั้งเดียว
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
                                 </div>
 
                                 <!-- Fallback URL -->
@@ -124,9 +142,21 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = ""
 
                                 <hr style="border:none; border-top:1px solid #e5e7eb; margin:24px 0;" />
 
-                                <p style="margin:0; color:#9ca3af; font-size:12px; line-height:1.6;">
-                                    หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยอีเมลนี้ รหัสผ่านของคุณจะไม่เปลี่ยนแปลง
-                                </p>
+                                <table cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="padding-right:8px; vertical-align:top;">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block; margin-top:2px;">
+                                                <circle cx="12" cy="12" r="10" stroke="#9ca3af" stroke-width="2"/>
+                                                <path d="M12 8V12M12 16H12.01" stroke="#9ca3af" stroke-width="2" stroke-linecap="round"/>
+                                            </svg>
+                                        </td>
+                                        <td>
+                                            <p style="margin:0; color:#9ca3af; font-size:12px; line-height:1.6;">
+                                                หากคุณไม่ได้ขอรีเซ็ตรหัสผ่าน กรุณาเพิกเฉยอีเมลนี้ รหัสผ่านของคุณจะไม่เปลี่ยนแปลง
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
 
@@ -149,6 +179,6 @@ def send_password_reset_email(to_email: str, reset_url: str, user_name: str = ""
 
     return send_email(
         to_email=to_email,
-        subject="🔒 รีเซ็ตรหัสผ่าน — ClosetX",
+        subject="รีเซ็ตรหัสผ่าน — ClosetX",
         html_body=html,
     )

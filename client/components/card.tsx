@@ -27,7 +27,8 @@ type ProductCardProps = {
   isActive?: boolean; // true=กำลังขาย, false=ปิดการขาย
   onCloseSale?: () => void; // ปิดการขาย
   onOpenSale?: () => void; // เปิดการขาย
-  categoryName?: string; // ✅ เพิ่มชื่อหมวดหมู่
+  categoryName?: string;
+  isWishlisted?: boolean; // ✅ สถานะว่าอยู่ใน wishlist หรือไม่
 };
 
 function EditIconButton({ route }: { route: string }) {
@@ -58,7 +59,8 @@ export default function ProductCard({
   isActive = true,
   onCloseSale,
   onOpenSale,
-  categoryName, // ✅ เพิ่ม
+  categoryName,
+  isWishlisted = false, // ✅ รับค่า default เป็น false
 }: ProductCardProps) {
   const router = useRouter();
 
@@ -109,16 +111,22 @@ export default function ProductCard({
 
           {/* Action Buttons (Top Right) */}
           <View style={styles.actionButtons}>
-            {/* Wishlist/Heart Button */}
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation();
-                onToggleFavorite?.();
-              }}
-              style={styles.iconButton}
-            >
-              <Ionicons name="heart-outline" size={18} color="white" />
-            </Pressable>
+            {/* Wishlist/Heart Button - แสดงสำหรับ buyer เท่านั้น */}
+            {!isSeller && onToggleFavorite && (
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation();
+                  onToggleFavorite();
+                }}
+                style={styles.iconButton}
+              >
+                <Ionicons 
+                  name={isWishlisted ? "heart" : "heart-outline"} 
+                  size={18} 
+                  color={isWishlisted ? "#ef4444" : "#6b7280"} 
+                />
+              </Pressable>
+            )}
 
             {/* Seller Actions */}
             {isSeller && (
@@ -132,7 +140,7 @@ export default function ProductCard({
                         }}
                         style={styles.iconButton}
                       >
-                        <Ionicons name="ban-outline" size={18} color="white" />
+                        <Ionicons name="ban-outline" size={18} color="#6b7280" />
                       </Pressable>
                     )
                   : onOpenSale && (
@@ -146,7 +154,7 @@ export default function ProductCard({
                         <Ionicons
                           name="refresh-outline"
                           size={18}
-                          color="white"
+                          color="#6b7280"
                         />
                       </Pressable>
                     )}
@@ -158,8 +166,6 @@ export default function ProductCard({
 
         {/* Product Info */}
         <View style={styles.info}>
-          {/* ✅ Category Badge */}
-
           <Text style={styles.title} numberOfLines={2} ellipsizeMode="tail">
             {title}
           </Text>
@@ -300,7 +306,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(255,255,255,0.9)",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -318,7 +324,6 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
-  // ✅ Category Badge Styles
   categoryBadge: {
     alignSelf: "flex-start",
     backgroundColor: "#ede9fe",
