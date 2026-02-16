@@ -32,6 +32,7 @@ from app.models.chat_message import ChatMessage, MessageType
 from app.models.notification import Notification, NotificationType
 from app.models.category import Category
 from app.models.report import Report
+from app.models.password_reset_token import PasswordResetToken
 
 from sqlalchemy.orm import configure_mappers
 configure_mappers()

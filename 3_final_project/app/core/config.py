@@ -28,5 +28,12 @@ class Settings:
     # OTP_SECRET_KEY = os.getenv("OTP_SECRET_KEY")
     # OTP_TOKEN_EXPIRE_MINUTES = int(os.getenv("OTP_TOKEN_EXPIRE_MINUTES"))
     
+    SMTP_HOST = os.getenv("SMTP_HOST", "")
+    SMTP_PORT = os.getenv("SMTP_PORT", "587")
+    SMTP_USER = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_EMAIL = os.getenv("SMTP_FROM_EMAIL", "")
+    SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "ClosetX")
+    
 
 settings = Settings()
