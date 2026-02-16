@@ -12,6 +12,9 @@ from app.schemas.chat import ChatConversationResponse, ChatMessageResponse
 from app.utils.now_utc import now_utc
 from app.utils.file_util import save_file, delete_file, rollback_and_cleanup, USE_CLOUDINARY
 from app.core.config import settings
+import asyncio
+from app.services.notification_service import NotificationService
+from app.models.store import Store
 
 def _make_full_url(path_or_url: str | None) -> str | None:
     """แปลง path หรือ URL ให้เป็น full URL"""
@@ -247,6 +250,37 @@ class ChatService:
             content=content,
             message_type=MessageType.TEXT
         )
+        
+        # 🔔 แจ้งเตือนข้อความใหม่
+        try:
+
+
+            # หาผู้รับ: ถ้า sender=buyer → แจ้ง seller, ถ้า sender=seller → แจ้ง buyer
+            if conversation.user_id == sender_id:
+                # sender เป็น buyer → แจ้ง seller (เจ้าของร้าน)
+                store = db.query(Store).filter(Store.store_id == conversation.store_id).first()
+                recipient_id = store.user_id if store else None
+            else:
+                # sender เป็น seller → แจ้ง buyer
+                recipient_id = conversation.user_id
+
+            if recipient_id:
+                sender_user = message.sender
+                sender_name = sender_user.first_name or sender_user.username if sender_user else "ผู้ใช้"
+                preview = (message.content or "ส่งรูปภาพ")[:80]
+
+                asyncio.get_event_loop().run_until_complete(
+                    NotificationService.notify(
+                        db,
+                        event="NEW_MESSAGE",
+                        recipient_user_id=recipient_id,
+                        sender_name=sender_name,
+                        message_preview=preview,
+                        conversation_id=conversation_id,
+                    )
+                )
+        except Exception as e:
+            print(f"⚠️ NEW_MESSAGE notification failed: {e}")
         
         return ChatMessageResponse(
             message_id=message.message_id,
