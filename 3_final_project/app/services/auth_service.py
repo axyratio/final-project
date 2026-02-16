@@ -42,39 +42,7 @@ def register_service(db: Session, user_data):
             )
             db.flush()
 
-        # 3) เช็คว่า OTP เก่ายังไม่หมดอายุหรือไม่
-        # existing_otp = otp_repository.get_latest_by_user_purpose(
-        #     db=db,
-        #     user_id=target_user.user_id,
-        #     purpose="register"
-        # )
 
-        # if existing_otp and existing_otp.expires_at > now_utc():
-        #     remaining_sec = int((existing_otp.expires_at - now_utc()).total_seconds())
-        #     return None, f"Please wait {remaining_sec} seconds before requesting a new OTP"
-
-        # 3) สร้าง/อัปเดต OTP
-        # otp_code = generate_numeric_otp(6)
-        # expires_at = now_utc() + timedelta(minutes=OTP_EXPIRE_MINUTES)
-
-        # new_otp = otp_repository.create_otp(
-        #     db=db,
-        #     user_id=target_user.user_id,
-        #     otp_code=hash_otp(otp_code),
-        #     purpose="register",
-        #     expires_at=expires_at
-        # )
-
-        # otp_token = create_otp_token({
-        #     "user_id": str(target_user.user_id),
-        #     "otp_id": str(new_otp.otp_id),
-        #     "purpose": "register",
-        #     "exp": int(expires_at.timestamp())
-        # })
-
-        # send_meta = send_register_otp_notification(target_user, otp_code)
-
-        # TODO: ส่ง Email/SMS OTP
         db.commit()
 
         return {

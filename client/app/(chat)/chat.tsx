@@ -1,4 +1,4 @@
-// app/(chat)/chat.tsx - Chat with Report Button Added
+// app/(chat)/chat.tsx - Chat Screen with User/Store Report Support
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -99,6 +99,15 @@ export default function ChatScreen() {
     () => normalizeParam(params.storeName),
     [params.storeName],
   );
+  // ✅ เพิ่ม params สำหรับ report
+  const paramUserId = useMemo(
+    () => normalizeParam(params.userId),
+    [params.userId],
+  );
+  const paramViewerType = useMemo(
+    () => normalizeParam(params.viewerType) as "CUSTOMER" | "SELLER" | undefined,
+    [params.viewerType],
+  );
 
   const [resolvedConversationId, setResolvedConversationId] = useState<
     string | undefined
@@ -106,11 +115,14 @@ export default function ChatScreen() {
   const [resolvedStoreName, setResolvedStoreName] = useState<
     string | undefined
   >();
-  // 🆕 เพิ่ม state สำหรับเก็บ storeId
   const [resolvedStoreId, setResolvedStoreId] = useState<string | undefined>();
+  // ✅ เพิ่ม state สำหรับ userId
+  const [resolvedUserId, setResolvedUserId] = useState<string | undefined>();
 
   const cid = resolvedConversationId;
   const headerTitle = resolvedStoreName ?? paramStoreName ?? "แชท";
+  // ✅ ตรวจสอบว่าเป็น seller หรือไม่
+  const isSeller = paramViewerType === "SELLER";
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +134,7 @@ export default function ChatScreen() {
   const [isInChat, setIsInChat] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  // 🆕 Report states
+  // Report states
   const [reportModalVisible, setReportModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -144,26 +156,26 @@ export default function ChatScreen() {
     if (paramConversationId) {
       setResolvedConversationId(paramConversationId);
       setResolvedStoreName(paramStoreName ?? "แชท");
-      setResolvedStoreId(paramStoreId); // 🆕 เก็บ storeId
+      setResolvedStoreId(paramStoreId);
+      setResolvedUserId(paramUserId);  // ✅ เก็บ userId
       return;
     }
 
-    // app/(chat)/chat.tsx line ~150
     if (paramStoreId) {
       (async () => {
         try {
-          setLoading(true); // ← เพิ่มบรรทัดนี้
+          setLoading(true);
           const conv = await chatAPI.createOrGetConversation(paramStoreId);
           setResolvedConversationId(conv.conversation_id);
           setResolvedStoreName(conv.store_name ?? paramStoreName ?? "ร้านค้า");
           setResolvedStoreId(conv.store_id);
-          setLoading(false); // ← เพิ่มบรรทัดนี้
+          setResolvedUserId(paramUserId);  // ✅ เก็บ userId
+          setLoading(false);
         } catch (e: any) {
-          setLoading(false); // ← เพิ่มบรรทัดนี้
+          setLoading(false);
           setTimeout(() => {
-            // ← เพิ่ม setTimeout
             Alert.alert(
-              "ไม่พบแชท", // ← เปลี่ยนข้อความ
+              "ไม่พบแชท",
               e?.response?.data?.detail || "ไม่สามารถสร้างบทสนทนาได้",
               [{ text: "ตกลง", onPress: () => router.back() }],
             );
@@ -172,7 +184,7 @@ export default function ChatScreen() {
       })();
     }
     setLoading(false);
-  }, [paramConversationId, paramStoreId, paramStoreName]);
+  }, [paramConversationId, paramStoreId, paramStoreName, paramUserId]);
 
   // Get current user
   useEffect(() => {
@@ -180,34 +192,57 @@ export default function ChatScreen() {
     setCurrentUserId(userId);
   }, []);
 
-  // 🆕 Handle report store
-  const handleReportStore = () => {
+  // ✅ Handle report - รองรับทั้ง store และ user
+  const handleReport = () => {
     setMenuVisible(false);
-    if (!resolvedStoreId) {
-      Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลร้านค้า");
-      return;
+    
+    if (isSeller) {
+      // Seller รายงาน Customer
+      if (!resolvedUserId) {
+        Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลลูกค้า");
+        return;
+      }
+    } else {
+      // Customer รายงาน Store
+      if (!resolvedStoreId) {
+        Alert.alert("ข้อผิดพลาด", "ไม่พบข้อมูลร้านค้า");
+        return;
+      }
     }
+    
     setReportModalVisible(true);
   };
 
-  // 🆕 Submit report
+  // ✅ Submit report - รองรับทั้ง store และ user
   const handleSubmitReport = async (data: any) => {
-    if (!resolvedStoreId) return;
-
     try {
-      const reportData = {
-        report_type: "store" as const,
-        reported_id: resolvedStoreId,
-        reason: data.reason,
-        description: data.description,
-        image_urls: data.imageUrls,
-      };
+      const reportData = isSeller 
+        ? {
+            // Seller รายงาน Customer
+            report_type: "user" as const,
+            reported_id: resolvedUserId!,
+            reason: data.reason,
+            description: data.description,
+            image_urls: data.imageUrls,
+          }
+        : {
+            // Customer รายงาน Store
+            report_type: "store" as const,
+            reported_id: resolvedStoreId!,
+            reason: data.reason,
+            description: data.description,
+            image_urls: data.imageUrls,
+          };
+
+      console.log("📝 Submitting report:", reportData);
 
       await createReport(reportData);
 
+      const targetName = isSeller ? "ลูกค้า" : "ร้านค้า";
+
       Alert.alert(
         "รายงานสำเร็จ",
-        "ขอบคุณที่แจ้งเรา เราจะตรวจสอบและดำเนินการต่อไป",
+        `ขอบคุณที่แจ้งเรา เราจะตรวจสอบ${targetName}นี้และดำเนินการต่อไป`,
         [
           {
             text: "ตกลง",
@@ -215,11 +250,11 @@ export default function ChatScreen() {
           },
         ],
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error("Submit report error:", error);
       Alert.alert(
         "เกิดข้อผิดพลาด",
-        "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง",
+        error?.response?.data?.detail || "ไม่สามารถส่งรายงานได้ กรุณาลองใหม่อีกครั้ง",
       );
     }
   };
@@ -561,7 +596,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      {/* 🆕 Header with Report Button */}
+      {/* Header with Report Button */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -572,7 +607,7 @@ export default function ChatScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           {headerTitle}
         </Text>
-        {/* 🆕 Report Menu Button */}
+        {/* Report Menu Button */}
         <TouchableOpacity
           onPress={() => setMenuVisible(true)}
           style={styles.headerButton}
@@ -629,7 +664,7 @@ export default function ChatScreen() {
         />
       </KeyboardAvoidingView>
 
-      {/* 🆕 Report Menu Modal */}
+      {/* Report Menu Modal */}
       <Modal
         visible={menuVisible}
         transparent
@@ -643,10 +678,12 @@ export default function ChatScreen() {
           <View style={styles.menuContainer}>
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={handleReportStore}
+              onPress={handleReport}
             >
               <Ionicons name="flag-outline" size={20} color="#EF4444" />
-              <Text style={styles.menuItemText}>รายงานร้านค้า</Text>
+              <Text style={styles.menuItemText}>
+                {isSeller ? "รายงานลูกค้า" : "รายงานร้านค้า"}
+              </Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -675,14 +712,14 @@ export default function ChatScreen() {
         </View>
       </Modal>
 
-      {/* 🆕 Report Modal */}
-      {resolvedStoreId && (
+      {/* ✅ Report Modal - รองรับทั้ง store และ user */}
+      {(isSeller ? resolvedUserId : resolvedStoreId) && (
         <ReportModal
           visible={reportModalVisible}
           onClose={() => setReportModalVisible(false)}
           onSubmit={handleSubmitReport}
-          reportType="store"
-          reportedId={resolvedStoreId}
+          reportType={isSeller ? "user" : "store"}
+          reportedId={isSeller ? resolvedUserId! : resolvedStoreId!}
           reportedName={headerTitle}
         />
       )}
@@ -702,7 +739,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
-  // 🆕 Header button style
   headerButton: {
     padding: 4,
     width: 32,
@@ -790,8 +826,6 @@ const styles = StyleSheet.create({
   },
   closeButton: { position: "absolute", top: 50, right: 20, zIndex: 10 },
   fullImage: { width: SCREEN_WIDTH, height: SCREEN_HEIGHT },
-
-  // 🆕 Menu Modal Styles
   menuOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.3)",

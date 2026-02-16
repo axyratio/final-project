@@ -16,6 +16,7 @@ import { useColorScheme } from "react-native";
 type UserProfile = {
   username: string;
   image_url?: string;
+  profile_picture?: string;  // ✅ เพิ่ม profile_picture
 };
 
 export default function ProfileScreen() {
@@ -47,10 +48,14 @@ export default function ProfileScreen() {
           },
         });
 
+        console.log("📸 Profile data:", res.data);
+
         if (mounted) {
           setUser({
             username: res.data.username,
-            image_url: res.data.image_url,
+            // ✅ ใช้ profile_picture ก่อน ถ้าไม่มีค่อยใช้ image_url
+            image_url: res.data.profile_picture || res.data.image_url,
+            profile_picture: res.data.profile_picture,
           });
           
           // Save user role to secure store
@@ -59,7 +64,7 @@ export default function ProfileScreen() {
           }
         }
       } catch (err) {
-        console.log(err);
+        console.log("❌ Profile fetch error:", err);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -85,6 +90,30 @@ export default function ProfileScreen() {
     }
   };
 
+  // ✅ สร้าง full URL สำหรับรูป
+  const getImageUrl = () => {
+    const imageUrl = user.profile_picture || user.image_url;
+    
+    if (!imageUrl) return undefined;
+    
+    // ถ้าเป็น URL เต็มอยู่แล้ว (http:// หรือ https://)
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    // ถ้าเป็น path แบบ /uploads/... ให้ต่อกับ DOMAIN
+    if (imageUrl.startsWith('/')) {
+      return `${DOMAIN}${imageUrl}`;
+    }
+    
+    // ถ้าเป็น path แบบ uploads/... ให้ต่อกับ DOMAIN/
+    return `${DOMAIN}/${imageUrl}`;
+  };
+
+  const profileImageUrl = getImageUrl();
+
+  console.log("🖼️ Profile image URL:", profileImageUrl);
+
   return (
     <Flex flex={1}>
       <StatusBar backgroundColor="#9c71ff" />
@@ -97,8 +126,13 @@ export default function ProfileScreen() {
         </HStack>
 
         <HStack alignItems="center" style={{ gap: 5 }} mt={2}>
-          <Avartar size="md" bg="purple.500" imageUrl={user.image_url} name={user.username}>
-          </Avartar>
+          {/* ✅ แสดงรูป profile picture */}
+          <Avartar 
+            size="md" 
+            bg="purple.500" 
+            imageUrl={profileImageUrl}  // ← ใช้ URL ที่ปรับแล้ว
+            name={user.username}
+          />
           <Text color={themeColors.contrast} fontSize="md">
             {user.username || "ไม่มีชื่อผู้ใช้"}
           </Text>
@@ -142,7 +176,7 @@ export default function ProfileScreen() {
             iconPosition="left"
           />
           
-          {/* ✅ ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
+          {/* ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
           <CustomPressable
             onPress={() => router.push("/(profile)/wishlist" as any)}
             mx={1}

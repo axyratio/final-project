@@ -86,22 +86,6 @@ class UserLogin(BaseModel):
     identity: str  # Username or Email
     password: str
 
-    # @validator("password")
-    # def password_strong(cls, v):
-    #     errors = []
-    #     if len(v) < 8 or len(v) > 20:
-    #         errors.append("รหัสผ่านต้องมีความยาว 8 - 20 ตัวอักษร")
-    #     if not re.search(r"[A-Z]", v):
-    #         errors.append("ต้องมีตัวพิมพ์ใหญ่")
-    #     if not re.search(r"[a-z]", v):
-    #         errors.append("ต้องมีตัวพิมพ์เล็ก")
-    #     if not re.search(r"\d", v):
-    #         errors.append("ต้องมีตัวเลข")
-    #     if not re.search(r"[!@#$%^&*]", v):
-    #         errors.append("ต้องมีอักขระพิเศษ !@#$%^&*")
-    #     if errors:
-    #         raise AssertionError("; ".join(errors))  # 🚀 ไม่ติด prefix value_error
-    #     return v
 
 class UserResponseLogin(BaseModel):
     message: str
