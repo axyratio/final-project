@@ -34,7 +34,7 @@ def request_password_reset(db: Session, email: str) -> dict:
         }
 
     # Rate limit: นับ token ที่สร้างภายใน 1 ชม.
-    one_hour_ago = now_utc() - timedelta(hours=1)
+    one_hour_ago = now_utc() - timedelta(hours=0)
     recent_count = db.query(func.count(PasswordResetToken.token_id)).filter(
         PasswordResetToken.user_id == user.user_id,
         PasswordResetToken.created_at >= one_hour_ago
