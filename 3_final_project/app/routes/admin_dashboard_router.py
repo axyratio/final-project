@@ -1,4 +1,3 @@
-# app/routes/admin_dashboard_router.py
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, case, extract
@@ -14,6 +13,7 @@ from app.models.user import User
 from app.models.payment import Payment, PaymentStatus
 from app.models.category import Category
 from app.models.review import Review
+from app.models.order_item import OrderItem
 from app.models.vton_background import VTONBackground
 from app.utils.response_handler import success_response, error_response
 
@@ -436,6 +436,8 @@ def get_low_stock_products(
     try:
         check_admin(auth_user)
 
+        # ✅ เปลี่ยนจาก join เป็น outerjoin Store
+        # เพื่อรองรับกรณี store_id เป็น NULL (ร้านถูกลบ แต่ product ยังอยู่)
         # หา Product ที่ stock_quantity < threshold
         low_stock_products = (
             db.query(
@@ -444,7 +446,7 @@ def get_low_stock_products(
                 Product.stock_quantity,
                 Store.name.label("store_name")
             )
-            .join(Store, Product.store_id == Store.store_id)
+            .outerjoin(Store, Product.store_id == Store.store_id)
             .filter(
                 and_(
                     Product.is_active == True,
@@ -456,6 +458,7 @@ def get_low_stock_products(
             .all()
         )
 
+        # ✅ เปลี่ยนจาก join เป็น outerjoin Store เช่นกัน
         # หา Variant ที่ stock < threshold
         low_stock_variants = (
             db.query(
@@ -466,7 +469,7 @@ def get_low_stock_products(
                 Store.name.label("store_name")
             )
             .join(Product, ProductVariant.product_id == Product.product_id)
-            .join(Store, Product.store_id == Store.store_id)
+            .outerjoin(Store, Product.store_id == Store.store_id)
             .filter(
                 and_(
                     ProductVariant.is_active == True,
@@ -483,7 +486,7 @@ def get_low_stock_products(
                 "id": str(p.product_id),
                 "name": p.product_name,
                 "stock": p.stock_quantity,
-                "store_name": p.store_name
+                "store_name": p.store_name or "ร้านค้าถูกลบออกจากระบบ"
             }
             for p in low_stock_products
         ]
@@ -494,7 +497,7 @@ def get_low_stock_products(
                 "id": str(v.variant_id),
                 "name": f"{v.product_name} - {v.name_option}",
                 "stock": v.stock,
-                "store_name": v.store_name
+                "store_name": v.store_name or "ร้านค้าถูกลบออกจากระบบ"
             }
             for v in low_stock_variants
         ]
@@ -559,4 +562,42 @@ def get_ratings_overview(
         return error_response(str(ve), {}, 403)
     except Exception as e:
         print(f"❌ [Ratings] Error: {e}")
+        return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
+
+
+@router.get("/order-items-stats")
+def get_order_items_stats(
+    db: Session = Depends(get_db),
+    auth_user=Depends(authenticate_token()),
+):
+    """
+    สถิติ order items ที่ product หรือ store ถูกลบไปแล้ว
+    แสดงให้ admin เห็นว่ามี orphan items เท่าไหร่ในระบบ
+    """
+    try:
+        check_admin(auth_user)
+
+        total_items = db.query(func.count(OrderItem.order_item_id)).scalar() or 0
+
+        # นับ items ที่ product ถูกลบ (product_id เป็น NULL หลัง SET NULL)
+        deleted_product_items = db.query(func.count(OrderItem.order_item_id)).filter(
+            OrderItem.product_id == None
+        ).scalar() or 0
+
+        # นับ items ที่ store ถูกลบ (store_id เป็น NULL หลัง SET NULL)
+        deleted_store_items = db.query(func.count(OrderItem.order_item_id)).filter(
+            OrderItem.store_id == None
+        ).scalar() or 0
+
+        return success_response("ดึงสถิติ order items สำเร็จ", {
+            "total_order_items": total_items,
+            "items_with_deleted_product": deleted_product_items,
+            "items_with_deleted_store": deleted_store_items,
+        })
+
+    except ValueError as ve:
+        print(f"❌ [Order-Items-Stats] ValueError: {ve}")
+        return error_response(str(ve), {}, 403)
+    except Exception as e:
+        print(f"❌ [Order-Items-Stats] Error: {e}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)

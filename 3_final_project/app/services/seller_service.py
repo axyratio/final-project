@@ -143,23 +143,51 @@ class SellerService:
         change_week = ((week_sales - last_week_sales) / last_week_sales * 100) if last_week_sales > 0 else 0
         change_month = ((month_sales - last_month_sales) / last_month_sales * 100) if last_month_sales > 0 else 0
         
+        # ─────────────────────────────────────────────────────────────
         # สินค้าขายดี Top 3
-        top_products = db.query(
-            Product.product_id,
-            Product.product_name.label('product_name'),
-            func.coalesce(func.max(ProductImage.image_url), '').label('image_url'),
-            func.sum(OrderItem.quantity).label('sold_count'),
-            func.sum(OrderItem.quantity * OrderItem.unit_price).label('revenue'),
-            Product.category
-        ).join(OrderItem, OrderItem.product_id == Product.product_id)\
-        .join(Order, Order.order_id == OrderItem.order_id)\
-        .outerjoin(ProductImage, ProductImage.product_id == Product.product_id)\
-        .filter(
-            Product.store_id == store_id,
-            Order.order_status.in_(['PAID', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
-        ).group_by(Product.product_id, Product.product_name, Product.category)\
-        .order_by(func.sum(OrderItem.quantity).desc())\
-        .limit(3).all()
+        # ✅ เปลี่ยนจาก join Product มาใช้ snapshot product_name จาก order_items
+        # เพื่อให้ยังแสดงชื่อได้แม้ product ถูกลบออกจากระบบ
+        # Group โดยใช้ (product_id, product_name, product_image_url)
+        # ─────────────────────────────────────────────────────────────
+        top_raw = (
+            db.query(
+                OrderItem.product_id,
+                OrderItem.product_name,
+                OrderItem.product_image_url,
+                func.sum(OrderItem.quantity).label('sold_count'),
+                func.sum(OrderItem.quantity * OrderItem.unit_price).label('revenue'),
+            )
+            .join(Order, Order.order_id == OrderItem.order_id)
+            .filter(
+                Order.store_id == store_id,
+                Order.order_status.in_(['PAID', 'PREPARING', 'SHIPPED', 'DELIVERED', 'COMPLETED'])
+            )
+            .group_by(OrderItem.product_id, OrderItem.product_name, OrderItem.product_image_url)
+            .order_by(func.sum(OrderItem.quantity).desc())
+            .limit(3)
+            .all()
+        )
+
+        top_products = []
+        for row in top_raw:
+            # ถ้า product ยังอยู่ ลองดึงรูปล่าสุดจาก DB มาแทน snapshot
+            image_url = row.product_image_url or ''
+            if row.product_id and not image_url:
+                img = db.query(ProductImage).filter(
+                    ProductImage.product_id == row.product_id,
+                    ProductImage.is_main == True,
+                    ProductImage.variant_id == None,
+                ).first()
+                if img:
+                    image_url = img.image_url or ''
+
+            top_products.append({
+                'product_id': str(row.product_id) if row.product_id else None,
+                'product_name': row.product_name or 'สินค้าถูกลบออกจากระบบ',
+                'image_url': image_url,
+                'sold_count': row.sold_count,
+                'revenue': float(row.revenue),
+            })
         
         # ข้อมูลกราฟยอดขาย 7 วันย้อนหลัง
         sales_chart = []
@@ -216,16 +244,7 @@ class SellerService:
                 'change_week': round(change_week, 2),
                 'change_month': round(change_month, 2)
             },
-            'top_products': [
-                {
-                    'product_id': str(p.product_id),
-                    'product_name': p.product_name,
-                    'image_url': p.image_url or '',
-                    'sold_count': p.sold_count,
-                    'revenue': float(p.revenue),
-                    'category': p.category or ''
-                } for p in top_products
-            ],
+            'top_products': top_products,
             'sales_chart': sales_chart,
             'order_status_count': {
                 'preparing': status_counts['PREPARING'],
@@ -249,13 +268,13 @@ class SellerService:
 
         result = []
         for order in orders:
-            # ดึงข้อมูลลูกค้า
-            user = db.query(User).filter(User.user_id == order.user_id).first()
+            # ดึงข้อมูลลูกค้า (user_id อาจเป็น null ถ้า user ถูกลบ)
+            user = db.query(User).filter(User.user_id == order.user_id).first() if order.user_id else None
 
-            # ดึงที่อยู่จัดส่ง
+            # ดึงที่อยู่จัดส่ง (ship_addr_id อาจเป็น null ถ้า address ถูกลบ)
             shipping_addr = db.query(ShippingAddress).filter(
                 ShippingAddress.ship_addr_id == order.ship_addr_id
-            ).first()
+            ).first() if order.ship_addr_id else None
 
             # build order_items
             order_items = []
@@ -263,22 +282,24 @@ class SellerService:
                 product = getattr(item, 'product', None)
                 variant = getattr(item, 'variant', None)
 
-                # product name
-                product_name = getattr(product, 'product_name', None) if product else None
+                # ✅ product name: อ่าน snapshot ก่อน fallback relationship
+                product_name = (
+                    item.product_name
+                    or (getattr(product, 'product_name', None) if product else None)
+                    or 'สินค้าถูกลบออกจากระบบ'
+                )
 
-                # variant name fallback
-                variant_name = None
-                if variant and getattr(variant, 'name_option', None):
-                    variant_name = variant.name_option
-                elif product and getattr(product, 'variant_name', None):
-                    variant_name = product.variant_name
-                else:
-                    variant_name = ''
+                # ✅ variant name: อ่าน snapshot ก่อน fallback relationship
+                variant_name = (
+                    item.variant_name
+                    or (variant.name_option if variant and getattr(variant, 'name_option', None) else None)
+                    or ''
+                )
 
-                # determine image_url (main or first)
-                image_url = None
-                if product and getattr(product, 'images', None):
-                    # look for is_main first
+                # ✅ image_url: อ่าน snapshot ก่อน
+                # look for is_main first, ถ้าไม่มีเอารูปแรก
+                image_url = item.product_image_url
+                if not image_url and product and getattr(product, 'images', None):
                     main_img = next((img for img in product.images if getattr(img, 'is_main', False)), None)
                     if main_img and getattr(main_img, 'image_url', None):
                         image_url = main_img.image_url
@@ -288,9 +309,9 @@ class SellerService:
 
                 order_items.append({
                     'order_item_id': str(item.order_item_id),
-                    'product_id': str(item.product_id),
-                    'product_name': product_name or '',
-                    'variant_name': variant_name or '',
+                    'product_id': str(item.product_id) if item.product_id else None,
+                    'product_name': product_name,
+                    'variant_name': variant_name,
                     'quantity': item.quantity,
                     'unit_price': float(item.unit_price),
                     'image_url': image_url
@@ -388,12 +409,34 @@ class SellerService:
         
         result = []
         for ret in returns:
-            user = db.query(User).filter(User.user_id == ret.user_id).first()
+            # user_id อาจเป็น null ถ้า user ถูกลบ
+            user = db.query(User).filter(User.user_id == ret.user_id).first() if ret.user_id else None
             
+            # ✅ build order_items โดยใช้ snapshot ก่อน fallback relationship
+            order_items = []
+            if ret.order:
+                for item in ret.order.order_items:
+                    product_name = (
+                        item.product_name
+                        or (item.product.product_name if getattr(item, 'product', None) else None)
+                        or 'สินค้าถูกลบออกจากระบบ'
+                    )
+                    variant_name = (
+                        item.variant_name
+                        or (item.variant.name_option if getattr(item, 'variant', None) and getattr(item.variant, 'name_option', None) else None)
+                        or ''
+                    )
+                    order_items.append({
+                        'product_name': product_name,
+                        'variant_name': variant_name,
+                        'quantity': item.quantity,
+                        'unit_price': float(item.unit_price)
+                    })
+
             result.append({
                 'return_id': str(ret.return_id),
-                'order_id': str(ret.order_id),
-                'customer_name': f"{user.first_name} {user.last_name}" if user else 'Unknown',
+                'order_id': str(ret.order_id) if ret.order_id else None,
+                'customer_name': f"{user.first_name} {user.last_name}" if user else 'ลบบัญชีแล้ว',
                 'reason': ret.reason.value,
                 'reason_detail': ret.reason_detail,
                 'image_urls': ret.image_urls or [],
@@ -401,14 +444,7 @@ class SellerService:
                 'status_text': ret.status_text,
                 'refund_amount': float(ret.refund_amount) if ret.refund_amount else 0,
                 'created_at': ret.created_at.isoformat(),
-                'order_items': [
-                    {
-                        'product_name': item.product.product_name if getattr(item, 'product', None) else '',
-                        'variant_name': (item.variant.name_option if getattr(item, 'variant', None) and getattr(item.variant, 'name_option', None) else (item.product.variant_name if getattr(item, 'product', None) and getattr(item.product, 'variant_name', None) else '')) or '',
-                        'quantity': item.quantity,
-                        'unit_price': float(item.unit_price)
-                    } for item in ret.order.order_items
-                ]
+                'order_items': order_items
             })
         
         return result
@@ -516,14 +552,17 @@ class SellerService:
                 ret.status_text = 'ปฏิเสธ'
                 ret.rejected_at = now_utc()
                 ret.store_note = note
-                ret.order.order_status = 'REJECTED'
-                ret.order.order_text_status = 'ปฏิเสธการคืนสินค้า'
+                # ✅ เช็ค ret.order ก่อนใช้ (order_id อาจเป็น null)
+                if ret.order:
+                    ret.order.order_status = 'REJECTED'
+                    ret.order.order_text_status = 'ปฏิเสธการคืนสินค้า'
                 
             else:
                 raise HTTPException(status_code=400, detail="Invalid action")
             
             ret.updated_at = now_utc()
-            ret.order.updated_at = now_utc()
+            if ret.order:
+                ret.order.updated_at = now_utc()
             db.commit()
 
             # ── notify หลัง commit เท่านั้น ──

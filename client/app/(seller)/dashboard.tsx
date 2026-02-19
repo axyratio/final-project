@@ -96,9 +96,9 @@ export default function SellerDashboardScreen() {
         {/* Chart */}
         <HStack alignItems="flex-end" justifyContent="space-between" h={chartHeight}>
           {dashboard.sales_chart.map((item, index) => {
-            const barHeight = (item.sales / maxSales) * chartHeight;
+            const barHeight = (item.sales / maxSales) * chartHeight || 0;
             return (
-              <VStack key={index} alignItems="center" flex={1}>
+              <VStack key={`chart-${index}`} alignItems="center" flex={1}>
                 {/* Bar */}
                 <Box
                   bg="violet.500"
@@ -122,7 +122,7 @@ export default function SellerDashboardScreen() {
             0
           </Text>
           <Text fontSize="xs" color="gray.500">
-            {(maxSales / 1000).toFixed(1)}K
+            {maxSales > 0 ? (maxSales / 1000).toFixed(1) + 'K' : '0'}
           </Text>
         </HStack>
       </Box>
@@ -163,46 +163,54 @@ export default function SellerDashboardScreen() {
           </Select>
         </HStack>
 
-        {filteredProducts.map((product, index) => (
-          <HStack key={product.product_id} space={3} mb={3} alignItems="center">
-            {/* Rank */}
-            <Center
-              w="30px"
-              h="30px"
-              bg={index === 0 ? "yellow.400" : index === 1 ? "gray.400" : "orange.400"}
-              rounded="full"
-            >
-              <Text fontSize="xs" fontWeight="bold" color="white">
-                {index + 1}
-              </Text>
-            </Center>
+        {filteredProducts.map((product, index) => {
+          // ✅ ดักค่ารูปภาพว่างเปล่า ถ้าว่างให้ใช้รูปรอง (Placeholder)
+          const validImageUrl = product.image_url && product.image_url.trim() !== "" 
+            ? product.image_url 
+            : "https://via.placeholder.com/150?text=No+Image";
 
-            {/* Image */}
-            <Image
-              source={{ uri: product.image_url }}
-              alt={product.product_name}
-              size="50px"
-              rounded="md"
-            />
+          return (
+            // ✅ เปลี่ยน Key ให้ผสม Index ป้องกันปัญหา Key ซ้ำหรือเป็น Null
+            <HStack key={`${product.product_id || 'product'}-${index}`} space={3} mb={3} alignItems="center">
+              {/* Rank */}
+              <Center
+                w="30px"
+                h="30px"
+                bg={index === 0 ? "yellow.400" : index === 1 ? "gray.400" : "orange.400"}
+                rounded="full"
+              >
+                <Text fontSize="xs" fontWeight="bold" color="white">
+                  {index + 1}
+                </Text>
+              </Center>
 
-            {/* Info */}
-            <VStack flex={1}>
-              <Text fontSize="sm" color="gray.800" numberOfLines={1}>
-                {product.product_name}
-              </Text>
-              <Text fontSize="xs" color="gray.500">
-                ขายแล้ว {product.sold_count} ชิ้น
-              </Text>
-            </VStack>
+              {/* Image */}
+              <Image
+                source={{ uri: validImageUrl }}
+                alt={product.product_name || "Product Image"}
+                size="50px"
+                rounded="md"
+              />
 
-            {/* Revenue */}
-            <VStack alignItems="flex-end">
-              <Text fontSize="sm" fontWeight="bold" color="violet.600">
-                ฿{(product.revenue / 1000).toFixed(1)}K
-              </Text>
-            </VStack>
-          </HStack>
-        ))}
+              {/* Info */}
+              <VStack flex={1}>
+                <Text fontSize="sm" color="gray.800" numberOfLines={1}>
+                  {product.product_name}
+                </Text>
+                <Text fontSize="xs" color="gray.500">
+                  ขายแล้ว {product.sold_count} ชิ้น
+                </Text>
+              </VStack>
+
+              {/* Revenue */}
+              <VStack alignItems="flex-end">
+                <Text fontSize="sm" fontWeight="bold" color="violet.600">
+                  ฿{(product.revenue / 1000).toFixed(1)}K
+                </Text>
+              </VStack>
+            </HStack>
+          );
+        })}
       </Box>
     );
   };

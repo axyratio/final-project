@@ -64,7 +64,15 @@ class ProductVariant(Base):
     __tablename__ = "product_variants"
 
     variant_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id"), nullable=False)
+
+    # ✅ เพิ่ม ondelete="CASCADE": ลบ product → variant ถูกลบตามใน DB ด้วย
+    # (SQLAlchemy relationship มี cascade="all, delete-orphan" อยู่แล้ว
+    #  แต่ ondelete="CASCADE" จำเป็นสำหรับ DB-level constraint เช่น migration SQL ตรงๆ)
+    product_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("products.product_id", ondelete="CASCADE"),
+        nullable=False
+    )
 
     color = Column(String(50), nullable=True)   # เช่น "ดำ", "ขาว"
     size = Column(String(20), nullable=True)    # เช่น "S", "M", "L"
@@ -85,6 +93,7 @@ class ProductVariant(Base):
     )
     product = relationship("Product", back_populates="variants")
     tryon_sessions = relationship("VTONSession", back_populates="variant", cascade="all, delete-orphan")
+
 # ─────────────────────────────
 # ENUM: ประเภทของภาพสินค้า
 # ─────────────────────────────
@@ -118,8 +127,19 @@ class ProductImage(Base):
     __tablename__ = "product_images"
 
     image_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.product_id"), nullable=True)
-    variant_id = Column(UUID(as_uuid=True), ForeignKey("product_variants.variant_id"), nullable=True)
+    product_id = Column(
+        UUID(as_uuid=True), 
+        ForeignKey("products.product_id", ondelete="CASCADE"), # เพิ่มตรงนี้
+        nullable=True
+    )
+
+    # ✅ เพิ่ม ondelete="CASCADE": ลบ variant → รูปของ variant ถูกลบตามใน DB ด้วย
+    # variant image ไม่มีความหมายถ้า variant หายไปแล้ว
+    variant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("product_variants.variant_id", ondelete="CASCADE"),
+        nullable=True
+    )
 
     image_url = Column(String(255), nullable=False)   # URL ของรูปภาพ
     image_type = Column(Enum(ImageType, name="image_type_enum"), nullable=False, default=ImageType.NORMAL)

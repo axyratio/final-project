@@ -1,4 +1,3 @@
-# app/services/checkout_service.py
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Dict
 from uuid import UUID
@@ -80,6 +79,11 @@ class CheckoutService:
             product: Product = variant.product
             store: Store = product.store
 
+            product_image_url = None
+            if product.images:
+                main_imgs = [img for img in product.images if img.is_main]
+                product_image_url = (main_imgs[0] if main_imgs else product.images[0]).image_url
+
             items.append(
                 {
                     "variant": variant,
@@ -88,6 +92,10 @@ class CheckoutService:
                     "quantity": item.quantity,
                     "unit_price": item.price_at_addition,
                     "cart_item_id": item.cart_item_id,
+                    "snapshot_product_name": product.product_name,
+                    "snapshot_variant_name": variant.name_option,
+                    "snapshot_store_name": store.name,
+                    "snapshot_product_image_url": product_image_url,
                 }
             )
 
@@ -119,6 +127,11 @@ class CheckoutService:
 
             unit_price = variant.price or product.base_price
 
+            product_image_url = None
+            if product.images:
+                main_imgs = [img for img in product.images if img.is_main]
+                product_image_url = (main_imgs[0] if main_imgs else product.images[0]).image_url
+
             items.append(
                 {
                     "variant": variant,
@@ -126,6 +139,10 @@ class CheckoutService:
                     "store": store,
                     "quantity": item.quantity,
                     "unit_price": unit_price,
+                    "snapshot_product_name": product.product_name,
+                    "snapshot_variant_name": variant.name_option,
+                    "snapshot_store_name": store.name,
+                    "snapshot_product_image_url": product_image_url,
                 }
             )
 
@@ -149,7 +166,6 @@ class CheckoutService:
 
     @staticmethod
     def _create_reservations(db: Session, items: List[dict], expires_at: datetime) -> None:
-
         for item in items:
             variant: ProductVariant = item["variant"]
             qty = item["quantity"]
@@ -163,14 +179,11 @@ class CheckoutService:
             )
             db.add(reservation)
 
-    # ... (_build_items_..., _validate_stock_..., _create_reservations เหมือนเดิม)
-
     @staticmethod
     def checkout(db: Session, user: User, payload: CheckoutRequest) -> CheckoutResponse:
         now = now_utc()
         expires_at = now + timedelta(minutes=RESERVATION_MINUTES)
-        
-        # 1) Build Items
+
         if payload.checkout_type == "CART":
             items, is_from_cart, cart_id = CheckoutService._build_items_from_cart(
                 db, user, payload.cart_id, payload.selected_cart_item_ids,
@@ -186,14 +199,13 @@ class CheckoutService:
             ShippingAddress.ship_addr_id == payload.shipping_address_id,
             ShippingAddress.user_id == user.user_id
         ).first()
-        
+
         if not shipping_address:
             raise HTTPException(status_code=404, detail="Shipping address not found")
 
         try:
             CheckoutService._validate_stock_only(db, items)
 
-            # 2) Create Orders
             items_by_store: Dict[UUID, List[dict]] = {}
             for it in items:
                 store_id: UUID = it["store"].store_id
@@ -217,7 +229,7 @@ class CheckoutService:
                     total_price=order_total,
                 )
                 db.add(order)
-                db.flush() 
+                db.flush()
 
                 for i in store_items:
                     order_item = OrderItem(
@@ -227,14 +239,17 @@ class CheckoutService:
                         variant_id=i["variant"].variant_id,
                         quantity=i["quantity"],
                         unit_price=i["unit_price"],
+                        product_name=i["snapshot_product_name"],
+                        variant_name=i["snapshot_variant_name"],
+                        store_name=i["snapshot_store_name"],
+                        product_image_url=i["snapshot_product_image_url"],
                     )
                     db.add(order_item)
                     i["order"] = order
-                
+
                 orders.append(order)
                 grand_total += order_total
 
-            # 3) Create Payment & Reservation
             payment = Payment(
                 user_id=user.user_id,
                 amount=grand_total,
@@ -246,14 +261,12 @@ class CheckoutService:
             db.flush()
 
             CheckoutService._create_reservations(db, items, expires_at)
-            
-            # ผูก payment_id ให้กับทุก order
+
             for order in orders:
                 order.payment_id = payment.payment_id
 
-            db.commit() # ✅ Commit รอบแรกเพื่อให้ข้อมูล Order/Payment ลง DB ก่อนสร้าง Stripe Session
+            db.commit()
 
-            # 4) Create Stripe Session
             line_items = []
             for item in items:
                 actual_price = item["variant"].price if item["variant"].price is not None else item["product"].base_price
@@ -266,7 +279,6 @@ class CheckoutService:
                     "quantity": item["quantity"],
                 })
 
-            # shipping per store
             for store_id, store_items in items_by_store.items():
                 store_name = store_items[0]["store"].name
                 total_weight = sum((i["variant"].weight_grams or 500) * i["quantity"] for i in store_items)
@@ -290,11 +302,9 @@ class CheckoutService:
                 metadata={"app_payment_id": str(payment.payment_id)},
             )
 
-            # 5) บันทึก Session ID และส่ง Task
             payment.stripe_session_id = session.id
-            db.commit() # ✅ Commit รอบสอง (บันทึก Stripe Session ID)
+            db.commit()
 
-            # ✅ ส่ง Task หลังจากทุกอย่าง Commit สำเร็จแล้วเท่านั้น
             timeout_seconds = RESERVATION_MINUTES * 60
             for order in orders:
                 check_order_timeout.apply_async(args=[str(order.order_id)], countdown=timeout_seconds)

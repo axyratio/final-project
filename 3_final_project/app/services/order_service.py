@@ -86,12 +86,60 @@ class OrderService:
         }
 
     @staticmethod
+    def _resolve_item(item: OrderItem) -> Dict:
+        """
+        สร้าง dict ของ order_item โดยอ่าน snapshot ก่อนเสมอ
+        แล้วค่อย fallback ไปหา relationship ถ้า snapshot ว่าง
+        กรณี product/store ถูกลบ จะยังแสดงชื่อจาก snapshot ได้
+        """
+        # product_name: snapshot → relationship → deleted fallback
+        product_name = (
+            item.product_name
+            or (item.product.product_name if item.product else None)
+            or "สินค้าถูกลบออกจากระบบ"
+        )
+
+        # variant_name: snapshot → relationship → None
+        variant_name = (
+            item.variant_name
+            or (item.variant.name_option if item.variant else None)
+        )
+
+        # image_url: snapshot → relationship (main image ก่อน ถ้าไม่มีเอารูปแรก)
+        image_url = item.product_image_url
+        if not image_url and item.product and item.product.images:
+            main_imgs = [img for img in item.product.images if img.is_main]
+            img = main_imgs[0] if main_imgs else item.product.images[0]
+            image_url = img.image_url
+
+        return {
+            "order_item_id": str(item.order_item_id),
+            "product_id": str(item.product_id) if item.product_id else None,
+            "variant_id": str(item.variant_id) if item.variant_id else None,
+            "product_name": product_name,
+            "variant_name": variant_name,
+            "store_name": item.store_name,  # snapshot ของร้านใน item นี้
+            "quantity": item.quantity,
+            "unit_price": float(item.unit_price),
+            "image_url": image_url,
+        }
+
+    @staticmethod
     def format_order_response(order: Order) -> Dict:
         latest_return = order.return_requests[0] if order.return_requests else None
+
+        # store_name: relationship → snapshot จาก order_item แรก → deleted fallback
+        if order.store:
+            store_name = order.store.name
+        elif order.order_items:
+            store_name = order.order_items[0].store_name or "ร้านค้าถูกลบออกจากระบบ"
+        else:
+            store_name = "ร้านค้าถูกลบออกจากระบบ"
+
         return {
             "order_id": str(order.order_id),
-            "store_id": str(order.store_id),
-            "store_name": order.store.name if order.store else "ไม่ระบุ",
+            "store_id": str(order.store_id) if order.store_id else None,  # nullable หลัง SET NULL
+            "store_name": store_name,
             "order_status": order.order_status,
             "order_text_status": OrderService.get_status_text(order.order_status),
             "customer_name": order.customer_name,
@@ -105,19 +153,8 @@ class OrderService:
             "delivered_at": order.delivered_at.isoformat() if order.delivered_at else None,
             "completed_at": order.completed_at.isoformat() if order.completed_at else None,
             "return_info": OrderService.format_return_info(latest_return),
-            "order_items": [
-                {
-                    "order_item_id": str(item.order_item_id),
-                    "product_id": str(item.product_id),
-                    "variant_id": str(item.variant_id) if item.variant_id else None,
-                    "product_name": item.product.product_name if item.product else "ไม่ระบุ",
-                    "variant_name": item.variant.name_option if item.variant else "ไม่ระบุ",
-                    "quantity": item.quantity,
-                    "unit_price": float(item.unit_price),
-                    "image_url": item.product.images[0].image_url if item.product and item.product.images else None,
-                }
-                for item in order.order_items
-            ],
+            # ใช้ _resolve_item เพื่ออ่าน snapshot ก่อน fallback relationship
+            "order_items": [OrderService._resolve_item(item) for item in order.order_items],
             "can_confirm_received": OrderService.can_confirm_received(order.order_status),
             "can_return": OrderService.can_return(order.order_status),
             "can_review": OrderService.can_review(order.order_status),
@@ -277,6 +314,9 @@ class OrderService:
             db.flush()
         items_added = 0
         for order_item in order.order_items:
+            # ถ้า product_id เป็น null (product ถูกลบ) ข้ามไป ไม่สามารถ reorder ได้
+            if not order_item.product_id:
+                continue
             product = db.query(Product).filter(Product.product_id == order_item.product_id).first()
             if not product or not product.is_active:
                 continue
@@ -301,7 +341,7 @@ class OrderService:
                     product_id=order_item.product_id,
                     variant_id=order_item.variant_id,
                     quantity=order_item.quantity,
-                    price_at_addition=order_item.variant.price,
+                    price_at_addition=order_item.variant.price if order_item.variant else order_item.unit_price,
                 ))
             items_added += 1
         db.commit()
