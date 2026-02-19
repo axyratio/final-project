@@ -1,6 +1,6 @@
 // app/(profile)/edit.tsx
 import { updateStore } from "@/api/store";
-import { AppBar } from "@/components/navbar";
+import { AppBarNoCheck } from "@/components/navbar";
 import { useProfileContext } from "@/context/Refresh";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
@@ -9,14 +9,14 @@ import axios from "axios";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useState } from "react";
-import { 
-  ActivityIndicator, 
-  Alert, 
+import {
+  ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
-  Text, 
-  TextInput, 
-  View 
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 import { Profile } from "./me";
 
@@ -227,23 +227,28 @@ export default function EditForm() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar
+      <AppBarNoCheck
         title={title}
-        onSave={async () => {
-          if (fieldKey && initialValue)
-            await handleSubmit(fieldKey as string, initialValue);
-        }}
+        actions={[
+          {
+            iconName: "check",
+            accessibilityLabel: "บันทึก",
+            onPress: async () => {
+              if (fieldKey && initialValue)
+                await handleSubmit(fieldKey as string, initialValue);
+            },
+          },
+        ]}
       />
-      
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
         <View style={styles.container}>
           {/* คำอธิบาย */}
           <View style={styles.infoBox}>
-            <MaterialCommunityIcons
-              name="pencil"
-              size={20}
-              color="#3b82f6"
-            />
+            <MaterialCommunityIcons name="pencil" size={20} color="#3b82f6" />
             <Text style={styles.infoText}>
               กรอกข้อมูลใหม่และกดปุ่ม ✓ เพื่อบันทึก
             </Text>
@@ -255,7 +260,7 @@ export default function EditForm() {
             <TextInput
               style={[
                 isMultiline ? styles.textArea : styles.input,
-                error && styles.inputError
+                error && styles.inputError,
               ]}
               value={value}
               onChangeText={(text) => {

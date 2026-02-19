@@ -6,7 +6,7 @@ import { View } from "react-native";
 
 import { HomeProduct } from "@/api/home";
 import { toggleWishlist, checkWishlist } from "@/api/wishlist";
-import ProductCard from "@/components/card";
+import ProductCard from "@/components/product/card";
 import { DOMAIN } from "@/้host";
 import { getToken } from "@/utils/secure-store";
 

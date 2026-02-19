@@ -1,8 +1,9 @@
-// app/(store)/edit-store.tsx
+// app/(store)/edit-store.tsx — แก้ไขรองรับ Admin Mode
 import { getMyStore, updateStore } from "@/api/store";
 import { Avartar } from "@/components/avartar";
 import { AppBarNoCheck } from "@/components/navbar";
-import { EditPressable } from "@/components/pressable";
+import { EditPressable } from "@/components/profile/pressable";
+import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -31,6 +32,7 @@ export default function EditStoreScreen() {
     storeId: string;
     storeName: string;
     logoUrl?: string;
+    isAdminMode?: string; // ✅ เพิ่ม param
     updatedField?: string;
     updatedValue?: string;
   }>();
@@ -39,14 +41,42 @@ export default function EditStoreScreen() {
   const [loading, setLoading] = useState(true);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
+  // ✅ เช็คว่าเป็น admin mode หรือไม่
+  const isAdminMode = params.isAdminMode === "true";
+
+  console.log("[EDIT STORE] params:", params);
+  console.log("[EDIT STORE] isAdminMode:", isAdminMode);
+  console.log("[EDIT STORE] storeId:", params.storeId);
+
   useEffect(() => {
     loadStoreData();
   }, []);
 
+  // ✅ แก้ไข: รองรับทั้ง admin mode และ owner mode
   const loadStoreData = async () => {
     try {
       setLoading(true);
-      const response = await getMyStore();
+      let response;
+
+      if (isAdminMode && params.storeId) {
+        // ✅ Admin mode: เรียก /admin/stores/{storeId}
+        console.log("[EDIT STORE] Fetching as admin:", params.storeId);
+        const token = await getToken();
+        const res = await fetch(`${DOMAIN}/admin/stores/${params.storeId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        response = await res.json();
+        console.log("[EDIT STORE] Admin response:", response);
+      } else {
+        // ✅ Owner mode: เรียก /stores/me
+        console.log("[EDIT STORE] Fetching as owner");
+        response = await getMyStore();
+        console.log("[EDIT STORE] Owner response:", response);
+      }
 
       if (response.success && response.data) {
         const storeData = response.data;
@@ -66,7 +96,7 @@ export default function EditStoreScreen() {
         Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลร้านค้าได้");
       }
     } catch (error) {
-      console.error("Error loading store:", error);
+      console.error("[EDIT STORE] Error loading store:", error);
       Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลร้านค้าได้");
     } finally {
       setLoading(false);
@@ -101,7 +131,7 @@ export default function EditStoreScreen() {
     return () => backHandler.remove();
   }, [router]);
 
-  // ✅ แก้ไข: ไม่ถามย้ำ อัพโหลดเลย
+  // อัพโหลดโลโก้
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -114,7 +144,6 @@ export default function EditStoreScreen() {
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
 
-        // ✅ อัพโหลดเลยโดยไม่ถาม
         try {
           setUploadingLogo(true);
 
@@ -124,6 +153,7 @@ export default function EditStoreScreen() {
             name: `store_logo_${Date.now()}.jpg`,
           };
 
+          // ✅ อัพโหลดโลโก้ (ใช้ API เดิมได้ เพราะ updateStore จัดการ endpoint เอง)
           const response = await updateStore(store!.id, {
             logo: logoFile as any,
           });
@@ -200,7 +230,9 @@ export default function EditStoreScreen() {
 
   return (
     <VStack flex={1} bg="#f0f0f0" style={{ gap: 8 }}>
-      <AppBarNoCheck title="แก้ไขข้อมูลร้านค้า" />
+      <AppBarNoCheck
+        title={isAdminMode ? "แก้ไขร้านค้า (Admin)" : "แก้ไขข้อมูลร้านค้า"}
+      />
 
       {/* Logo Section */}
       <VStack alignItems="center" py={4} bg="white" space={3}>
@@ -225,7 +257,6 @@ export default function EditStoreScreen() {
             </Center>
           )}
 
-          {/* ✅ แก้ไข: Camera Icon แสดงเฉพาะตอนไม่มีรูป */}
           {!store.logoUrl && (
             <Center
               position="absolute"
@@ -294,6 +325,7 @@ export default function EditStoreScreen() {
                 returnPath: "/(store)/edit-store",
                 returnParams: JSON.stringify({
                   storeId: store.id,
+                  isAdminMode: params.isAdminMode, // ✅ ส่ง isAdminMode ต่อ
                 }),
               },
             })
@@ -313,6 +345,7 @@ export default function EditStoreScreen() {
                 returnPath: "/(store)/edit-store",
                 returnParams: JSON.stringify({
                   storeId: store.id,
+                  isAdminMode: params.isAdminMode, // ✅ ส่ง isAdminMode ต่อ
                 }),
               },
             })
@@ -332,6 +365,7 @@ export default function EditStoreScreen() {
                 returnPath: "/(store)/edit-store",
                 returnParams: JSON.stringify({
                   storeId: store.id,
+                  isAdminMode: params.isAdminMode, // ✅ ส่ง isAdminMode ต่อ
                 }),
               },
             })

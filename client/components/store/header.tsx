@@ -4,15 +4,14 @@ import { useRouter } from "expo-router";
 import { Box, Text } from "native-base";
 import React from "react";
 import { Image, Pressable } from "react-native";
-import { ChatButton } from "./button";
 
 type StoreHeaderProps = {
   urlLogo?: string | null;
   title: string;
   rating: number;
-  viewStoreRoute?: string;  // route เข้าไปดูร้านทั้งหมด
-  editStoreRoute?: string;  // route แก้ไขชื่อร้าน / โปรไฟล์ร้าน
-  chatRoute: string;        // route ไปหน้าแชท
+  viewStoreRoute?: string; // route เข้าไปดูร้านทั้งหมด
+  editStoreRoute?: string; // route แก้ไขชื่อร้าน / โปรไฟล์ร้าน
+  chatRoute: string; // route ไปหน้าแชท
   storeId?: string;
   isStripeVerified: boolean;
   onRefreshStripe?: () => void; // ฟังก์ชันสำหรับกด refresh link
@@ -62,11 +61,7 @@ export default function StoreHeader({
                 style={{ width: "100%", height: "100%" }}
               />
             ) : (
-              <Box
-                flex={1}
-                alignItems="center"
-                justifyContent="center"
-              >
+              <Box flex={1} alignItems="center" justifyContent="center">
                 <Ionicons name="storefront-outline" size={26} color="#a855f7" />
               </Box>
             )}
@@ -99,11 +94,7 @@ export default function StoreHeader({
             <Box flexDirection="row" alignItems="center" mt={1}>
               {isStripeVerified ? (
                 <>
-                  <Ionicons
-                    name="shield-checkmark"
-                    size={14}
-                    color="#22c55e"
-                  />
+                  <Ionicons name="shield-checkmark" size={14} color="#22c55e" />
                   <Text fontSize="xs" ml={1} color="green.600">
                     ยืนยัน Stripe แล้ว
                   </Text>
@@ -117,7 +108,13 @@ export default function StoreHeader({
                   {/* ปุ่มสำหรับกด refresh link */}
                   <Pressable
                     onPress={onRefreshStripe}
-                    style={{ marginLeft: 8, backgroundColor: '#fef2f2', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}
+                    style={{
+                      marginLeft: 8,
+                      backgroundColor: "#fef2f2",
+                      paddingHorizontal: 8,
+                      paddingVertical: 2,
+                      borderRadius: 999,
+                    }}
                   >
                     <Text fontSize="xs" color="red.600" fontWeight="bold">
                       ยืนยันตัวตน
@@ -129,13 +126,12 @@ export default function StoreHeader({
           </Box>
 
           {/* ปุ่มแชทร้าน */}
-          <ChatButton route={chatRoute} />
+          {/* <ChatButton route={chatRoute} /> */}
         </Box>
       </Pressable>
     </Box>
   );
 }
-
 
 // components/header.tsx
 import { ProductDetailDto } from "@/api/products";
@@ -158,12 +154,14 @@ type StoreHeaderProductDetailProps = {
 // แยกฟังก์ชันคำนวณส่วนลดให้แก้ logic ได้ง่าย
 export function calculateDiscount(
   basePrice: number,
-  originalPrice?: number
+  originalPrice?: number,
 ): { originalPrice?: number; discountPercent?: number } {
   if (!originalPrice || originalPrice <= basePrice) {
     return { originalPrice: undefined, discountPercent: undefined };
   }
-  const percent = Math.round(((originalPrice - basePrice) / originalPrice) * 100);
+  const percent = Math.round(
+    ((originalPrice - basePrice) / originalPrice) * 100,
+  );
   return { originalPrice, discountPercent: percent };
 }
 
@@ -174,7 +172,7 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
 }) => {
   const { originalPrice, discountPercent } = calculateDiscount(
     product.basePrice,
-    product.originalPrice
+    product.originalPrice,
   );
 
   return (
@@ -239,7 +237,9 @@ export const ProductHeader: React.FC<ProductHeaderProps> = ({
   );
 };
 
-export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> = ({
+export const StoreHeaderProductDetail: React.FC<
+  StoreHeaderProductDetailProps
+> = ({
   product,
   onPressViewStore,
   onPressChat,
@@ -264,9 +264,9 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
             <Text fontSize="sm" fontWeight="600">
               {store.name}
             </Text>
-              <Text fontSize="xs" color="gray.500">
-                lorem
-              </Text> 
+            <Text fontSize="xs" color="gray.500">
+              lorem
+            </Text>
           </Box>
         </HStack>
 
@@ -307,7 +307,11 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
             <Menu
               trigger={(triggerProps) => (
                 <Pressable {...triggerProps} p={1}>
-                  <Ionicons name="ellipsis-vertical" size={20} color="#6B7280" />
+                  <Ionicons
+                    name="ellipsis-vertical"
+                    size={20}
+                    color="#6B7280"
+                  />
                 </Pressable>
               )}
             >
@@ -325,7 +329,6 @@ export const StoreHeaderProductDetail: React.FC<StoreHeaderProductDetailProps> =
   );
 };
 
-
 // components/description.tsx
 import { useState } from "react";
 
@@ -333,9 +336,7 @@ type DescriptionProps = {
   text: string;
 };
 
-export const ExpandableDescription: React.FC<DescriptionProps> = ({
-  text,
-}) => {
+export const ExpandableDescription: React.FC<DescriptionProps> = ({ text }) => {
   const [expanded, setExpanded] = useState(false);
 
   // ใช้ numberOfLines=10 เพื่อแสดงสูงสุด 10 บรรทัดก่อนตัด "..."

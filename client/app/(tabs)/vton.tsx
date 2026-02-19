@@ -7,7 +7,7 @@ import type {
   VTONBackground,
   VTONSession,
 } from "@/api/closet";
-import { closetApi, mockData } from "@/api/closet";
+import { closetApi } from "@/api/closet";
 import { BackgroundSelector } from "@/components/closet/background-selector";
 import { ModelSelector } from "@/components/closet/model-selector";
 import { OutfitSelector } from "@/components/closet/outfit-selector";
@@ -15,8 +15,17 @@ import { ResultSelector } from "@/components/closet/result-selector";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Box, Button, Center, HStack, Pressable, Spinner, Text, useToast } from "native-base";
-import React, { useEffect, useMemo, useState } from "react";
+import {
+  Box,
+  Button,
+  Center,
+  HStack,
+  Pressable,
+  Spinner,
+  Text,
+  useToast,
+} from "native-base";
+import React, { useEffect, useState } from "react";
 import { Alert } from "react-native";
 
 type MainTabId = "result" | "model" | "outfit" | "background";
@@ -45,7 +54,7 @@ export default function VirtualTryOnPage() {
   const params = useLocalSearchParams<{
     tab?: string;
     outfitTab?: string;
-    _refresh?: string; // ✅ เพิ่ม param สำหรับ trigger reload
+    _refresh?: string;
   }>();
 
   const toast = useToast();
@@ -64,7 +73,7 @@ export default function VirtualTryOnPage() {
 
   const [userImages, setUserImages] = useState<UserTryOnImage[]>([]);
   const [garments, setGarments] = useState<GarmentImage[]>([]);
-  const [product, setProduct] = useState<Product | null>(mockData.product);
+  const [product, setProduct] = useState<Product | null>(null);
   const [backgrounds, setBackgrounds] = useState<VTONBackground[]>([]);
 
   const [productGarments, setProductGarments] = useState<ProductVariant[]>([]);
@@ -72,7 +81,7 @@ export default function VirtualTryOnPage() {
 
   const [vtonSessions, setVtonSessions] = useState<VTONSession[]>([]);
 
-  const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด", "พื้นหลัง"];
+  const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด"];
 
   const setRouteParams = (next: { tab?: MainTabId; outfitTab?: OutfitTabId }) => {
     (router as any).setParams?.({
@@ -81,7 +90,7 @@ export default function VirtualTryOnPage() {
     });
   };
 
-  // ✅ sync state <- route params
+  // sync state <- route params
   useEffect(() => {
     const tabIdx = mainTabIdToIndex(params.tab);
     setCurrentTab(tabIdx);
@@ -97,7 +106,7 @@ export default function VirtualTryOnPage() {
     });
   }, [params.tab, params.outfitTab]);
 
-  // ✅ Load ข้อมูลทั้งหมดตอนเริ่มต้น + เมื่อมี _refresh
+  // Load ข้อมูลทั้งหมดตอนเริ่มต้น + เมื่อมี _refresh
   useEffect(() => {
     loadInitialData();
   }, [params._refresh]);
@@ -273,19 +282,10 @@ export default function VirtualTryOnPage() {
       if (selectedModel?.user_image_id === imageId) setSelectedModel(null);
 
       toast.closeAll();
-      toast.show({
-        title: "ลบสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
       toast.closeAll();
-      toast.show({
-        title: "ลบล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
+      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
     }
   };
 
@@ -296,19 +296,10 @@ export default function VirtualTryOnPage() {
       if (selectedGarment?.garment_id === garmentId) setSelectedGarment(null);
 
       toast.closeAll();
-      toast.show({
-        title: "ลบสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
       toast.closeAll();
-      toast.show({
-        title: "ลบล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
+      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
     }
   };
 
@@ -323,19 +314,10 @@ export default function VirtualTryOnPage() {
       if (selectedProductGarment?.variant_id === variantId) setSelectedProductGarment(null);
 
       toast.closeAll();
-      toast.show({
-        title: "ลบสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
       toast.closeAll();
-      toast.show({
-        title: "ลบล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
+      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
     }
   };
 
@@ -346,19 +328,10 @@ export default function VirtualTryOnPage() {
       if (selectedBackground?.background_id === backgroundId) setSelectedBackground(null);
 
       toast.closeAll();
-      toast.show({
-        title: "ลบสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
       toast.closeAll();
-      toast.show({
-        title: "ลบล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
+      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
     }
   };
 
@@ -368,19 +341,10 @@ export default function VirtualTryOnPage() {
       setVtonSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
 
       toast.closeAll();
-      toast.show({
-        title: "ลบรูปผลลัพธ์สำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "ลบรูปผลลัพธ์สำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
       toast.closeAll();
-      toast.show({
-        title: "ลบล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
+      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
     }
   };
 
@@ -413,7 +377,6 @@ export default function VirtualTryOnPage() {
 
       const session = await closetApi.createVTONSession(request);
       setResultImageUrl(session.result_image_url);
-
       setVtonSessions((prev) => [session, ...prev]);
 
       toast.closeAll();
@@ -457,10 +420,10 @@ export default function VirtualTryOnPage() {
   }
 
   return (
-    <Box flex={1} bg="gray.50" safeArea>
-      <StatusBar style="light" />
+    <Box flex={1} bg="#fff" safeArea>
+      <StatusBar backgroundColor="#7c3aed" />
 
-      <Box bg="violet.600" px={4} py={3}>
+      <Box bg="#7c3aed" px={4} py={3}>
         <HStack alignItems="center" space={3}>
           <Button
             variant="ghost"
@@ -503,8 +466,8 @@ export default function VirtualTryOnPage() {
 
       <Box flex={1} p={4}>
         {currentTab === 0 && (
-          <ResultSelector 
-            sessions={vtonSessions} 
+          <ResultSelector
+            sessions={vtonSessions}
             onStartTryOn={handleStartTryOn}
             onDeleteSession={handleDeleteSession}
           />
@@ -512,6 +475,7 @@ export default function VirtualTryOnPage() {
 
         {currentTab === 1 && (
           <Box flex={1}>
+            {/* ModelSelector จัดการ preview modal ภายในตัวเอง */}
             <ModelSelector
               userImages={userImages}
               selectedModel={selectedModel}
@@ -520,7 +484,12 @@ export default function VirtualTryOnPage() {
               onDeleteModel={handleDeleteModel}
             />
             {selectedModel && (
-              <Button mt={6} bg="violet.600" onPress={handleNext} isLoading={loading}>
+              <Button
+                mt={6}
+                bg="violet.600"
+                onPress={handleNext}
+                isLoading={loading}
+              >
                 ถัดไป
               </Button>
             )}
@@ -610,7 +579,12 @@ export default function VirtualTryOnPage() {
               >
                 ย้อนกลับ
               </Button>
-              <Button flex={1} bg="violet.600" onPress={handleSubmit} isLoading={loading}>
+              <Button
+                flex={1}
+                bg="violet.600"
+                onPress={handleSubmit}
+                isLoading={loading}
+              >
                 ลองชุด
               </Button>
             </HStack>

@@ -3,8 +3,8 @@
  * แก้ไขปัญหา FormData และ File Upload สำหรับ React Native
  */
 
-import { DOMAIN } from "@/้host";
 import { getToken } from "@/utils/secure-store";
+import { DOMAIN } from "@/้host";
 import { Platform } from "react-native";
 
 // ========== TYPES & INTERFACES ==========
@@ -235,7 +235,10 @@ export const closetApi = {
 
   // ==================== GARMENT IMAGES (OUTFIT) ====================
 
-  async uploadGarmentImage(fileUri: string, name?: string): Promise<GarmentImage> {
+  async uploadGarmentImage(
+    fileUri: string,
+    name?: string,
+  ): Promise<GarmentImage> {
     try {
       console.log("📤 [GARMENT] Starting upload");
       console.log("📁 [GARMENT] URI:", fileUri);
@@ -276,9 +279,13 @@ export const closetApi = {
 
         try {
           const error = JSON.parse(errorText);
-          throw new Error(error.detail || error.message || "Upload garment failed");
+          throw new Error(
+            error.detail || error.message || "Upload garment failed",
+          );
         } catch (e) {
-          throw new Error(`Upload garment failed: ${response.status} - ${errorText}`);
+          throw new Error(
+            `Upload garment failed: ${response.status} - ${errorText}`,
+          );
         }
       }
 
@@ -366,12 +373,20 @@ export const closetApi = {
         try {
           const error = JSON.parse(errorText);
           const msg = String(error.detail || error.message || "");
-          if (msg.includes("ถูกเพิ่มไว้แล้ว") || msg.includes("already") || msg.includes("exists")) {
+          if (
+            msg.includes("ถูกเพิ่มไว้แล้ว") ||
+            msg.includes("already") ||
+            msg.includes("exists")
+          ) {
             return;
           }
-          throw new Error(error.detail || error.message || "Add product garment failed");
+          throw new Error(
+            error.detail || error.message || "Add product garment failed",
+          );
         } catch (e) {
-          throw new Error(`Add product garment failed: ${response.status} - ${errorText}`);
+          throw new Error(
+            `Add product garment failed: ${response.status} - ${errorText}`,
+          );
         }
       }
 
@@ -409,10 +424,13 @@ export const closetApi = {
     try {
       const headers = await getHeaders();
 
-      const response = await fetch(`${BASE_URL}/vton/product-garments/${variantId}`, {
-        method: "DELETE",
-        headers,
-      });
+      const response = await fetch(
+        `${BASE_URL}/vton/product-garments/${variantId}`,
+        {
+          method: "DELETE",
+          headers,
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -426,7 +444,11 @@ export const closetApi = {
 
   // ==================== VTON BACKGROUNDS ====================
 
-  async uploadVTONBackground(fileUri: string, name: string, category?: string): Promise<VTONBackground> {
+  async uploadVTONBackground(
+    fileUri: string,
+    name: string,
+    category?: string,
+  ): Promise<VTONBackground> {
     try {
       console.log("📤 [BACKGROUND] Starting upload");
       console.log("📁 [BACKGROUND] URI:", fileUri);
@@ -468,9 +490,13 @@ export const closetApi = {
 
         try {
           const error = JSON.parse(errorText);
-          throw new Error(error.detail || error.message || "Upload background failed");
+          throw new Error(
+            error.detail || error.message || "Upload background failed",
+          );
         } catch (e) {
-          throw new Error(`Upload background failed: ${response.status} - ${errorText}`);
+          throw new Error(
+            `Upload background failed: ${response.status} - ${errorText}`,
+          );
         }
       }
 
@@ -508,10 +534,13 @@ export const closetApi = {
     try {
       const headers = await getHeaders();
 
-      const response = await fetch(`${BASE_URL}/vton/backgrounds/${backgroundId}`, {
-        method: "DELETE",
-        headers,
-      });
+      const response = await fetch(
+        `${BASE_URL}/vton/backgrounds/${backgroundId}`,
+        {
+          method: "DELETE",
+          headers,
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -525,7 +554,9 @@ export const closetApi = {
 
   // ==================== VTON SESSION ====================
 
-  async createVTONSession(request: CreateVTONSessionRequest): Promise<VTONSession> {
+  async createVTONSession(
+    request: CreateVTONSessionRequest,
+  ): Promise<VTONSession> {
     try {
       console.log("🎨 [VTON SESSION] Creating session");
       console.log("📋 [VTON SESSION] Request:", request);
@@ -568,9 +599,13 @@ export const closetApi = {
 
         try {
           const error = JSON.parse(errorText);
-          throw new Error(error.detail || error.message || "VTON processing failed");
+          throw new Error(
+            error.detail || error.message || "VTON processing failed",
+          );
         } catch (e) {
-          throw new Error(`VTON processing failed: ${response.status} - ${errorText}`);
+          throw new Error(
+            `VTON processing failed: ${response.status} - ${errorText}`,
+          );
         }
       }
 
@@ -583,7 +618,10 @@ export const closetApi = {
     }
   },
 
-  async changeBackgroundFromSession(sessionId: string, newBackgroundId?: string): Promise<VTONSession> {
+  async changeBackgroundFromSession(
+    sessionId: string,
+    newBackgroundId?: string,
+  ): Promise<VTONSession> {
     try {
       const formData = new FormData();
       if (newBackgroundId) {
@@ -592,11 +630,14 @@ export const closetApi = {
 
       const headers = await getHeaders(false);
 
-      const response = await fetch(`${BASE_URL}/vton/sessions/${sessionId}/change-background`, {
-        method: "POST",
-        headers,
-        body: formData,
-      });
+      const response = await fetch(
+        `${BASE_URL}/vton/sessions/${sessionId}/change-background`,
+        {
+          method: "POST",
+          headers,
+          body: formData,
+        },
+      );
 
       if (!response.ok) {
         const error = await response.json();
@@ -685,7 +726,8 @@ export const mockData = {
   userImages: [
     {
       user_image_id: "1",
-      image_url: "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400",
+      image_url:
+        "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400",
       uploaded_at: new Date().toISOString(),
       is_valid: true,
     },
@@ -695,7 +737,8 @@ export const mockData = {
     {
       garment_id: "g1",
       name: "เสื้อยืดสีดำ",
-      image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
+      image_url:
+        "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
       uploaded_at: new Date().toISOString(),
       is_valid: true,
     },
@@ -713,7 +756,8 @@ export const mockData = {
         image_id: "img1",
         product_id: "prod1",
         variant_id: null,
-        image_url: "https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400",
+        image_url:
+          "https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400",
         image_type: "NORMAL" as const,
         display_order: 0,
         is_main: true,
@@ -735,7 +779,8 @@ export const mockData = {
             image_id: "img2",
             product_id: "prod1",
             variant_id: "var1",
-            image_url: "https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400",
+            image_url:
+              "https://images.unsplash.com/photo-1594633313593-bab3825d0caf?w=400",
             image_type: "NORMAL" as const,
             display_order: 0,
             is_main: false,
@@ -757,7 +802,8 @@ export const mockData = {
             image_id: "img3",
             product_id: "prod1",
             variant_id: "var2",
-            image_url: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
+            image_url:
+              "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400",
             image_type: "NORMAL" as const,
             display_order: 0,
             is_main: false,
@@ -771,7 +817,8 @@ export const mockData = {
     {
       background_id: "bg1",
       name: "Beach Sunset",
-      image_url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
+      image_url:
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400",
       category: "Nature",
       is_system: true,
       user_id: null,

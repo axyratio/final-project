@@ -3,13 +3,19 @@
 // ==========================================
 // File: app/(admin)/create-category.tsx
 
-import React, { useState } from "react";
-import { View, ScrollView, TextInput, Alert, Pressable } from "react-native";
-import { Box, Text, Button } from "native-base";
-import { useRouter } from "expo-router";
 import { createCategory } from "@/api/category";
 import { AppBarNoCheck } from "@/components/navbar";
-import { StyleSheet } from 'react-native';
+import { useRouter } from "expo-router";
+import { Box, Button, Text } from "native-base";
+import React, { useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
 
 // Simple color picker colors
 const PRESET_COLORS = [
@@ -77,7 +83,11 @@ export default function CreateCategoryScreen() {
 
   return (
     <Box flex={1} bg="white">
-      <AppBarNoCheck title="เพิ่มหมวดหมู่ใหม่" onBackPress={() => router.back()} />
+      <Box safeArea bg="#7c3aed" />
+      <AppBarNoCheck
+        title="เพิ่มหมวดหมู่ใหม่"
+        onBackPress={() => router.back()}
+      />
 
       <ScrollView>
         <Box p={4}>

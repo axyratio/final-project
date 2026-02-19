@@ -1,5 +1,5 @@
-import { FormProfile } from "@/components/form";
-import { AppBar } from "@/components/navbar";
+import { FormProfile } from "@/components/profile/form";
+import { AppBarNoCheck } from "@/components/navbar";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import axios from "axios";
@@ -90,11 +90,13 @@ export default function PasswordScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar
+      <AppBarNoCheck
         title="เปลี่ยนรหัสผ่าน"
-        onSave={async () => {
-          await handleSubmit(password);
-        }}
+        actions={[{
+          iconName: "check",
+          accessibilityLabel: "บันทึก",
+          onPress: async () => { await handleSubmit(password); },
+        }]}
       />
 
       <View style={{ padding: 16 }}>

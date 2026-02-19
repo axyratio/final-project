@@ -29,7 +29,7 @@ export default function AdminLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: true }}>
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen
         name="admin-home"
         options={{
@@ -46,7 +46,10 @@ export default function AdminLayout() {
         name="manage-categories"
         options={{ title: "จัดการหมวดหมู่" }}
       />
-      <Stack.Screen name="dashboard" options={{ title: "Dashboard" }} />
+      <Stack.Screen name="dashboard" options={{ title: "แดชบอร์ด" }} />
+      <Stack.Screen name="manage-user" options={{ title: "จัดการผู้ใช้" }} />
+      <Stack.Screen name="report" options={{ headerShown: false }} />
+      <Stack.Screen name="report-detail" options={{ headerShown: false }} />
     </Stack>
   );
 }

@@ -1,22 +1,30 @@
 // app/(tabs)/profile.tsx
 import { Avartar } from "@/components/avartar";
-import { CustomPressable } from "@/components/pressable";
+import { CustomPressable } from "@/components/profile/pressable";
 import { Colors } from "@/constants/theme";
 import { globalUserId, logout } from "@/utils/fetch-interceptor";
-import { deleteToken, getToken, saveRole } from "@/utils/secure-store";
+import { getToken, saveRole } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import Feather from "@expo/vector-icons/Feather";
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import axios from "axios";
 import { router } from "expo-router";
-import { Box, Center, Flex, HStack, Spinner, StatusBar, Text } from "native-base";
+import {
+  Box,
+  Center,
+  Flex,
+  HStack,
+  Spinner,
+  StatusBar,
+  Text,
+} from "native-base";
 import React, { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 
 type UserProfile = {
   username: string;
   image_url?: string;
-  profile_picture?: string;  // ✅ เพิ่ม profile_picture
+  profile_picture?: string; // ✅ เพิ่ม profile_picture
 };
 
 export default function ProfileScreen() {
@@ -57,7 +65,7 @@ export default function ProfileScreen() {
             image_url: res.data.profile_picture || res.data.image_url,
             profile_picture: res.data.profile_picture,
           });
-          
+
           // Save user role to secure store
           if (res.data.user_role) {
             await saveRole(res.data.user_role);
@@ -71,7 +79,9 @@ export default function ProfileScreen() {
     };
 
     fetchProfile();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // -------------------
@@ -82,7 +92,6 @@ export default function ProfileScreen() {
       console.log("[LOGOUT] global user id", globalUserId);
       setLoading(true);
       await logout();
-
     } catch (err) {
       console.log(err);
     } finally {
@@ -93,19 +102,19 @@ export default function ProfileScreen() {
   // ✅ สร้าง full URL สำหรับรูป
   const getImageUrl = () => {
     const imageUrl = user.profile_picture || user.image_url;
-    
+
     if (!imageUrl) return undefined;
-    
+
     // ถ้าเป็น URL เต็มอยู่แล้ว (http:// หรือ https://)
-    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
       return imageUrl;
     }
-    
+
     // ถ้าเป็น path แบบ /uploads/... ให้ต่อกับ DOMAIN
-    if (imageUrl.startsWith('/')) {
+    if (imageUrl.startsWith("/")) {
       return `${DOMAIN}${imageUrl}`;
     }
-    
+
     // ถ้าเป็น path แบบ uploads/... ให้ต่อกับ DOMAIN/
     return `${DOMAIN}/${imageUrl}`;
   };
@@ -116,21 +125,25 @@ export default function ProfileScreen() {
 
   return (
     <Flex flex={1}>
-      <StatusBar backgroundColor="#9c71ff" />
-      <Box safeAreaTop bg="violet.600" />
+      <StatusBar backgroundColor="#fff" />
+      <Box safeAreaTop bg="#7c3aed" />
 
       {/* Header */}
-      <Box bg="purple.700" borderBottomRadius={15} w="100%" py={4} px={4}>
+      <Box bg="#7c3aed" borderBottomRadius={15} w="100%" py={4} px={4}>
         <HStack width="100%" justifyContent="flex-end">
-          <Feather name="shopping-cart" size={25} color={themeColors.contrast} />
+          <Feather
+            name="shopping-cart"
+            size={25}
+            color={themeColors.contrast}
+          />
         </HStack>
 
         <HStack alignItems="center" style={{ gap: 5 }} mt={2}>
           {/* ✅ แสดงรูป profile picture */}
-          <Avartar 
-            size="md" 
-            bg="purple.500" 
-            imageUrl={profileImageUrl}  // ← ใช้ URL ที่ปรับแล้ว
+          <Avartar
+            size="md"
+            bg="#995ffd"
+            imageUrl={profileImageUrl} // ← ใช้ URL ที่ปรับแล้ว
             name={user.username}
           />
           <Text color={themeColors.contrast} fontSize="md">
@@ -150,10 +163,16 @@ export default function ProfileScreen() {
             mx={1}
             justifyContent="flex-start"
             title="แก้ไขโปรไฟล์"
-            icon={<MaterialCommunityIcons name="account-edit" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons
+                name="account-edit"
+                size={24}
+                color="black"
+              />
+            }
             iconPosition="left"
           />
-          
+
           {/* ปุ่มการซื้อของฉัน */}
           <CustomPressable
             onPress={() => router.push("/(profile)/orders" as any)}
@@ -162,20 +181,28 @@ export default function ProfileScreen() {
             p={3}
             justifyContent="flex-start"
             title="การซื้อของฉัน"
-            icon={<MaterialCommunityIcons name="package-variant-closed" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons
+                name="package-variant-closed"
+                size={24}
+                color="black"
+              />
+            }
             iconPosition="left"
           />
-          
+
           <CustomPressable
             fontSize={12}
             mx={1}
             p={3}
             justifyContent="flex-start"
             title="ประวัติการซื้อ"
-            icon={<MaterialCommunityIcons name="history" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons name="history" size={24} color="black" />
+            }
             iconPosition="left"
           />
-          
+
           {/* ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
           <CustomPressable
             onPress={() => router.push("/(profile)/wishlist" as any)}
@@ -184,10 +211,12 @@ export default function ProfileScreen() {
             justifyContent="flex-start"
             fontSize={12}
             title="ถูกใจ"
-            icon={<MaterialCommunityIcons name="heart" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons name="heart" size={24} color="black" />
+            }
             iconPosition="left"
           />
-          
+
           <CustomPressable
             onPress={() => router.push("/(store)/create-store")}
             mx={1}
@@ -195,7 +224,9 @@ export default function ProfileScreen() {
             justifyContent="flex-start"
             fontSize={12}
             title="สมัครเป็นร้านค้า"
-            icon={<MaterialCommunityIcons name="store" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons name="store" size={24} color="black" />
+            }
             iconPosition="left"
             rolesAllowed={["user"]}
           />
@@ -207,7 +238,9 @@ export default function ProfileScreen() {
             justifyContent="flex-start"
             fontSize={12}
             title="ร้านค้าของฉัน"
-            icon={<MaterialCommunityIcons name="store" size={24} color="black" />}
+            icon={
+              <MaterialCommunityIcons name="store" size={24} color="black" />
+            }
             iconPosition="left"
             rolesAllowed={["seller"]}
           />
@@ -221,7 +254,9 @@ export default function ProfileScreen() {
           p={3}
           justifyContent="flex-start"
           title="ออกจากระบบ"
-          icon={<MaterialCommunityIcons name="logout" size={24} color="purple" />}
+          icon={
+            <MaterialCommunityIcons name="logout" size={24} color="purple" />
+          }
           iconPosition="left"
         />
       </Flex>

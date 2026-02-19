@@ -2,7 +2,12 @@ import { DOMAIN } from "@/้host";
 import { useRouter } from "expo-router";
 import { Box, Button, HStack, Text } from "native-base";
 import { useState } from "react";
-import { Text as RNText, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  Text as RNText,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function Register() {
   const router = useRouter();
@@ -15,7 +20,8 @@ export default function Register() {
     phone_number: "",
   });
 
-  const { username, password, email, first_name, last_name, phone_number } = formData;
+  const { username, password, email, first_name, last_name, phone_number } =
+    formData;
 
   const setField = (field: string, value: string) => {
     console.log(`[Register] Setting field: ${field} = ${value}`);
@@ -98,10 +104,8 @@ export default function Register() {
         return;
       }
 
-
       const data = await res.json();
       console.log("[Register] Registration successful:", data);
-
 
       // ✅ ล้าง error หลัง success
       setError({
@@ -131,10 +135,13 @@ export default function Register() {
         }
       }
 
-      const passwordError = errorData?.detail?.find((e: any) => e.loc.includes("password"))?.msg || "";
-      const emailError = errorData?.detail?.find((e: any) => e.loc.includes("email"))?.msg || "";
+      const passwordError =
+        errorData?.detail?.find((e: any) => e.loc.includes("password"))?.msg ||
+        "";
+      const emailError =
+        errorData?.detail?.find((e: any) => e.loc.includes("email"))?.msg || "";
 
-      setError(prev => ({
+      setError((prev) => ({
         ...prev,
         password: passwordError,
         email: emailError,
@@ -145,7 +152,13 @@ export default function Register() {
   };
 
   return (
-    <Box flex={1} justifyContent="space-between" flexDirection={"column"} padding={4} paddingTop={12}>
+    <Box
+      flex={1}
+      justifyContent="space-between"
+      flexDirection={"column"}
+      padding={4}
+      paddingTop={12}
+    >
       <Box style={{ flex: 1, width: "100%", alignItems: "center", gap: 30 }}>
         <RNText style={{ fontSize: 32 }}>ClosetX</RNText>
         <Box style={{ gap: 2 }}>
@@ -166,7 +179,11 @@ export default function Register() {
                 borderRadius: 5,
               }}
             />
-            {error.username !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.username}</Text>}
+            {error.username !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>
+                {error.username}
+              </Text>
+            )}
 
             <TextInput
               placeholder="Email"
@@ -179,7 +196,9 @@ export default function Register() {
                 borderRadius: 5,
               }}
             />
-            {error.email !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.email}</Text>}
+            {error.email !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>{error.email}</Text>
+            )}
 
             <TextInput
               placeholder="Password"
@@ -193,7 +212,11 @@ export default function Register() {
                 borderRadius: 5,
               }}
             />
-            {error.password !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.password}</Text>}
+            {error.password !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>
+                {error.password}
+              </Text>
+            )}
           </Box>
 
           <Box>
@@ -224,8 +247,16 @@ export default function Register() {
                 }}
               />
             </HStack>
-            {error.first_name !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.first_name}</Text>}
-            {error.last_name !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.last_name}</Text>}
+            {error.first_name !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>
+                {error.first_name}
+              </Text>
+            )}
+            {error.last_name !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>
+                {error.last_name}
+              </Text>
+            )}
 
             <TextInput
               placeholder="Phone"
@@ -238,7 +269,11 @@ export default function Register() {
                 borderRadius: 5,
               }}
             />
-            {error.phone_number !== "" && <Text style={{ color: "red", fontSize: 10 }}>{error.phone_number}</Text>}
+            {error.phone_number !== "" && (
+              <Text style={{ color: "red", fontSize: 10 }}>
+                {error.phone_number}
+              </Text>
+            )}
           </Box>
         </Box>
       </Box>
@@ -249,7 +284,12 @@ export default function Register() {
             <Text color="blue.500">มีบัญชีแล้ว</Text>
           </TouchableOpacity>
         </Box>
-        <Button py={3} onPress={handleRegister} color={"#8b0ff8"} isLoading={loading}>
+        <Button
+          py={3}
+          onPress={handleRegister}
+          color={"#8b0ff8"}
+          isLoading={loading}
+        >
           <Text fontSize={16} color={"white"}>
             สมัครสมาชิก
           </Text>

@@ -12,8 +12,8 @@ import {
   ScrollView,
 } from "react-native";
 
-import { UnifiedRow } from "@/components/addproduct-form";
-import { AddProductForm, FormImagesField } from "@/components/form";
+import { UnifiedRow } from "@/components/product/addproduct-form";
+import { AddProductForm, FormImagesField } from "@/components/product/form";
 import { AppBarNoCheck } from "@/components/navbar";
 import PreviewModal from "@/components/preview-modal";
 import { VariantOption } from "@/types/variant";
@@ -652,6 +652,7 @@ const loadCategories = async () => {
             name_option: opt.name,
             price_delta: opt.priceDelta ?? 0,
             stock: opt.stock ?? 0,
+            weight_grams: (opt as any).weight_grams ?? 500,
             images: [
               opt.displayImageId && {
                 image_id: opt.displayImageId,

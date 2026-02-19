@@ -72,6 +72,7 @@ class ProductVariant(Base):
     sku = Column(String(100), nullable=False)
     price = Column(Float, nullable=False)
     stock = Column(Integer, default=0)
+    weight_grams = Column(Integer, nullable=True, default=500)
     is_active = Column(Boolean, default=True)
     # ควรจะมี variant name หรือ variant option เพื่อบอกว่ามันคือ ไซส์หรือสีแทนที่จะเป็น color กับ size นะ
 
@@ -194,7 +195,3 @@ class VTONSession(Base):
     garment = relationship("GarmentImage", back_populates="vton_sessions")
     background = relationship("VTONBackground", back_populates="sessions")
     # reviews = relationship("Review", back_populates="product", cascade="all, delete-orphan")
-    
-
-
-    

@@ -24,7 +24,7 @@ export const BackgroundSelector: React.FC<BackgroundSelectorProps> = ({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [3, 4], // ✅ ปรับสัดส่วนตอนเลือกรูปเป็น 3:4
+      // aspect: [3, 4], // ✅ ปรับสัดส่วนตอนเลือกรูปเป็น 3:4
       quality: 0.7
     });
 

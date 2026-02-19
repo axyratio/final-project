@@ -13,6 +13,7 @@ import {
 } from "@/api/user-management";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Box } from "native-base";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -310,6 +311,7 @@ export default function ManageUsersScreen() {
 
   return (
     <View style={styles.container}>
+      <Box safeAreaTop bg="#fff" />
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}

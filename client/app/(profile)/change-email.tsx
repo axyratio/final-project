@@ -1,5 +1,5 @@
 // app/(profile)/change-email.tsx
-import { AppBar } from "@/components/navbar";
+import { AppBarNoCheck } from "@/components/navbar";
 import { useProfileContext } from "@/context/Refresh";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
@@ -9,13 +9,13 @@ import { useRouter } from "expo-router";
 import { Box } from "native-base";
 import { useState } from "react";
 import {
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    ScrollView,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function ChangeEmailScreen() {
@@ -116,12 +116,21 @@ export default function ChangeEmailScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar 
-        title="เปลี่ยนอีเมล" 
-        onSave={handleChangeEmail}
+      <AppBarNoCheck
+        title="เปลี่ยนอีเมล"
+        actions={[
+          {
+            iconName: "check",
+            accessibilityLabel: "บันทึก",
+            onPress: handleChangeEmail,
+          },
+        ]}
       />
 
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
+      >
         <Box style={styles.container}>
           {/* คำอธิบาย */}
           <View style={styles.infoBox}>
@@ -160,7 +169,10 @@ export default function ChangeEmailScreen() {
             <Text style={styles.label}>รหัสผ่าน *</Text>
             <View style={styles.passwordContainer}>
               <TextInput
-                style={[styles.passwordInput, passwordError && styles.inputError]}
+                style={[
+                  styles.passwordInput,
+                  passwordError && styles.inputError,
+                ]}
                 value={password}
                 onChangeText={(text) => {
                   setPassword(text);
@@ -187,17 +199,6 @@ export default function ChangeEmailScreen() {
           </View>
 
           {/* คำเตือน */}
-          <View style={styles.warningBox}>
-            <MaterialCommunityIcons
-              name="alert-circle"
-              size={20}
-              color="#f59e0b"
-            />
-            <Text style={styles.warningText}>
-              การเปลี่ยนอีเมลจะมีผลทันที
-              และคุณจะต้องใช้อีเมลใหม่ในการเข้าสู่ระบบครั้งถัดไป
-            </Text>
-          </View>
         </Box>
       </ScrollView>
     </View>

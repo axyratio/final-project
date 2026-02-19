@@ -1,21 +1,21 @@
 // app/(admin)/store-detail.tsx
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
-  Image,
-  FlatList,
-} from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { Box } from "native-base";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface StoreDetail {
   store_id: string;
@@ -76,6 +76,7 @@ export default function StoreDetail() {
         },
       });
       const result = await response.json();
+      console.log("[Store detail]", result.data);
       if (result.success) {
         setStore(result.data);
       } else {
@@ -100,7 +101,7 @@ export default function StoreDetail() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
       const result = await response.json();
       if (result.success) {
@@ -146,7 +147,7 @@ export default function StoreDetail() {
                     Authorization: `Bearer ${token}`,
                   },
                   body: formData,
-                }
+                },
               );
               const result = await response.json();
               if (result.success) {
@@ -160,11 +161,12 @@ export default function StoreDetail() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const handleEditStore = () => {
+    console.log("[Store detail] edit store", store?.store_id);
     if (!store) return;
     router.push({
       pathname: "/(store)/edit-store",
@@ -202,7 +204,7 @@ export default function StoreDetail() {
                     Authorization: `Bearer ${token}`,
                   },
                   body: formData,
-                }
+                },
               );
               const result = await response.json();
               if (result.success) {
@@ -216,13 +218,13 @@ export default function StoreDetail() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const handleEditProduct = (productId: string) => {
     router.push({
-      pathname: "/(store)/edit-product",
+      pathname: "/(store)/edit-product" as any,
       params: {
         productId: productId,
         storeId: storeId,
@@ -257,6 +259,8 @@ export default function StoreDetail() {
   return (
     <View style={styles.container}>
       {/* Header */}
+      <Box safeAreaTop></Box>
+
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity onPress={() => router.back()}>
@@ -469,17 +473,17 @@ export default function StoreDetail() {
                         {product.is_draft
                           ? "แบบร่าง"
                           : product.is_active
-                          ? "เปิดขาย"
-                          : "ปิดขาย"}
+                            ? "เปิดขาย"
+                            : "ปิดขาย"}
                       </Text>
                     </View>
                   </View>
                   <View style={styles.productActions}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       onPress={() => handleEditProduct(product.product_id)}
                     >
                       <Ionicons name="create" size={24} color="#3b82f6" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                     {!product.is_draft && (
                       <TouchableOpacity
                         onPress={() => handleToggleProduct(product)}

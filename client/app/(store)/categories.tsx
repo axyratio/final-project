@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Box } from "native-base";
 import React from "react";
 
-import CategoryList, { Category } from "@/components/category";
+import CategoryList, { Category } from "@/components/store/category";
 import { AppBarNoCheck } from "@/components/navbar";
 
 export default function CategoriesScreen() {

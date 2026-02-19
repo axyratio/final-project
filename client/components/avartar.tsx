@@ -4,7 +4,18 @@ import React, { ComponentProps } from "react";
 type AvartarProps = ComponentProps<typeof Avatar> & {
   name?: string;
   imageUrl?: string;
-  size?: number | "2xs" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "4xl" | "5xl";
+  size?:
+    | number
+    | "2xs"
+    | "xs"
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "5xl";
 };
 
 export const Avartar: React.FC<AvartarProps> = ({

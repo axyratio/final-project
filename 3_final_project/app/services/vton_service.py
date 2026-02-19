@@ -12,6 +12,7 @@ from typing import Optional
 from uuid import UUID
 from io import BytesIO
 from PIL import Image
+from rembg import remove
 
 from fastapi import UploadFile
 from sqlalchemy.orm import Session
@@ -28,6 +29,47 @@ from app.utils.response_handler import success_response, error_response
 
 class VTONService:
     """Service สำหรับจัดการ Virtual Try-On"""
+
+    # ==================== IMAGE PROCESSING (REMBG) ====================
+
+    @staticmethod
+    def _process_image_rembg(
+        file_bytes: bytes,
+        max_size: int = 1024,
+        padding: int = 30
+    ) -> bytes:
+        """
+        ลบพื้นหลัง, crop, resize, จัดกึ่งกลาง และเพิ่ม padding
+        คืนค่า bytes ของ PNG ที่พร้อมบันทึก
+        """
+        # 1. ลบพื้นหลังด้วย rembg
+        removed = remove(file_bytes)
+        img = Image.open(BytesIO(removed)).convert("RGBA")
+
+        # 2. crop เฉพาะส่วนวัตถุ
+        bbox = img.getbbox()
+        if not bbox:
+            # ถ้าไม่พบวัตถุ คืนค่ารูปเดิมในรูปแบบ PNG
+            buf = BytesIO()
+            img.save(buf, "PNG")
+            return buf.getvalue()
+
+        cropped = img.crop(bbox)
+
+        # 3. resize ให้ด้านที่ยาวที่สุดไม่เกิน (max_size - padding*2)
+        inner_max = max_size - (padding * 2)
+        cropped.thumbnail((inner_max, inner_max), Image.Resampling.LANCZOS)
+
+        # 4. สร้าง canvas ใหม่พร้อม padding และจัดวัตถุกึ่งกลาง
+        canvas_w = cropped.width + (padding * 2)
+        canvas_h = cropped.height + (padding * 2)
+        final = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        final.paste(cropped, (padding, padding), cropped)
+
+        # 5. คืนค่าเป็น bytes (PNG)
+        buf = BytesIO()
+        final.save(buf, "PNG")
+        return buf.getvalue()
 
     # ==================== IDM VTON API ====================
     
@@ -238,7 +280,7 @@ class VTONService:
         user: User,
         file: UploadFile
     ):
-        """อัปโหลดรูปโมเดลของผู้ใช้"""
+        """อัปโหลดรูปโมเดลของผู้ใช้ (บันทึกรูปต้นฉบับ ไม่ลบพื้นหลัง)"""
         saved_path = None
         try:
             if not file.content_type or not file.content_type.startswith("image/"):
@@ -353,7 +395,7 @@ class VTONService:
         file: UploadFile,
         name: Optional[str] = None
     ):
-        """อัปโหลดรูปเสื้อผ้า (Outfit) ที่ไม่เกี่ยวกับ Product"""
+        """อัปโหลดรูปเสื้อผ้า (Outfit) ที่ไม่เกี่ยวกับ Product (พร้อมลบพื้นหลังอัตโนมัติด้วย rembg)"""
         saved_path = None
         try:
             if not file.content_type or not file.content_type.startswith("image/"):
@@ -363,13 +405,19 @@ class VTONService:
             if len(content) > 5 * 1024 * 1024:
                 return error_response("ขนาดไฟล์ต้องไม่เกิน 5MB", {}, 413)
 
-            file.file.seek(0)
+            # ✅ ลบพื้นหลัง, crop, resize และจัดกึ่งกลางด้วย rembg
+            print("🔄 Processing garment image with rembg (background removal)...")
+            processed_bytes = VTONService._process_image_rembg(content, max_size=1024, padding=30)
+            print("✅ Background removal complete for garment image")
 
             upload_dir = "app/uploads/vton/garments"
-            ext = os.path.splitext(file.filename or "")[1] or ".jpg"
-            unique_name = f"{uuid.uuid4().hex}{ext}"
+            unique_name = f"{uuid.uuid4().hex}.png"  # บันทึกเป็น PNG เพื่อรักษา transparency
 
-            saved_path = save_file(upload_dir, file, unique_name)
+            fake_upload_file = UploadFile(
+                file=BytesIO(processed_bytes),
+                filename=unique_name
+            )
+            saved_path = save_file(upload_dir, fake_upload_file, unique_name)
 
             new_garment = GarmentImage(
                 user_id=user.user_id,

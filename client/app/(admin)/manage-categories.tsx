@@ -1,28 +1,29 @@
 // client/app/(admin)/manage-categories-enhanced.tsx
-import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  Alert,
-  Modal,
-  TextInput,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import { useRouter } from "expo-router";
+  Category,
+  createCategory,
+  deleteCategory,
+  getAllCategories,
+  updateCategory,
+} from "@/api/admin-category";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
+import { Box } from "native-base";
+import React, { useEffect, useState } from "react";
 import {
-  getAllCategories,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  Category,
-} from "@/api/admin-category";
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function ManageCategoriesScreen() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function ManageCategoriesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
+    null,
   );
 
   // Form states
@@ -158,7 +159,7 @@ export default function ManageCategoriesScreen() {
 
         const response = await updateCategory(
           selectedCategory.category_id,
-          updateData
+          updateData,
         );
 
         if (response.success) {
@@ -171,8 +172,8 @@ export default function ManageCategoriesScreen() {
                     ...response.data,
                     product_count: cat.product_count, // เก็บจำนวนสินค้าเดิม
                   }
-                : cat
-            )
+                : cat,
+            ),
           );
 
           Alert.alert("สำเร็จ", "อัพเดทหมวดหมู่เรียบร้อยแล้ว");
@@ -226,14 +227,11 @@ export default function ManageCategoriesScreen() {
           prev.map((cat) =>
             cat.category_id === category.category_id
               ? { ...cat, is_active: newStatus }
-              : cat
-          )
+              : cat,
+          ),
         );
 
-        Alert.alert(
-          "สำเร็จ",
-          newStatus ? "เปิดใช้งานแล้ว" : "ปิดใช้งานแล้ว"
-        );
+        Alert.alert("สำเร็จ", newStatus ? "เปิดใช้งานแล้ว" : "ปิดใช้งานแล้ว");
       }
     } catch (error) {
       Alert.alert("ข้อผิดพลาด", "ไม่สามารถเปลี่ยนสถานะได้");
@@ -258,7 +256,7 @@ export default function ManageCategoriesScreen() {
               const hardDelete = category.product_count === 0;
               const response = await deleteCategory(
                 category.category_id,
-                hardDelete
+                hardDelete,
               );
 
               if (response.success) {
@@ -266,7 +264,9 @@ export default function ManageCategoriesScreen() {
                 if (hardDelete) {
                   // Hard delete - ลบออกจาก list
                   setCategories((prev) =>
-                    prev.filter((cat) => cat.category_id !== category.category_id)
+                    prev.filter(
+                      (cat) => cat.category_id !== category.category_id,
+                    ),
                   );
                 } else {
                   // Soft delete - เปลี่ยนเป็น inactive
@@ -274,24 +274,21 @@ export default function ManageCategoriesScreen() {
                     prev.map((cat) =>
                       cat.category_id === category.category_id
                         ? { ...cat, is_active: false }
-                        : cat
-                    )
+                        : cat,
+                    ),
                   );
                 }
 
                 Alert.alert("สำเร็จ", response.message);
               } else {
-                Alert.alert(
-                  "ข้อผิดพลาด",
-                  response.message || "ไม่สามารถลบได้"
-                );
+                Alert.alert("ข้อผิดพลาด", response.message || "ไม่สามารถลบได้");
               }
             } catch (error) {
               Alert.alert("ข้อผิดพลาด", "เกิดข้อผิดพลาดในการลบ");
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -379,6 +376,7 @@ export default function ManageCategoriesScreen() {
 
   return (
     <View style={styles.container}>
+      <Box safeArea bg="#fff" />
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -421,7 +419,7 @@ export default function ManageCategoriesScreen() {
         <View style={styles.modalContainer}>
           {/* Modal Header */}
           <View style={styles.modalHeader}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setModalVisible(false)}
               disabled={submitting}
             >
@@ -430,7 +428,7 @@ export default function ManageCategoriesScreen() {
             <Text style={styles.modalTitle}>
               {editMode ? "แก้ไขหมวดหมู่" : "สร้างหมวดหมู่ใหม่"}
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={handleSubmit}
               disabled={submitting} // ✅ ปิดปุ่มตอน loading
             >
@@ -486,9 +484,7 @@ export default function ManageCategoriesScreen() {
               style={styles.input}
               placeholder="เช่น เสื้อยืด"
               value={formData.name}
-              onChangeText={(text) =>
-                setFormData({ ...formData, name: text })
-              }
+              onChangeText={(text) => setFormData({ ...formData, name: text })}
               editable={!submitting}
             />
 

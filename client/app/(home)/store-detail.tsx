@@ -1,7 +1,7 @@
 // app/(home)/store-detail.tsx
 import { HomeProduct } from "@/api/home";
 import { createReport } from "@/api/report";
-import { HomeProductGrid } from "@/components/grid"; // ✅ Reuse
+import { HomeProductGrid } from "@/components/product/grid"; // ✅ Reuse
 import ReportModal from "@/components/report/report-modal";
 import { DOMAIN } from "@/้host";
 import { Ionicons } from "@expo/vector-icons";

@@ -1,12 +1,15 @@
 // app/(store)/my-store.tsx
-import ProductCard, { CategoryCard } from "@/components/card";
-import StoreHeader from "@/components/header";
-import { AppBarMore, AppBarNoCheck } from "@/components/navbar";
-import MyTabs from "@/components/tab";
+import { CategoryCard } from "@/components/category/card";
+import { AppBarNoCheck } from "@/components/navbar";
+import StoreHeader from "@/components/store/header";
+import MyTabs from "@/components/store/tab";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 
-import { StoreProductItem as ClosedProductItem, ProductAPIService } from "@/api/products";
+import {
+  StoreProductItem as ClosedProductItem,
+  ProductAPIService,
+} from "@/api/products";
 
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
@@ -14,7 +17,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Box, Center, Spinner, Text } from "native-base";
 import React, { useCallback, useEffect, useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import ProductCard from "@/components/product/card";
 
 type StoreInfo = {
   store_id: string;
@@ -36,7 +46,9 @@ type StoreProductItem = {
 
 export default function MyStoreScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ initialTab?: "products" | "categories" | "closed" }>();
+  const params = useLocalSearchParams<{
+    initialTab?: "products" | "categories" | "closed";
+  }>();
   const isFocused = useIsFocused();
 
   const [store, setStore] = useState<StoreInfo | null>(null);
@@ -148,7 +160,9 @@ export default function MyStoreScreen() {
     <ScrollView
       contentContainerStyle={styles.productListContainer}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       {products.length === 0 ? (
         <Text textAlign="center" color="gray.400">
@@ -182,18 +196,23 @@ export default function MyStoreScreen() {
   );
 
   // TAB 2: หมวดหมู่ (เอาจากสินค้ากำลังขาย)
-  const productsByCategory = products.reduce((acc, product) => {
-    const categoryName = product.category || "ไม่มีหมวดหมู่";
-    if (!acc[categoryName]) acc[categoryName] = [];
-    acc[categoryName].push(product);
-    return acc;
-  }, {} as Record<string, StoreProductItem[]>);
+  const productsByCategory = products.reduce(
+    (acc, product) => {
+      const categoryName = product.category || "ไม่มีหมวดหมู่";
+      if (!acc[categoryName]) acc[categoryName] = [];
+      acc[categoryName].push(product);
+      return acc;
+    },
+    {} as Record<string, StoreProductItem[]>,
+  );
 
   const categoryTabContent = (
     <ScrollView
       contentContainerStyle={styles.productListContainer}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       <View style={styles.productGrid}>
         {Object.keys(productsByCategory).map((categoryName) => {
@@ -210,7 +229,9 @@ export default function MyStoreScreen() {
               productCount={categoryProducts.length}
               coverImageUrl={coverImageUrl}
               onPress={() => {
-                router.replace(`/(store)/category-tab?categoryName=${encodeURIComponent(categoryName)}`);
+                router.replace(
+                  `/(store)/category-tab?categoryName=${encodeURIComponent(categoryName)}`,
+                );
               }}
             />
           );
@@ -224,7 +245,9 @@ export default function MyStoreScreen() {
     <ScrollView
       contentContainerStyle={styles.productListContainer}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
     >
       {closedProducts.length === 0 ? (
         <Text textAlign="center" color="gray.400">
@@ -259,7 +282,7 @@ export default function MyStoreScreen() {
 
   return (
     <Box flex={1} bg="white">
-      <AppBarMore title="ร้านค้าของฉัน" />
+      <AppBarNoCheck title="ร้านค้าของฉัน" />
 
       <StoreHeader
         urlLogo={store?.logo_url}

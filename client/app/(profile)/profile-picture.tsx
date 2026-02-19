@@ -1,5 +1,5 @@
 // app/(profile)/profile-picture.tsx
-import { AppBar } from "@/components/navbar";
+import { AppBarNoCheck } from "@/components/navbar";
 import { useProfileContext } from "@/context/Refresh";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
@@ -204,7 +204,14 @@ export default function ProfilePictureScreen({ currentProfilePicture }: Props) {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar title="รูปโปรไฟล์" onSave={handleSave} />
+      <AppBarNoCheck
+        title="รูปโปรไฟล์"
+        actions={[{
+          iconName: "check",
+          accessibilityLabel: "บันทึก",
+          onPress: handleSave,
+        }]}
+      />
 
       <Box style={styles.container}>
         {/* แสดงรูปโปรไฟล์ */}

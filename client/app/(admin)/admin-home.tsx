@@ -2,6 +2,7 @@
 import { deleteRole, deleteToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Box } from "native-base";
 import {
   SafeAreaView,
   ScrollView,
@@ -66,6 +67,7 @@ export default function AdminHome() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
+      <Box safeAreaTop bg="#fff" />
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Admin Panel</Text>

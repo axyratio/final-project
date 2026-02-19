@@ -1,8 +1,8 @@
 // app/(profile)/wishlist.tsx
 import { fetchWishlist, toggleWishlist, WishlistItem } from "@/api/wishlist";
-import ProductCard from "@/components/card";
-import { DOMAIN } from "@/้host";
+import ProductCard from "@/components/category/card";
 import { getToken } from "@/utils/secure-store";
+import { DOMAIN } from "@/้host";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import {
@@ -26,7 +26,9 @@ export default function WishlistScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
   // ✅ เก็บสถานะ wishlist แบบ local
-  const [wishlistStates, setWishlistStates] = useState<Record<string, boolean>>({});
+  const [wishlistStates, setWishlistStates] = useState<Record<string, boolean>>(
+    {},
+  );
 
   useEffect(() => {
     loadWishlist();
@@ -43,10 +45,10 @@ export default function WishlistScreen() {
       const data = await fetchWishlist(token);
       setItems(data.items);
       setTotal(data.total);
-      
+
       // ✅ ตั้งค่าสถานะ wishlist เป็น true ทั้งหมด
       const states: Record<string, boolean> = {};
-      data.items.forEach(item => {
+      data.items.forEach((item) => {
         states[item.product_id] = true;
       });
       setWishlistStates(states);
@@ -62,20 +64,22 @@ export default function WishlistScreen() {
   const handleToggleFavorite = async (productId: string) => {
     // อัปเดต UI ทันที (ไม่ต้องรอ API)
     const newState = !wishlistStates[productId];
-    setWishlistStates(prev => ({
+    setWishlistStates((prev) => ({
       ...prev,
-      [productId]: newState
+      [productId]: newState,
     }));
 
     // ลบ toast เก่าทั้งหมดก่อนแสดงอันใหม่
     toast.closeAll();
-    
+
     // รอนิดนึงให้ toast เก่าหายสนิท แล้วค่อยแสดงอันใหม่
     setTimeout(() => {
-      toast.show({ 
-        description: newState ? "เพิ่มในรายการโปรดแล้ว" : "ลบออกจากรายการโปรดแล้ว", 
-        duration: 1500, 
-        bg: newState ? "violet.600" : "gray.600" 
+      toast.show({
+        description: newState
+          ? "เพิ่มในรายการโปรดแล้ว"
+          : "ลบออกจากรายการโปรดแล้ว",
+        duration: 1500,
+        bg: newState ? "violet.600" : "gray.600",
       });
     }, 100);
 
@@ -83,7 +87,7 @@ export default function WishlistScreen() {
     try {
       const token = await getToken();
       if (token) {
-        toggleWishlist(token, productId).catch(err => {
+        toggleWishlist(token, productId).catch((err) => {
           console.error("Error toggling wishlist:", err);
         });
       }
@@ -154,10 +158,10 @@ export default function WishlistScreen() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl 
-              refreshing={refreshing} 
-              onRefresh={onRefresh} 
-              colors={["#7c3aed"]} 
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#7c3aed"]}
             />
           }
         >

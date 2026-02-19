@@ -28,6 +28,21 @@ from app.utils.order_task import check_order_timeout
 RESERVATION_MINUTES = 30
 
 
+def _calc_shipping_fee(total_weight_grams: int) -> float:
+    if total_weight_grams <= 500:
+        return 38.0
+    elif total_weight_grams <= 1000:
+        return 50.0
+    elif total_weight_grams <= 2000:
+        return 60.0
+    elif total_weight_grams <= 5000:
+        return 80.0
+    elif total_weight_grams <= 10000:
+        return 120.0
+    else:
+        return 160.0
+
+
 class CheckoutService:
 
     @staticmethod
@@ -189,6 +204,9 @@ class CheckoutService:
 
             for store_id, store_items in items_by_store.items():
                 order_total = sum(i["unit_price"] * i["quantity"] for i in store_items)
+                total_weight = sum((i["variant"].weight_grams or 500) * i["quantity"] for i in store_items)
+                shipping_fee = _calc_shipping_fee(total_weight)
+                order_total += shipping_fee
                 order = Order(
                     user_id=user.user_id,
                     store_id=store_id,
@@ -246,6 +264,20 @@ class CheckoutService:
                         "product_data": {"name": f"{item['product'].product_name} - {item['variant'].name_option}"},
                     },
                     "quantity": item["quantity"],
+                })
+
+            # shipping per store
+            for store_id, store_items in items_by_store.items():
+                store_name = store_items[0]["store"].name
+                total_weight = sum((i["variant"].weight_grams or 500) * i["quantity"] for i in store_items)
+                shipping_fee = _calc_shipping_fee(total_weight)
+                line_items.append({
+                    "price_data": {
+                        "currency": "thb",
+                        "unit_amount": int(shipping_fee * 100),
+                        "product_data": {"name": f"ค่าจัดส่ง ({store_name})"},
+                    },
+                    "quantity": 1,
                 })
 
             session = stripe.checkout.Session.create(

@@ -10,9 +10,9 @@ import {
   HomeProduct,
 } from "@/api/home";
 import { HomeBannerSlider } from "@/components/banner";
-import { HomeCategoryList } from "@/components/category-list";
-import { HomeProductGrid } from "@/components/grid";
+import { HomeCategoryList } from "@/components/category/category-list";
 import { HomeNavbar } from "@/components/navbar";
+import { HomeProductGrid } from "@/components/product/grid";
 import { useRouter } from "expo-router";
 
 export default function HomeScreen() {
@@ -21,7 +21,7 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<HomeCategory[]>([]);
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const router = useRouter();
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function HomeScreen() {
     if (trimmedSearch) {
       router.push({
         pathname: "/(home)/search",
-        params: { q: trimmedSearch }
+        params: { q: trimmedSearch },
       } as any);
     } else {
       // ถ้าไม่มีคำค้นหา ให้ไปหน้าค้นหาทั้งหมด

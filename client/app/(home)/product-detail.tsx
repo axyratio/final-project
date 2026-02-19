@@ -9,29 +9,32 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
-  View,
   ScrollView,
+  View,
 } from "react-native";
 
 import { addToCart, getCartSummary } from "@/api/cart";
+import { chatAPI } from "@/api/chat";
+import { closetApi } from "@/api/closet";
 import {
   getProductDetail,
   ProductDetailDto,
   ProductVariantDto,
 } from "@/api/products";
+import { createReport } from "@/api/report";
+import { IconWithBadge } from "@/components/icon";
+import {
+  ProductMainImage,
+  ProductThumbnailStrip,
+} from "@/components/product/image-selector";
+import ReportModal from "@/components/report/report-modal";
+import { ReviewPreviewSection } from "@/components/review/header";
 import {
   ExpandableDescription,
   ProductHeader,
   StoreHeaderProductDetail,
-} from "@/components/header";
-import { IconWithBadge } from "@/components/icon";
-import { ProductMainImage, ProductThumbnailStrip } from "@/components/image";
-import { ModalMode, VariantSelectModal } from "@/components/modal";
-import { ReviewPreviewSection } from "@/components/review/header";
-import ReportModal from "@/components/report/report-modal";
-import { createReport } from "@/api/report";
-import { chatAPI } from "@/api/chat";
-import { closetApi } from "@/api/closet";
+} from "@/components/store/header";
+import { ModalMode, VariantSelectModal } from "@/components/variant/modal";
 
 export default function ProductDetailScreen() {
   const router = useRouter();

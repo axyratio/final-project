@@ -85,6 +85,7 @@ export default function TabLayout() {
         options={{
           title: "Home",
           tabBarLabel: "หน้าแรก",
+          href: "/(tabs)",
           tabBarIcon: ({ color }) => (
             <IconSymbol size={28} name="house.fill" color={color} />
           ),
@@ -96,6 +97,7 @@ export default function TabLayout() {
         options={{
           title: "แชท",
           tabBarLabel: "แชท",
+          href: "/chat", // ใช้ href เพื่อให้แน่ใจว่า navigation เป็นแบบ full reload (ไม่ใช่ client-side) ซึ่งจะทำให้ badge อัปเดตถูกต้องเมื่อกลับมาที่ tab นี้
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? "chatbubbles" : "chatbubbles-outline"}
@@ -147,6 +149,7 @@ export default function TabLayout() {
         options={{
           title: "โปรไฟล์",
           tabBarLabel: "โปรไฟล์",
+          href: "/(tabs)/profile", // ใช้ href เพื่อให้แน่ใจว่า navigation เป็นแบบ full reload (ไม่ใช่ client-side) ซึ่งจะทำให้ badge อัปเดตถูกต้องเมื่อกลับมาที่ tab นี้
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? "person" : "person-outline"}

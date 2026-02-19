@@ -1,31 +1,32 @@
 // app/(admin)/dashboard.tsx
-import React, { useState, useEffect } from 'react';
+import CategoryChart from "@/components/admin_dashboard/category-chart";
+import DashboardOverviewCardEnhanced from "@/components/admin_dashboard/dashboard-overview-card";
+import LowStockCard from "@/components/admin_dashboard/low-stock";
+import OrderStatusCardEnhanced from "@/components/admin_dashboard/order-status-card";
+import PaymentMethodChart from "@/components/admin_dashboard/payment-method-chart";
+import RatingCard from "@/components/admin_dashboard/rating-card";
+import SalesChart from "@/components/admin_dashboard/sale-chart";
+import VTONUsageCard from "@/components/admin_dashboard/vton-usage-card";
+import { AppBarNoCheck } from "@/components/navbar";
+import { getToken } from "@/utils/secure-store";
+import { DOMAIN } from "@/้host";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
-  RefreshControl,
+  Text,
   TouchableOpacity,
-  ActivityIndicator
-} from 'react-native';
-import { getToken } from '@/utils/secure-store';
-import { DOMAIN } from '@/้host';
-import DashboardOverviewCardEnhanced from '@/components/admin_dashboard/dashboard-overview-card';
-import SalesChart from '@/components/admin_dashboard/sale-chart';
-import CategoryChart from '@/components/admin_dashboard/category-chart';
-import PaymentMethodChart from '@/components/admin_dashboard/payment-method-chart';
-import OrderStatusCardEnhanced from '@/components/admin_dashboard/order-status-card';
-import VTONUsageCard from '@/components/admin_dashboard/vton-usage-card';
-import LowStockCard from '@/components/admin_dashboard/low-stock';
-import RatingCard from '@/components/admin_dashboard/rating-card';
+  View,
+} from "react-native";
 
-type SalesPeriod = 'daily' | 'weekly' | 'monthly';
+type SalesPeriod = "daily" | "weekly" | "monthly";
 
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<SalesPeriod>('daily');
+  const [selectedPeriod, setSelectedPeriod] = useState<SalesPeriod>("daily");
   const [loadingSales, setLoadingSales] = useState(false); // เพิ่ม loading สำหรับกราฟ
 
   // State for all dashboard data
@@ -56,16 +57,20 @@ export default function Dashboard() {
         orderRes,
         vtonRes,
         stockRes,
-        ratingsRes
+        ratingsRes,
       ] = await Promise.all([
         fetch(`${DOMAIN}/admin/dashboard/overview`, { headers }),
         fetch(`${DOMAIN}/admin/dashboard/products-by-category`, { headers }),
-        fetch(`${DOMAIN}/admin/dashboard/sales?period=${selectedPeriod}`, { headers }),
+        fetch(`${DOMAIN}/admin/dashboard/sales?period=${selectedPeriod}`, {
+          headers,
+        }),
         fetch(`${DOMAIN}/admin/dashboard/payment-methods`, { headers }),
         fetch(`${DOMAIN}/admin/dashboard/order-status`, { headers }),
         fetch(`${DOMAIN}/admin/dashboard/vton-usage`, { headers }),
-        fetch(`${DOMAIN}/admin/dashboard/low-stock-products?threshold=10`, { headers }),
-        fetch(`${DOMAIN}/admin/dashboard/ratings`, { headers })
+        fetch(`${DOMAIN}/admin/dashboard/low-stock-products?threshold=10`, {
+          headers,
+        }),
+        fetch(`${DOMAIN}/admin/dashboard/ratings`, { headers }),
       ]);
 
       const [
@@ -76,7 +81,7 @@ export default function Dashboard() {
         orderData,
         vtonData,
         stockData,
-        ratingsData
+        ratingsData,
       ] = await Promise.all([
         overviewRes.json(),
         categoriesRes.json(),
@@ -85,7 +90,7 @@ export default function Dashboard() {
         orderRes.json(),
         vtonRes.json(),
         stockRes.json(),
-        ratingsRes.json()
+        ratingsRes.json(),
       ]);
 
       setOverview(overviewData.data);
@@ -97,7 +102,7 @@ export default function Dashboard() {
       setLowStock(stockData.data);
       setRatings(ratingsData.data);
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error("Error fetching dashboard data:", error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -115,13 +120,13 @@ export default function Dashboard() {
       const headers = { Authorization: `Bearer ${token}` };
       const response = await fetch(
         `${DOMAIN}/admin/dashboard/sales?period=${period}`,
-        { headers }
+        { headers },
       );
       const data = await response.json();
-      
+
       setSales(data.data);
     } catch (error) {
-      console.error('Error fetching sales data:', error);
+      console.error("Error fetching sales data:", error);
     } finally {
       setLoadingSales(false);
     }
@@ -164,11 +169,19 @@ export default function Dashboard() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      <AppBarNoCheck
+        title="แดชบอร์ดผู้ดูแลระบบ"
+        titleColor="#000"
+        backIconColor="#000"
+        backgroundColor="#fff"
+        fontWeight="bold"
+      ></AppBarNoCheck>
+
       {/* Header */}
-      <View style={styles.header}>
+      {/* <View style={styles.header}>
         <Text style={styles.headerTitle}>Admin Dashboard</Text>
         <Text style={styles.headerSubtitle}>ภาพรวมระบบ</Text>
-      </View>
+      </View> */}
 
       {/* Overview Cards */}
       {overview && <DashboardOverviewCardEnhanced data={overview} />}
@@ -180,14 +193,14 @@ export default function Dashboard() {
           <TouchableOpacity
             style={[
               styles.periodButton,
-              selectedPeriod === 'daily' && styles.periodButtonActive
+              selectedPeriod === "daily" && styles.periodButtonActive,
             ]}
-            onPress={() => handlePeriodChange('daily')}
+            onPress={() => handlePeriodChange("daily")}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                selectedPeriod === 'daily' && styles.periodButtonTextActive
+                selectedPeriod === "daily" && styles.periodButtonTextActive,
               ]}
             >
               รายวัน
@@ -196,14 +209,14 @@ export default function Dashboard() {
           <TouchableOpacity
             style={[
               styles.periodButton,
-              selectedPeriod === 'weekly' && styles.periodButtonActive
+              selectedPeriod === "weekly" && styles.periodButtonActive,
             ]}
-            onPress={() => handlePeriodChange('weekly')}
+            onPress={() => handlePeriodChange("weekly")}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                selectedPeriod === 'weekly' && styles.periodButtonTextActive
+                selectedPeriod === "weekly" && styles.periodButtonTextActive,
               ]}
             >
               รายสัปดาห์
@@ -212,21 +225,21 @@ export default function Dashboard() {
           <TouchableOpacity
             style={[
               styles.periodButton,
-              selectedPeriod === 'monthly' && styles.periodButtonActive
+              selectedPeriod === "monthly" && styles.periodButtonActive,
             ]}
-            onPress={() => handlePeriodChange('monthly')}
+            onPress={() => handlePeriodChange("monthly")}
           >
             <Text
               style={[
                 styles.periodButtonText,
-                selectedPeriod === 'monthly' && styles.periodButtonTextActive
+                selectedPeriod === "monthly" && styles.periodButtonTextActive,
               ]}
             >
               รายเดือน
             </Text>
           </TouchableOpacity>
         </View>
-        
+
         {/* ✅ แสดง loading indicator ตอนกำลังโหลดกราฟ */}
         {loadingSales ? (
           <View style={styles.chartLoadingContainer}>
@@ -287,91 +300,91 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5'
+    backgroundColor: "#F5F5F5",
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F5F5'
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#666'
+    color: "#666",
   },
   header: {
-    backgroundColor: '#007AFF',
+    backgroundColor: "#007AFF",
     padding: 20,
     paddingTop: 60,
-    paddingBottom: 30
+    paddingBottom: 30,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginBottom: 4
+    fontWeight: "bold",
+    color: "#FFF",
+    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#E0E0E0'
+    color: "#E0E0E0",
   },
   section: {
-    backgroundColor: '#FFF',
+    backgroundColor: "#FFF",
     marginTop: 16,
     marginHorizontal: 16,
     padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 3
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
   },
   sectionSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: "#666",
     marginBottom: 12,
-    fontStyle: 'italic'
+    fontStyle: "italic",
   },
   periodSelector: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 16,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: "#F0F0F0",
     borderRadius: 8,
-    padding: 4
+    padding: 4,
   },
   periodButton: {
     flex: 1,
     paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6
+    alignItems: "center",
+    borderRadius: 6,
   },
   periodButtonActive: {
-    backgroundColor: '#007AFF'
+    backgroundColor: "#007AFF",
   },
   periodButtonText: {
     fontSize: 14,
-    color: '#666',
-    fontWeight: '500'
+    color: "#666",
+    fontWeight: "500",
   },
   periodButtonTextActive: {
-    color: '#FFF'
+    color: "#FFF",
   },
   chartLoadingContainer: {
     height: 200,
-    justifyContent: 'center',
-    alignItems: 'center'
+    justifyContent: "center",
+    alignItems: "center",
   },
   chartLoadingText: {
     marginTop: 8,
     fontSize: 14,
-    color: '#666'
-  }
+    color: "#666",
+  },
 });

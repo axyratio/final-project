@@ -1,5 +1,5 @@
 // app/(store)/category-tab.tsx
-import ProductCard from "@/components/card";
+import ProductCard from "@/components/category/card";
 import { AppBarNoCheck } from "@/components/navbar";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
@@ -7,12 +7,12 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Box } from "native-base";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    BackHandler,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    View,
+  ActivityIndicator,
+  BackHandler,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  View,
 } from "react-native";
 
 // Re-using types from mystore.tsx
@@ -90,21 +90,27 @@ export default function CategoryTabScreen() {
 
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
-      onBackPress
+      onBackPress,
     );
     return () => subscription.remove();
   }, []);
 
   // กรองสินค้าตามหมวดหมู่ที่ได้รับมา
   const filteredProducts = useMemo(() => {
-    return allProducts.filter((p) => (p.category || "ไม่มีหมวดหมู่") === categoryName);
+    return allProducts.filter(
+      (p) => (p.category || "ไม่มีหมวดหมู่") === categoryName,
+    );
   }, [allProducts, categoryName]);
 
   if (loading) {
     return (
       <Box flex={1} bg="white">
         <AppBarNoCheck title={categoryName} onBackPress={handleBack} />
-        <ActivityIndicator style={{ marginTop: 20 }} size="large" color="#7c3aed" />
+        <ActivityIndicator
+          style={{ marginTop: 20 }}
+          size="large"
+          color="#7c3aed"
+        />
       </Box>
     );
   }

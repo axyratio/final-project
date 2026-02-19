@@ -1,97 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { RelativePathString, useRouter } from "expo-router";
-import { Box, Center, HStack, Pressable, Text, VStack } from "native-base";
-import React, { useState } from "react";
-import { Image, StyleSheet, TextInput, TouchableOpacity, View } from "react-native";
-
-type ProfileValue = {
-  value: string;
-  title: string;
-  onChange?: (text: string) => void; // callback ส่งค่าไป parent
-  error?: string;
-  navigateTo?: RelativePathString; // optional: path ของหน้าที่ต้องการไป
-};
-
-export const FormProfile = ({ value, title, onChange, error, navigateTo }: ProfileValue) => {
-  const [profileValue, setProfileValue] = useState(value);
-  const router = useRouter();
-
-  return (
-    <VStack space={4} alignItems="center">
-      <Center
-        w="100%"
-        bg="white"
-        p={3}
-        justifyContent="flex-start"
-        alignItems="flex-start"
-        borderRadius={0}
-      >
-
-        <Box style={{ width: "100%", gap: 8 }} >
-          <Text fontWeight="normal">{title}</Text>
-          <Pressable onPress={() => navigateTo && router.push(navigateTo)} style={{ width: "100%" }}>
-            <Box borderWidth={1} borderColor="gray.300" borderRadius={4} >
-              <TextInput
-                placeholder={title}
-                value={profileValue}
-                onChangeText={(text) => {
-                  setProfileValue(text);
-                  onChange?.(text);
-                }}
-                style={{ width: "100%", opacity: 0.9 }}
-              />
-            </Box>
-          </Pressable>
-        </Box>
-
-
-        {error && <Text fontSize={12} color="red.500">{error}</Text>}
-      </Center>
-    </VStack>
-  );
-};
-
-
-type StoreFormType = {
-  value: string;
-  title: string;
-  error?: string;
-  onChange: (text: string) => void;
-  mark?: boolean; // true = จำเป็นต้องกรอก
-};
-
-export const StoreForm = ({
-  value,
-  title,
-  error,
-  onChange,
-  mark = false,
-}: StoreFormType) => {
-  return (
-    <Box w="100%" mb={4}>
-      <HStack alignItems="center" mb={1}>
-        <Text fontSize="md" fontWeight="medium">
-          {title}
-        </Text>
-        {mark && <Text color="red.500" ml={1}>*</Text>}
-      </HStack>
-
-      <TextInput
-        value={value}
-        placeholder={title}
-        onChangeText={onChange}
-      // borderColor={error ? "red.500" : "gray.300"}
-      // _focus={{ borderColor: "primary.500", bg: "white" }}
-      />
-
-      {error && (
-        <Text color="red.500" fontSize="xs" mt={1}>
-          {error}
-        </Text>
-      )}
-    </Box>
-  );
-};
+import { Text } from "native-base";
+import React from "react";
+import {
+  Image,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type AddProductFormProps = {
   type?: "text" | "textarea" | "image";
@@ -117,7 +33,7 @@ export const AddProductForm = ({
   height = 50,
   onImagePick,
   imageUri,
-}: AddProductFormProps) =>  {
+}: AddProductFormProps) => {
   return (
     <View style={styles.container}>
       {/* Label */}
@@ -154,7 +70,7 @@ export const AddProductForm = ({
           />
           {maxLength && (
             <Text style={styles.counter}>
-              {(value?.length ?? 0)}/{maxLength}
+              {value?.length ?? 0}/{maxLength}
             </Text>
           )}
         </>
@@ -174,14 +90,14 @@ export const AddProductForm = ({
           />
           {maxLength && (
             <Text style={styles.counter}>
-              {(value?.length ?? 0)}/{maxLength}
+              {value?.length ?? 0}/{maxLength}
             </Text>
           )}
         </>
       )}
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -244,9 +160,6 @@ const styles = StyleSheet.create({
   },
 });
 
-
-
-
 type ImageFormProps = {
   label?: string;
   required?: boolean;
@@ -280,7 +193,6 @@ export const FormImagesField = ({
         {/* แสดงรูปทั้งหมด */}
         {images.map((uri, index) => (
           <View key={index} style={imageFormStyle.imageWrapper}>
-            
             {/* กดรูปเพื่อ crop */}
             <TouchableOpacity
               style={{ flex: 1 }}
@@ -310,7 +222,7 @@ export const FormImagesField = ({
       </View>
     </View>
   );
-}
+};
 
 const imageFormStyle = StyleSheet.create({
   container: { marginBottom: 20 },
@@ -362,5 +274,3 @@ const imageFormStyle = StyleSheet.create({
     borderRadius: 20,
   },
 });
-
-

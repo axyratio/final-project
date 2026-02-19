@@ -54,10 +54,15 @@ export default function MyTabs({
               onPress={() => setTab(t.key)}
               style={{ alignItems: "center" }}
             >
-              <Text color={active ? "violet.600" : "gray.500"} fontWeight={active ? "bold" : "normal"}>
+              <Text
+                color={active ? "violet.600" : "gray.500"}
+                fontWeight={active ? "bold" : "normal"}
+              >
                 {t.label}
               </Text>
-              {active && <Box height="2px" bg="violet.600" width="50%" mt={2} />}
+              {active && (
+                <Box height="2px" bg="violet.600" width="50%" mt={2} />
+              )}
             </Pressable>
           );
         })}

@@ -2,8 +2,8 @@
 
 import type { GarmentImage, Product, ProductVariant } from "@/api/closet";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { useRouter } from "expo-router";
 import { Box, Center, HStack, Pressable, Text } from "native-base";
 import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Dimensions, Image, ScrollView } from "react-native";
@@ -70,7 +70,10 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
 }) => {
   const router = useRouter();
 
-  const tabIds: OutfitTabId[] = useMemo(() => ["select", "result", "product"], []);
+  const tabIds: OutfitTabId[] = useMemo(
+    () => ["select", "result", "product"],
+    [],
+  );
 
   // ✅ ใช้ prop outfitTabId เป็นหลัก
   const controlledIndex = outfitTabId ? tabIds.indexOf(outfitTabId) : -1;
@@ -98,12 +101,13 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
   };
 
   const handlePickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permissionResult =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (permissionResult.granted === false) {
       Alert.alert(
         "สิทธิ์การเข้าถึงถูกปฏิเสธ",
-        "กรุณาอนุญาตให้แอปเข้าถึงคลังรูปภาพเพื่อเพิ่มชุด"
+        "กรุณาอนุญาตให้แอปเข้าถึงคลังรูปภาพเพื่อเพิ่มชุด",
       );
       return;
     }
@@ -111,7 +115,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [3, 4],
+      // aspect: [3, 4],
       quality: 0.7,
     });
 
@@ -121,23 +125,39 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
   };
 
   const handleDeleteVariant = (variant: ProductVariant) => {
-    Alert.alert("ยืนยันการลบ", `ต้องการลบตัวเลือก ${variant.name_option} หรือไม่?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      { text: "ลบ", style: "destructive", onPress: () => onDeleteVariant(variant.variant_id) },
-    ]);
+    Alert.alert(
+      "ยืนยันการลบ",
+      `ต้องการลบตัวเลือก ${variant.name_option} หรือไม่?`,
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        {
+          text: "ลบ",
+          style: "destructive",
+          onPress: () => onDeleteVariant(variant.variant_id),
+        },
+      ],
+    );
   };
 
   const handleDeleteGarment = (garment: GarmentImage) => {
     Alert.alert("ยืนยันการลบ", `ต้องการลบ ${garment.name} หรือไม่?`, [
       { text: "ยกเลิก", style: "cancel" },
-      { text: "ลบ", style: "destructive", onPress: () => onDeleteGarment(garment.garment_id) },
+      {
+        text: "ลบ",
+        style: "destructive",
+        onPress: () => onDeleteGarment(garment.garment_id),
+      },
     ]);
   };
 
   const handleDeleteProductGarment = (variant: ProductVariant) => {
     Alert.alert("ยืนยันการลบ", `ต้องการลบ ${variant.name_option} หรือไม่?`, [
       { text: "ยกเลิก", style: "cancel" },
-      { text: "ลบ", style: "destructive", onPress: () => onDeleteProductGarment(variant.variant_id) },
+      {
+        text: "ลบ",
+        style: "destructive",
+        onPress: () => onDeleteProductGarment(variant.variant_id),
+      },
     ]);
   };
 
@@ -150,7 +170,8 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
       );
     }
     if (selectedGarment) return selectedGarment.image_url || undefined;
-    if (selectedProductGarment) return selectedProductGarment.images?.[0]?.image_url || undefined;
+    if (selectedProductGarment)
+      return selectedProductGarment.images?.[0]?.image_url || undefined;
     return product?.images?.[0]?.image_url || undefined;
   };
 
@@ -173,7 +194,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
             <Image
               source={{ uri: currentImage }}
               style={{ width: "90%", height: "90%" }}
-              resizeMode="cover"
+              resizeMode="contain"
             />
           ) : (
             <Center flex={1}>
@@ -256,7 +277,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                 </Text>
               </Pressable>
 
-              <Pressable
+              {/* <Pressable
                 flex={1}
                 py={2.5}
                 onPress={() => setTab(1)}
@@ -282,7 +303,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                 >
                   ผลลัพธ์ AI
                 </Text>
-              </Pressable>
+              </Pressable> */}
 
               <Pressable
                 flex={1}
@@ -333,7 +354,12 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                   <Box bg="white" p={2} borderRadius="full" shadow={1}>
                     <Ionicons name="add" size={24} color="#7C3AED" />
                   </Box>
-                  <Text fontSize="xs" mt={2} color="gray.400" fontWeight="medium">
+                  <Text
+                    fontSize="xs"
+                    mt={2}
+                    color="gray.400"
+                    fontWeight="medium"
+                  >
                     เพิ่มชุด
                   </Text>
                 </Pressable>
@@ -361,7 +387,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                       <Image
                         source={{ uri: garment.image_url }}
                         style={{ width: "100%", height: "100%" }}
-                        resizeMode="cover"
+                        resizeMode="contain"
                       />
                       {selectedGarment?.garment_id === garment.garment_id && (
                         <Box
@@ -519,7 +545,8 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                         overflow="hidden"
                         borderWidth={2}
                         borderColor={
-                          selectedProductGarment?.variant_id === variant.variant_id
+                          selectedProductGarment?.variant_id ===
+                          variant.variant_id
                             ? "violet.600"
                             : "transparent"
                         }
@@ -529,7 +556,8 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                           style={{ width: "100%", height: "100%" }}
                           resizeMode="cover"
                         />
-                        {selectedProductGarment?.variant_id === variant.variant_id && (
+                        {selectedProductGarment?.variant_id ===
+                          variant.variant_id && (
                           <Box
                             position="absolute"
                             top={1}
@@ -538,7 +566,11 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                             borderRadius="full"
                             p={0.5}
                           >
-                            <Ionicons name="checkmark" size={10} color="white" />
+                            <Ionicons
+                              name="checkmark"
+                              size={10}
+                              color="white"
+                            />
                           </Box>
                         )}
                         <Box
@@ -568,7 +600,11 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                         zIndex={10}
                         shadow={2}
                       >
-                        <Ionicons name="close-circle" size={20} color="#EF4444" />
+                        <Ionicons
+                          name="close-circle"
+                          size={20}
+                          color="#EF4444"
+                        />
                       </Pressable>
                     </Box>
                   ))

@@ -4,7 +4,7 @@ import {
   Pressable as RNPressable,
   PressableProps as RNPressableProps,
 } from "react-native";
-import { getRole } from "../utils/secure-store"; // 👈 ดึง role จาก SecureStore
+import { getRole } from "../../utils/secure-store"; // 👈 ดึง role จาก SecureStore
 
 /* -------------------------------------------------------------
    CustomPressable (ดึง role อัตโนมัติ)
@@ -15,11 +15,7 @@ type CustomPressableProps = RNPressableProps &
     children?: React.ReactNode;
     icon?: React.ReactNode;
     iconPosition?: "left" | "right";
-    justifyContent?:
-    | "flex-start"
-    | "center"
-    | "flex-end"
-    | "space-between";
+    justifyContent?: "flex-start" | "center" | "flex-end" | "space-between";
     color?: string;
     fontSize?: number;
     rolesAllowed?: ("user" | "admin" | "seller" | string)[]; // ใครเห็นได้บ้าง
@@ -60,11 +56,11 @@ export const CustomPressable: React.FC<CustomPressableProps> = ({
           mx={2}
           {...props}
         >
-          <HStack justifyContent={justifyContent} alignItems="center" >
+          <HStack justifyContent={justifyContent} alignItems="center">
             {icon && iconPosition === "left" && <Box mr={2}>{icon}</Box>}
 
             {title ? (
-              <Text color={color} fontSize={fontSize} width={'100%'}>
+              <Text color={color} fontSize={fontSize} width={"100%"}>
                 {title}
               </Text>
             ) : (

@@ -71,7 +71,7 @@ def create_store(
 def get_my_store(
     db: Session = Depends(get_db),
     auth_current_user=Depends(authenticate_token()),
-    auth_role=Depends(authorize_role(["seller"])),
+    auth_role=Depends(authorize_role(["seller", "admin"])),
 ):
     return get_my_store_service(db, auth_current_user)
 

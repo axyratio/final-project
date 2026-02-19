@@ -43,6 +43,7 @@ export type VariantOptionExtended = VariantOption & {
   tryOnImageUri?: string;
   priceDelta?: number; // ส่วนเพิ่มจาก base_price
   stock?: number; // stock ต่อ option
+  weight_grams?: number; // น้ำหนัก (กรัม)
 };
 
 async function uploadImageFile(
@@ -180,6 +181,8 @@ export default function OptionsScreen() {
                   : undefined,
               stock:
                 typeof opt.stock === "number" ? opt.stock : undefined,
+              weight_grams:
+                typeof opt.weight_grams === "number" ? opt.weight_grams : 500,
             };
           }
         );
@@ -255,6 +258,7 @@ export default function OptionsScreen() {
       name,
       priceDelta: 0,
       stock: 0,
+      weight_grams: 500,
     };
     setOptions((prev) => [...prev, newOption]);
     setOptionText("");
@@ -554,6 +558,37 @@ export default function OptionsScreen() {
                             const num = parseInt(text, 10);
                             updateOption(opt.id!, {
                               stock: isNaN(num) ? 0 : num,
+                            });
+                          }}
+                          style={{
+                            borderWidth: 1,
+                            borderColor: "#ddd",
+                            borderRadius: 8,
+                            paddingHorizontal: 10,
+                            paddingVertical: 4,
+                            fontSize: 14,
+                          }}
+                        />
+                      </Box>
+                    </Box>
+
+                    <Box flexDirection="row" mt={2}>
+                      <Box flex={1}>
+                        <Text fontSize="xs" color="gray.500">
+                          น้ำหนัก (กรัม) *
+                        </Text>
+                        <TextInput
+                          keyboardType="numeric"
+                          placeholder="500"
+                          value={
+                            typeof opt.weight_grams === "number"
+                              ? String(opt.weight_grams)
+                              : ""
+                          }
+                          onChangeText={(text) => {
+                            const num = parseInt(text, 10);
+                            updateOption(opt.id!, {
+                              weight_grams: isNaN(num) ? 500 : num,
                             });
                           }}
                           style={{

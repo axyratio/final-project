@@ -1,6 +1,6 @@
 // app/(profile)/me.tsx - Updated with Profile Picture + SCROLLABLE
-import { AppBar } from "@/components/navbar";
-import { EditPressable } from "@/components/pressable";
+import { AppBarNoCheck } from "@/components/navbar";
+import { EditPressable } from "@/components/profile/pressable";
 import { useProfileContext } from "@/context/Refresh";
 import { deleteToken, getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <AppBar title="โปรไฟล์" />
+      <AppBarNoCheck title="โปรไฟล์" />
 
       <ScrollView
         style={{ flex: 1 }}

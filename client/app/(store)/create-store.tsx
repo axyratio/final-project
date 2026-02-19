@@ -1,5 +1,5 @@
 import { appliedStore } from "@/api/store";
-import { StoreForm } from "@/components/form";
+import { StoreForm } from "@/components/store/form";
 import { AppBarNoCheck } from "@/components/navbar";
 import { saveRole } from "@/utils/secure-store";
 import { useRouter } from "expo-router";

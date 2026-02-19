@@ -1,16 +1,16 @@
-import type { UserTryOnImage } from '@/api/closet';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { Box, HStack, Pressable, Text } from 'native-base';
-import React from 'react';
-import { Alert, Image } from 'react-native';
+import type { UserTryOnImage } from "@/api/closet";
+import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
+import { Box, HStack, Modal, Pressable, Text } from "native-base";
+import React, { useState } from "react";
+import { Alert, Image } from "react-native";
 
 interface ModelSelectorProps {
   userImages: UserTryOnImage[];
   selectedModel: UserTryOnImage | null;
   onSelectModel: (image: UserTryOnImage) => void;
   onAddModel: (file: File | string) => void;
-  onDeleteModel: (imageId: string) => void; // ✅ แก้จาก number เป็น string
+  onDeleteModel: (imageId: string) => void;
 }
 
 export const ModelSelector: React.FC<ModelSelectorProps> = ({
@@ -20,13 +20,13 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   onAddModel,
   onDeleteModel,
 }) => {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.5
+      quality: 0.5,
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -35,31 +35,31 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
   };
 
   const handleDelete = (image: UserTryOnImage) => {
-    Alert.alert(
-      'ยืนยันการลบ',
-      'คุณต้องการลบภาพนี้หรือไม่?',
-      [
-        { text: 'ยกเลิก', style: 'cancel' },
-        {
-          text: 'ลบ',
-          style: 'destructive',
-          onPress: () => onDeleteModel(image.user_image_id), // ตอนนี้เป็น string เหมือนกันแล้ว
-        },
-      ]
-    );
+    Alert.alert("ยืนยันการลบ", "คุณต้องการลบภาพนี้หรือไม่?", [
+      { text: "ยกเลิก", style: "cancel" },
+      {
+        text: "ลบ",
+        style: "destructive",
+        onPress: () => onDeleteModel(image.user_image_id),
+      },
+    ]);
   };
 
   return (
     <Box>
-      <Text fontSize="sm" color="gray.600" mb={4}>
+      <Text fontSize="sm" color="gray.600" mb={1}>
         ภาพในตัวของคุณ
+      </Text>
+      <Text fontSize="xs" color="gray.400" mb={3}>
+        กดค้างที่ภาพเพื่อดูภาพเต็ม
       </Text>
 
       <HStack flexWrap="wrap" justifyContent="flex-start" mx="-1%">
+        {/* ปุ่มเพิ่มรูป */}
         <Pressable
           onPress={handlePickImage}
           width="31.3%"
-          style={{ aspectRatio: 3/4 }}
+          style={{ aspectRatio: 3 / 4 }}
           bg="white"
           borderWidth={2}
           borderColor="gray.300"
@@ -77,23 +77,29 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
           <Box
             key={image.user_image_id}
             width="31.3%"
-            style={{ aspectRatio: 3/4 }}
+            style={{ aspectRatio: 3 / 4 }}
             m="1%"
             mb={3}
             position="relative"
           >
             <Pressable
               onPress={() => onSelectModel(image)}
+              onLongPress={() => setPreviewUrl(image.image_url)}
+              delayLongPress={300}
               width="100%"
               height="100%"
               borderRadius="lg"
               overflow="hidden"
               borderWidth={2}
-              borderColor={selectedModel?.user_image_id === image.user_image_id ? '#7c3aed' : 'transparent'}
+              borderColor={
+                selectedModel?.user_image_id === image.user_image_id
+                  ? "#7c3aed"
+                  : "transparent"
+              }
             >
               <Image
                 source={{ uri: image.image_url }}
-                style={{ width: '100%', height: '100%' }}
+                style={{ width: "100%", height: "100%" }}
                 resizeMode="cover"
               />
             </Pressable>
@@ -107,13 +113,53 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
               borderRadius="full"
               p={1}
               zIndex={10}
-              _pressed={{ bg: 'red.600' }}
+              _pressed={{ bg: "red.600" }}
             >
               <Ionicons name="close" size={16} color="white" />
             </Pressable>
           </Box>
         ))}
       </HStack>
+
+      {/* Preview Modal */}
+      <Modal
+        isOpen={!!previewUrl}
+        onClose={() => setPreviewUrl(null)}
+        size="full"
+      >
+        <Modal.Content
+          bg="black"
+          maxW="100%"
+          maxH="100%"
+          w="100%"
+          h="100%"
+          m={0}
+          borderRadius={0}
+        >
+          {/* ปุ่มปิด */}
+          <Pressable
+            position="absolute"
+            top={10}
+            right={4}
+            zIndex={10}
+            onPress={() => setPreviewUrl(null)}
+            bg="rgba(0,0,0,0.55)"
+            borderRadius="full"
+            p={2}
+            _pressed={{ bg: "rgba(0,0,0,0.85)" }}
+          >
+            <Ionicons name="close" size={28} color="white" />
+          </Pressable>
+
+          {previewUrl && (
+            <Image
+              source={{ uri: previewUrl }}
+              style={{ width: "100%", height: "100%" }}
+              resizeMode="contain"
+            />
+          )}
+        </Modal.Content>
+      </Modal>
     </Box>
   );
 };

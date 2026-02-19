@@ -7,8 +7,8 @@ import {
   reorderItems,
 } from "@/api/order";
 import { ReviewAPI } from "@/api/review";
-import { OrderCard } from "@/components/profile/order-card";
-import { OrderEmptyState } from "@/components/profile/order-empty-state";
+import { OrderCard } from "@/components/order/order-card";
+import { OrderEmptyState } from "@/components/order/order-empty-state";
 import { Colors } from "@/constants/theme";
 import { getToken } from "@/utils/secure-store";
 import { Ionicons } from "@expo/vector-icons";
