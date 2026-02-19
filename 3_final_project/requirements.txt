@@ -7,7 +7,6 @@ passlib==1.7.4
 Pillow==12.1.1
 pydantic==2.12.5
 PyJWT==2.10.1
-PyJWT==2.11.0
 python-dotenv==1.2.1
 python_jose==3.5.0
 pytz==2024.1
