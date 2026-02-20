@@ -19,4 +19,5 @@ def status_by_session(session_id: str, db: Session = Depends(get_db)):
         "status": payment.status,
         "paid_at": payment.paid_at,
         "payment_intent_id": payment.payment_intent_id,
+        "decline_code": payment.decline_code,  # Issue #5: ส่ง decline_code กลับมาให้ frontend
     }

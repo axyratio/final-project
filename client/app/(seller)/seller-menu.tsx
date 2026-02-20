@@ -81,44 +81,56 @@ export default function SellerMenuScreen() {
   };
 
   // โหลดข้อมูลเมื่อเปิดหน้า
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
+useEffect(() => {
+  const loadData = async () => {
+    try {
+      setLoading(true);
 
-        // ✅ โหลดและตั้งค่า Store ID ก่อน
-        const storeId = await loadAndSetStoreId();
+      // โหลดและตั้งค่า Store ID ก่อน
+      const storeId = await loadAndSetStoreId();
 
-        if (!storeId) {
-          Alert.alert("ไม่พบข้อมูลร้านค้า", "กรุณาสร้างร้านค้าก่อนใช้งาน", [
-            {
-              text: "สร้างร้านค้า",
-              onPress: () => router.push("/(store)/create-store"),
-            },
-            {
-              text: "ยกเลิก",
-              style: "cancel",
-            },
-          ]);
-          setLoading(false);
-          return;
-        }
-
-        // ✅ โหลด Badge Counts หลังจาก Store ID พร้อมแล้ว
-        console.log("[SellerMenu] Loading badges for store:", storeId);
-        const data = await sellerAPI.getBadgeCounts();
-        console.log("[SellerMenu] Badge counts:", data);
-        setBadges(data);
-      } catch (error: any) {
-        console.error("[SellerMenu] Load error:", error);
-        Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
-      } finally {
+      if (!storeId) {
+        Alert.alert("ไม่พบข้อมูลร้านค้า", "กรุณาสร้างร้านค้าก่อนใช้งาน", [
+          {
+            text: "สร้างร้านค้า",
+            onPress: () => router.push("/(store)/create-store"),
+          },
+          { text: "ยกเลิก", style: "cancel" },
+        ]);
         setLoading(false);
+        return;
       }
-    };
 
-    loadData();
-  }, []);
+      // โหลด Badge Counts หลังจาก Store ID พร้อมแล้ว
+      const data = await sellerAPI.getBadgeCounts();
+
+      // ✅ Issue #1: เช็คว่าร้านถูกปิดโดย Admin หรือไม่
+      if (data.is_active === false) {
+        Alert.alert(
+          "ร้านค้าถูกปิด",
+          "ร้านค้าของคุณถูกปิดโดยแอดมิน กรุณาติดต่อฝ่ายสนับสนุนเพื่อเปิดใช้งานอีกครั้ง",
+          [
+            {
+              text: "ตกลง",
+              onPress: () => router.back(),
+            },
+          ]
+        );
+        setLoading(false);
+        return;  // ❗ หยุดโหลดข้อมูลต่อ ไม่ให้เข้าใช้งานได้
+      }
+
+      setBadges(data);
+    } catch (error: any) {
+      console.error("[SellerMenu] Load error:", error);
+      Alert.alert("ข้อผิดพลาด", "ไม่สามารถโหลดข้อมูลได้");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  loadData();
+}, []);
 
   // ฟังก์ชันเปิดหน้า Chat
   const handleOpenChats = () => {

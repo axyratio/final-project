@@ -12,6 +12,7 @@ from app.models.order import Order
 from app.models.stripe_event import StripeEvent
 from app.repositories import cart_repository
 from app.services.stock_service import commit_stock_for_order
+from app.services.stripe_webhook_service import StripeWebhookService
 from app.utils.now_utc import now_utc
 
 from app.services.notification_service import NotificationService
@@ -235,26 +236,8 @@ async def stripe_webhook(
             return {"received": True}
 
     # ---- fallback payment_intent failed ----
-    if event_type == "payment_intent.payment_failed":
-        pi = event["data"]["object"]
-        metadata = pi.get("metadata") or {}
-        app_payment_id = metadata.get("app_payment_id")
+# ---- handle payment intent failed ----
+    if event["type"] == "payment_intent.payment_failed":
+        StripeWebhookService.handle_payment_intent_failed(db, event)
 
-        if app_payment_id:
-            try:
-                payment_id = UUID(app_payment_id)
-            except Exception:
-                _mark_processed(db, event_id, event_type)
-                return {"received": True}
-
-            payment = db.query(Payment).filter(Payment.payment_id == payment_id).first()
-            if payment and payment.status != PaymentStatus.SUCCESS:
-                payment.status = PaymentStatus.FAILED
-                db.commit()
-                _update_orders_failed(db, payment_id, "ชำระเงินไม่สำเร็จ")
-
-        _mark_processed(db, event_id, event_type)
-        return {"received": True}
-
-    _mark_processed(db, event_id, event_type)
     return {"received": True}

@@ -63,7 +63,7 @@ async function cancelReservationOrders(orderIds: string[]) {
           const text = await res.text();
           console.log("cancelReservationOrders error:", res.status, text);
         }
-      })
+      }),
     );
   } catch (e) {
     console.log("cancelReservationOrders exception:", e);
@@ -166,7 +166,7 @@ export const CheckoutScreen: React.FC = () => {
   // ─────────────────────────────
   const selectedItems = useMemo(
     () => cartItems.filter((i) => selectedIds.has(i.cart_item_id)),
-    [cartItems, selectedIds]
+    [cartItems, selectedIds],
   );
 
   // ─────────────────────────────
@@ -272,7 +272,7 @@ export const CheckoutScreen: React.FC = () => {
   // 4) คำนวณยอดรวม
   // ─────────────────────────────
   const itemsTotal = isDirect
-    ? directStoreGroup?.storeTotal ?? 0
+    ? (directStoreGroup?.storeTotal ?? 0)
     : getSelectedTotal();
 
   const shippingTotal = groupedStores.length * SHIPPING_PER_STORE;
@@ -616,36 +616,66 @@ export const CheckoutScreen: React.FC = () => {
 
                 // ถ้าสำเร็จ → ไม่ cancel
                 if (url.includes("/payment/success")) {
-                shouldCancelRef.current = false;
+                  shouldCancelRef.current = false;
+                  const orderIds = orderIdsRef.current.join(",");
+                  const paymentId = "";
+                  setStripeUrl(null);
+                  setExpiresAtMs(null);
+                  setRemainingMs(0);
+                  useCartStore.getState().backgroundSync();
+                  router.replace({
+                    pathname: "(checkout)/payment_success",
+                    params: { order_ids: orderIds, payment_id: paymentId },
+                  } as any);
+                }
 
-                // ✅ ส่ง order_ids + payment_id ไปหน้า success (ถ้ามึงมีใน ref)
-                const orderIds = orderIdsRef.current.join(",");
-                const paymentId = ""; // ถ้ามึงมี payment_id จาก res ตอน checkout ก็เก็บใส่ ref อีกตัวได้
-
-                setStripeUrl(null);
-                setExpiresAtMs(null);
-                setRemainingMs(0);
-
-                useCartStore.getState().backgroundSync();
-
-                router.replace({
-                  pathname: "(checkout)/payment_success",
-                  params: {
-                    order_ids: orderIds,
-                    payment_id: paymentId,
-                  },
-                } as any);
-              }
-
-
-                // ถ้า cancel ใน Stripe → cancel reservation แล้วไป timeout
+                // ถ้า cancel ใน Stripe → เช็คว่าเป็น decline หรือ user กดเองโดยดูจาก session
                 if (url.includes("/payment/cancel")) {
                   (async () => {
                     try {
                       shouldCancelRef.current = false;
+
+                      const sessionIdMatch = url.match(/session_id=([^&]+)/);
+                      const sessionId = sessionIdMatch?.[1];
+
+                      let declineCode: string | null = null;
+
+                      if (sessionId) {
+                        try {
+                          const token = await getToken();
+                          const res = await fetch(
+                            `${DOMAIN}/api/payment/status-by-session/${sessionId}`,
+                            { headers: { Authorization: `Bearer ${token}` } },
+                          );
+                          const json = await res.json();
+                          // ถ้า status FAILED = บัตรถูก decline, ไม่ใช่ user กดยกเลิกเอง
+                          if (json.status === "FAILED" || json.decline_code) {
+                            declineCode =
+                              json.decline_code || "generic_decline";
+                          }
+                        } catch (e) {
+                          console.log("check payment status error:", e);
+                        }
+                      }
+
                       await cancelReservationOrders(orderIdsRef.current);
                       await useCartStore.getState().backgroundSync();
-                    } finally {
+
+                      setStripeUrl(null);
+                      setExpiresAtMs(null);
+                      setRemainingMs(0);
+
+                      if (declineCode) {
+                        // Issue #5: บัตรถูก decline → ไปหน้า payment_failed พร้อมบอกสาเหตุ
+                        router.replace({
+                          pathname: "/(checkout)/payment_failed",
+                          params: { decline_code: declineCode },
+                        } as any);
+                      } else {
+                        // user กดยกเลิกเอง → ไปหน้า timeout เหมือนเดิม
+                        router.replace("/(checkout)/payment_timeout" as any);
+                      }
+                    } catch (e) {
                       setStripeUrl(null);
                       setExpiresAtMs(null);
                       setRemainingMs(0);

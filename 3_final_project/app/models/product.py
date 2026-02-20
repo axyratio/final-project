@@ -33,6 +33,7 @@ class Product(Base):
     is_active = Column(Boolean, default=True)
     is_draft = Column(Boolean, default=True)
     average_rating = Column(Float, nullable=True, default=0.0)
+    closed_by = Column(String(20), nullable=True)
     
     deleted_at = Column(DateTime(timezone=True), default=now_utc, nullable=False)
     created_at = Column(DateTime, default=now_utc)

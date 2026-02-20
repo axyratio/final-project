@@ -81,6 +81,7 @@ export type Order = {
   can_return: boolean;
   can_review: boolean;
   return_info?: ReturnOrder | null;
+  stripe_checkout_url?: string | null;  // Issue #6
 };
 
 export type OrderListResponse = {

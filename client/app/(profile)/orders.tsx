@@ -30,10 +30,11 @@ import { FlatList, RefreshControl, useColorScheme } from "react-native";
 import { formatDateTimeTH } from "@/utils/datetime";
 
 // ✅ 1. ปรับปรุง TabType และ TABS ให้รองรับสถานะการคืนสินค้าที่ครบถ้วน (RETURNING, APPROVED, REJECTED, RETURNED)
-type TabType = "ALL" | "PREPARING" | "SHIPPED" | "DELIVERED" | "RETURNING" | "CANCELLED";
+type TabType = "ALL" | "UNPAID" | "PREPARING" | "SHIPPED" | "DELIVERED" | "RETURNING" | "CANCELLED";
 
 const TABS: { key: TabType; label: string; statuses?: OrderStatus[] }[] = [
   { key: "ALL", label: "ทั้งหมด" },
+  { key: "UNPAID", label: "รอชำระเงิน", statuses: ["UNPAID"] },  // Issue #6
   { key: "PREPARING", label: "กำลังเตรียม", statuses: ["PREPARING", "PAID"] },
   { key: "SHIPPED", label: "กำลังจัดส่ง", statuses: ["SHIPPED"] },
   { 
@@ -60,8 +61,18 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  console.log("[OrdersScreen] orders:", orders);
   const [error, setError] = useState<string | null>(null);
   const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
+
+  // ✅ Issue #4: อัปเดตสถานะ order ใน list โดยไม่ต้องรีเฟรชหน้า
+  const handleStatusChange = (orderId: string, newStatus: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.order_id === orderId ? { ...o, order_status: newStatus as OrderStatus } : o
+      )
+    );
+  };
   console.log("[Orders]", orders)
   // ----------------
   // Fetch orders
@@ -340,6 +351,7 @@ export default function OrdersScreen() {
               onReview={handleReview}
               onReturn={handleReturn}
               reviewedMap={reviewedMap}
+              onStatusChange={handleStatusChange}
             />
           )}
           contentContainerStyle={{ padding: 16 }}

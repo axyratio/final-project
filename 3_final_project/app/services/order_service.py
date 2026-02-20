@@ -158,6 +158,12 @@ class OrderService:
             "can_confirm_received": OrderService.can_confirm_received(order.order_status),
             "can_return": OrderService.can_return(order.order_status),
             "can_review": OrderService.can_review(order.order_status),
+            # Issue #6: ส่ง stripe_checkout_url เฉพาะ UNPAID
+            "stripe_checkout_url": (
+                order.payment.stripe_checkout_url
+                if order.order_status == "UNPAID" and order.payment and order.payment.stripe_checkout_url
+                else None
+            ),
         }
 
     # ─────────────────────────────────────────

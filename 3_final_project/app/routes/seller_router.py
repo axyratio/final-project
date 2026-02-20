@@ -447,6 +447,7 @@ async def get_seller_badge_counts(
     return {
         "data": {
             "store_id": str(store.store_id),
+            
             **badge_counts
         }
     }

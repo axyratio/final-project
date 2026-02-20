@@ -364,9 +364,6 @@ def toggle_product_status(
     db: Session = Depends(get_db),
     auth_admin=Depends(authorize_role(["admin"])),
 ):
-    """
-    เปลี่ยนสถานะสินค้า (เปิด/ปิดการขาย) โดย Admin
-    """
     try:
         store = db.query(Store).filter(Store.store_id == store_id).first()
         if not store:
@@ -381,6 +378,12 @@ def toggle_product_status(
             return error_response("ไม่พบสินค้าในร้านนี้", {}, 404)
         
         product.is_active = is_active
+        # ✅ Issue #2: บันทึกว่า admin เป็นคนปิด / เมื่อเปิดคืน ล้าง closed_by
+        if not is_active:
+            product.closed_by = "admin"
+        else:
+            product.closed_by = None
+
         db.commit()
         db.refresh(product)
         
@@ -390,7 +393,8 @@ def toggle_product_status(
             {
                 "product_id": str(product.product_id),
                 "product_name": product.product_name,
-                "is_active": product.is_active
+                "is_active": product.is_active,
+                "closed_by": product.closed_by    # ✅ ส่งกลับมาด้วย
             }
         )
         

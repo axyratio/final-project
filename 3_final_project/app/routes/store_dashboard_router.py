@@ -24,6 +24,7 @@ def _map_product_row(product: Product, image: ProductImage | None):
         "image_id": image_id,
         "image_url": image_url,
         "is_active": bool(product.is_active),
+        "closed_by": product.closed_by,    # ✅ เพิ่ม: "admin" | "seller" | None
     }
 
 

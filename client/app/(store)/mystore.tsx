@@ -18,6 +18,7 @@ import * as WebBrowser from "expo-web-browser";
 import { Box, Center, Spinner, Text } from "native-base";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -126,6 +127,26 @@ export default function MyStoreScreen() {
     }
   };
 
+  const handleAddProductPress = () => {
+  if (!store?.is_stripe_verified) {
+    Alert.alert(
+      "ยืนยันบัญชี Stripe",
+      "คุณต้องยืนยันบัญชี Stripe ให้เรียบร้อยก่อนจึงจะสามารถเพิ่มสินค้าได้",
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        { 
+          text: "ยืนยันตอนนี้", 
+          onPress: handleRefreshStripeLink, // เรียกฟังก์ชันที่มีอยู่แล้ว
+          style: "default" 
+        },
+      ]
+    );
+    return;
+  }
+  // ถ้าผ่านแล้วค่อยส่งไปหน้าเพิ่มสินค้า
+  router.replace("/(store)/add-product" as any);
+};
+
   const handleCloseProduct = async (productId: string) => {
     const resp = await ProductAPIService.closeProduct(productId);
     if (!resp.success) {
@@ -136,9 +157,22 @@ export default function MyStoreScreen() {
   };
 
   const handleOpenProduct = async (productId: string) => {
+    // ✅ Issue #2: เช็คก่อนว่าสินค้านี้ถูกปิดโดย admin หรือไม่
+    const product = closedProducts.find((p) => p.product_id === productId);
+    if (product?.closed_by === "admin") {
+      Alert.alert(
+        "ไม่สามารถเปิดการขายได้",
+        "สินค้านี้ถูกปิดโดยแอดมิน กรุณาติดต่อฝ่ายสนับสนุนเพื่อเปิดการขาย",
+        [{ text: "ตกลง" }],
+      );
+      return;
+    }
+
+
     const resp = await ProductAPIService.openProduct(productId);
     if (!resp.success) {
-      console.log("openProduct failed:", resp.message);
+      // ✅ ถ้า backend ส่ง 403 กลับมา (กรณี admin ปิด) แสดง error message จาก backend
+      Alert.alert("ไม่สามารถเปิดการขายได้", resp.message);
       return;
     }
     await fetchAll(true);
@@ -249,34 +283,54 @@ export default function MyStoreScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {closedProducts.length === 0 ? (
-        <Text textAlign="center" color="gray.400">
-          ยังไม่มีสินค้าที่ปิดการขาย
-        </Text>
-      ) : (
-        <View style={styles.productGrid}>
-          {closedProducts.map((p) => {
-            const imageUrl = p.image_id
-              ? `${DOMAIN}/images/stream/${p.image_id}`
-              : p.image_url || undefined;
 
-            return (
-              <ProductCard
-                key={p.product_id}
-                productId={p.product_id}
-                title={p.title}
-                price={p.price}
-                star={p.star}
-                imageUrl={imageUrl}
-                route={`/(store)/add-product?productId=${p.product_id}`}
-                isSeller={isSeller}
-                isActive={false}
-                onOpenSale={() => handleOpenProduct(p.product_id)}
-              />
-            );
-          })}
-        </View>
-      )}
+  {closedProducts.map((p) => {
+        const imageUrl = p.image_id
+          ? `${DOMAIN}/images/stream/${p.image_id}`
+          : p.image_url || undefined;
+
+        return (
+          <View key={p.product_id} style={{ position: "relative" }}>
+            {/* ✅ Issue #2: Badge แสดงว่าใครปิด */}
+            {p.closed_by === "admin" && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: 4,
+                  left: 4,
+                  zIndex: 10,
+                  backgroundColor: "#dc2626",
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 6,
+                }}
+              >
+                <Text
+                  style={{ color: "white", fontSize: 10, fontWeight: "bold" }}
+                >
+                  ปิดโดยแอดมิน
+                </Text>
+              </View>
+            )}
+            <ProductCard
+              key={p.product_id}
+              productId={p.product_id}
+              title={p.title}
+              price={p.price}
+              star={p.star}
+              imageUrl={imageUrl}
+              route={`/(store)/add-product?productId=${p.product_id}`}
+              isSeller={isSeller}
+              isActive={false}
+              onOpenSale={
+                p.closed_by !== "admin"
+                  ? () => handleOpenProduct(p.product_id)
+                  : undefined
+              }
+            />
+          </View>
+        );
+      })}
     </ScrollView>
   );
 
@@ -302,10 +356,10 @@ export default function MyStoreScreen() {
         initialTab={params.initialTab}
       />
 
-      <TouchableOpacity
-        style={styles.floatingButton}
-        onPress={() => router.replace("/(store)/add-product" as any)}
-      >
+    <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={handleAddProductPress} // เปลี่ยนมาใช้ฟังก์ชันที่สร้างใหม่
+        >
         <Ionicons name="add" size={32} color="#fff" />
       </TouchableOpacity>
     </Box>

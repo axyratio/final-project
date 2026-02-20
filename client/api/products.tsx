@@ -53,6 +53,7 @@ export type StoreProductItem = {
   image_url?: string | null;
   category?: string | null;
   is_active?: boolean; // เผื่อ backend ส่งมา
+  closed_by?: "admin" | "seller" | null;   // ✅ เพิ่ม
 };
 
 export type StoreDashboardData = {

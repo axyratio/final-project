@@ -14,14 +14,12 @@ from app.utils.now_utc import now_utc
 
 
 class StripeWebhookService:
-
     @staticmethod
     def handle_checkout_session_completed(db: Session, event):
         session = event["data"]["object"]
 
         metadata = session.get("metadata", {}) or {}
 
-        # รองรับทั้ง order_ids (multi) และ fallback ไปใช้ order_id เดียว
         order_ids_raw = metadata.get("order_ids") or metadata.get("order_id")
         is_from_cart = metadata.get("is_from_cart") == "true"
         user_id = metadata.get("user_id")
@@ -35,7 +33,6 @@ class StripeWebhookService:
         else:
             order_ids = [order_ids_raw]
 
-        # Lock orders ทั้งชุดกันยิงซ้ำ/ race condition
         orders = (
             db.query(Order)
             .filter(Order.order_id.in_(order_ids))
@@ -46,26 +43,21 @@ class StripeWebhookService:
         if not orders:
             raise HTTPException(status_code=404, detail="Orders not found")
 
-        # Payment เดียวผูกกับ order แรก
         payment = db.query(Payment).filter(
-            Payment.payment_id == orders[0].payment_id  # ✅ ใช้ order.payment_id FK
+            Payment.payment_id == orders[0].payment_id
         ).first()
 
-        # Idempotent: ถ้า order ในชุดนี้ถูก mark PAID หมดแล้ว ก็ไม่ทำอะไร
         all_paid = all(o.status == "PAID" for o in orders)
         if all_paid:
             return
 
         now = now_utc()
 
-        # 1) อัปเดต Payment → SUCCESS + บันทึก payment_intent_id และ charge_id
         if payment:
             payment.status = PaymentStatus.SUCCESS
             payment.paid_at = now
-            # ✅ save payment_intent_id จาก session (ใช้ตอน payout)
             if not payment.payment_intent_id and session.get("payment_intent"):
                 payment.payment_intent_id = session["payment_intent"]
-            # ✅ save stripe_charge_id สำหรับใช้เป็น source_transaction ตอนโอนเงิน
             if session.get("payment_intent"):
                 try:
                     pi = stripe.PaymentIntent.retrieve(session["payment_intent"])
@@ -74,7 +66,6 @@ class StripeWebhookService:
                 except Exception as e:
                     print(f"[WEBHOOK] ⚠️ Could not retrieve charge_id: {e}")
 
-        # 2) loop ทุก order → mark PAID + หัก stock + ลบ reservation
         for order in orders:
             if order.status == "PAID":
                 continue
@@ -82,11 +73,9 @@ class StripeWebhookService:
             order.status = "PAID"
             order.updated_at = now
 
-            # hard cut stock
             for item in order.order_items:
                 variant_id = getattr(item, "variant_id", None)
                 if not variant_id:
-                    # fallback: ไม่ตัดตาม variant (เคส product ไม่มี variant)
                     continue
 
                 variant = (
@@ -99,13 +88,10 @@ class StripeWebhookService:
                     if variant.stock < 0:
                         variant.stock = 0
 
-            # ลบ StockReservation ของ order นี้
             db.query(StockReservation).filter(
                 StockReservation.order_id == order.order_id
             ).delete(synchronize_session=False)
 
-        # 3) ถ้ามาจาก Cart ให้ล้าง cart นั้นทิ้ง (ทั้งตะกร้า)
-        #    (ถ้าภายหลังทำ "เลือกบาง item จาก cart" จริง ๆ ค่อย granular ที่ level CartItem)
         if is_from_cart and cart_id and user_id:
             cart = (
                 db.query(Cart)
@@ -118,3 +104,31 @@ class StripeWebhookService:
                 ).delete(synchronize_session=False)
 
         db.commit()
+        
+
+
+    @staticmethod
+    def handle_payment_intent_failed(db: Session, event):
+        """
+        Issue #5: รับ event payment_intent.payment_failed
+        บันทึกสถานะ payment เป็น FAILED พร้อมเก็บ decline_code ไว้ใน DB
+        """
+        payment_intent = event["data"]["object"]
+        payment_intent_id = payment_intent.get("id")
+
+        payment = db.query(Payment).filter(
+            Payment.payment_intent_id == payment_intent_id
+        ).first()
+
+        if not payment:
+            print(f"[WEBHOOK] payment_intent.payment_failed: ไม่พบ payment สำหรับ {payment_intent_id}")
+            return
+
+        last_error = payment_intent.get("last_payment_error", {}) or {}
+        decline_code = last_error.get("decline_code") or last_error.get("code") or "generic_decline"
+
+        payment.status = PaymentStatus.FAILED
+        payment.decline_code = decline_code
+        db.commit()
+
+        print(f"[WEBHOOK] payment failed: payment_id={payment.payment_id}, decline_code={decline_code}")

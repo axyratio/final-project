@@ -24,7 +24,7 @@ from app.core.config import settings
 from app.utils.order_task import check_order_timeout
 
 
-RESERVATION_MINUTES = 30
+RESERVATION_MINUTES = 1
 
 
 def _calc_shipping_fee(total_weight_grams: int) -> float:
@@ -301,8 +301,11 @@ class CheckoutService:
                 payment_intent_data={"transfer_group": f"payment_{payment.payment_id}"},  # ✅ ตรงกับ payout_service
                 metadata={"app_payment_id": str(payment.payment_id)},
             )
+            
+
 
             payment.stripe_session_id = session.id
+            payment.stripe_checkout_url = session.url  # Issue #6
             db.commit()
 
             timeout_seconds = RESERVATION_MINUTES * 60

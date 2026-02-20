@@ -111,6 +111,7 @@ export type BadgeCounts = {
   unread_notifications: number;
   preparing_orders: number;
   pending_returns: number;
+  is_active: boolean;
   unread_chats: number;
 };
 
@@ -214,7 +215,10 @@ const MOCK_RETURN_REQUESTS: ReturnRequest[] = [
     customer_name: "คุณทดสอบ คืนสินค้า",
     reason: "WRONG_ITEM",
     reason_detail: "ได้รับสินค้าไม่ตรงกับที่สั่ง สีไม่ตรง",
-    image_urls: ["https://via.placeholder.com/200", "https://via.placeholder.com/200"],
+    image_urls: [
+      "https://via.placeholder.com/200",
+      "https://via.placeholder.com/200",
+    ],
     status: "PENDING",
     status_text: "รอการตรวจสอบ",
     refund_amount: 1200,
@@ -246,7 +250,10 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ================== API FUNCTIONS ==================
 
-export async function fetchSellerDashboard(token: string, month?: string): Promise<DashboardData> {
+export async function fetchSellerDashboard(
+  token: string,
+  month?: string,
+): Promise<DashboardData> {
   if (USE_MOCK_DATA) {
     await delay(500);
     return MOCK_DASHBOARD;
@@ -260,10 +267,14 @@ export async function fetchSellerDashboard(token: string, month?: string): Promi
   return res.data?.data || res.data;
 }
 
-export async function fetchSellerOrders(token: string, status?: string): Promise<SellerOrder[]> {
+export async function fetchSellerOrders(
+  token: string,
+  status?: string,
+): Promise<SellerOrder[]> {
   if (USE_MOCK_DATA) {
     await delay(500);
-    if (status) return MOCK_SELLER_ORDERS.filter((o) => o.order_status === status);
+    if (status)
+      return MOCK_SELLER_ORDERS.filter((o) => o.order_status === status);
     return MOCK_SELLER_ORDERS;
   }
 
@@ -302,12 +313,12 @@ export async function fetchSellerOrders(token: string, status?: string): Promise
 export async function rejectOrder(
   token: string,
   orderId: string,
-  reason: string
+  reason: string,
 ): Promise<{ message: string }> {
   const res = await axios.post(
     `${DOMAIN}/seller/orders/${orderId}/reject`,
     { reason },
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { Authorization: `Bearer ${token}` } },
   );
   return res.data;
 }
@@ -316,7 +327,7 @@ export async function confirmOrderShipped(
   token: string,
   orderId: string,
   trackingNumber: string,
-  courierName: string
+  courierName: string,
 ): Promise<{ message: string }> {
   if (USE_MOCK_DATA) {
     await delay(500);
@@ -333,12 +344,15 @@ export async function confirmOrderShipped(
   const res = await axios.post(
     `${DOMAIN}/seller/orders/${orderId}/ship`,
     { tracking_number: trackingNumber, courier_name: courierName },
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { Authorization: `Bearer ${token}` } },
   );
   return res.data;
 }
 
-export async function fetchReturnRequests(token: string, status?: string): Promise<ReturnRequest[]> {
+export async function fetchReturnRequests(
+  token: string,
+  status?: string,
+): Promise<ReturnRequest[]> {
   if (USE_MOCK_DATA) {
     await delay(500);
     if (status) return MOCK_RETURN_REQUESTS.filter((r) => r.status === status);
@@ -358,28 +372,37 @@ export async function handleReturnRequest(
   token: string,
   returnId: string,
   action: "APPROVE" | "REJECT",
-  note?: string
+  note?: string,
 ): Promise<{ message: string }> {
   if (USE_MOCK_DATA) {
     await delay(500);
-    const returnReq = MOCK_RETURN_REQUESTS.find((r) => r.return_id === returnId);
+    const returnReq = MOCK_RETURN_REQUESTS.find(
+      (r) => r.return_id === returnId,
+    );
     if (returnReq) {
       returnReq.status = action === "APPROVE" ? "APPROVED" : "REJECTED";
       returnReq.status_text = action === "APPROVE" ? "อนุมัติ" : "ปฏิเสธ";
     }
-    return { message: action === "APPROVE" ? "อนุมัติการคืนสินค้าสำเร็จ" : "ปฏิเสธการคืนสินค้าสำเร็จ" };
+    return {
+      message:
+        action === "APPROVE"
+          ? "อนุมัติการคืนสินค้าสำเร็จ"
+          : "ปฏิเสธการคืนสินค้าสำเร็จ",
+    };
   }
 
   const endpoint = action === "APPROVE" ? "approve" : "reject";
   const res = await axios.post(
     `${DOMAIN}/seller/returns/${returnId}/${endpoint}`,
     action === "REJECT" ? { note } : {},
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { Authorization: `Bearer ${token}` } },
   );
   return res.data;
 }
 
-export async function fetchSellerNotifications(token: string): Promise<SellerNotification[]> {
+export async function fetchSellerNotifications(
+  token: string,
+): Promise<SellerNotification[]> {
   if (USE_MOCK_DATA) {
     await delay(300);
     return MOCK_NOTIFICATIONS;
@@ -392,10 +415,15 @@ export async function fetchSellerNotifications(token: string): Promise<SellerNot
   return data?.notifications || [];
 }
 
-export async function markNotificationAsRead(token: string, notificationId: string): Promise<void> {
+export async function markNotificationAsRead(
+  token: string,
+  notificationId: string,
+): Promise<void> {
   if (USE_MOCK_DATA) {
     await delay(200);
-    const notif = MOCK_NOTIFICATIONS.find((n) => n.notification_id === notificationId);
+    const notif = MOCK_NOTIFICATIONS.find(
+      (n) => n.notification_id === notificationId,
+    );
     if (notif) notif.is_read = true;
     return;
   }
@@ -403,11 +431,13 @@ export async function markNotificationAsRead(token: string, notificationId: stri
   await axios.post(
     `${DOMAIN}/seller/notifications/${notificationId}/read`,
     {},
-    { headers: { Authorization: `Bearer ${token}` } }
+    { headers: { Authorization: `Bearer ${token}` } },
   );
 }
 
-export async function fetchSellerBadgeCounts(token: string): Promise<BadgeCounts> {
+export async function fetchSellerBadgeCounts(
+  token: string,
+): Promise<BadgeCounts> {
   if (USE_MOCK_DATA) {
     await delay(300);
     return {
@@ -415,6 +445,7 @@ export async function fetchSellerBadgeCounts(token: string): Promise<BadgeCounts
       unread_notifications: 5,
       preparing_orders: 15,
       pending_returns: 3,
+      is_active: true,
       unread_chats: 8,
     };
   }
@@ -442,6 +473,7 @@ export const sellerAPI = {
     unread_notifications: number;
     preparing_orders: number;
     pending_returns: number;
+    is_active: boolean;
     unread_chats: number;
   }> {
     const token = await getToken();
@@ -449,6 +481,7 @@ export const sellerAPI = {
 
     const data = await fetchSellerBadgeCounts(token);
     return {
+      is_active: data.is_active ?? true,
       unread_notifications: data.unread_notifications,
       preparing_orders: data.preparing_orders,
       pending_returns: data.pending_returns,

@@ -516,6 +516,7 @@ def close_sale_product_service(db, user_data, product_id: str):
         return error_response("คุณไม่มีสิทธิ์ปิดการขายสินค้านี้", status_code=403)
 
     product.is_active = False
+    product.closed_by = "seller"   # ✅ บันทึกว่า seller เป็นคนปิด
     db.commit()
     return success_response("ปิดการขายสินค้าสำเร็จ", {"product_id": str(product.product_id)})
 
@@ -529,6 +530,14 @@ def open_sale_product_service(db, user_data, product_id: str):
     if not store or store.store_id != product.store_id:
         return error_response("คุณไม่มีสิทธิ์เปิดการขายสินค้านี้", status_code=403)
 
+    # ✅ Issue #2: ถ้า admin เป็นคนปิด → seller ห้ามเปิดเองได้
+    if product.closed_by == "admin":
+        return error_response(
+            "สินค้านี้ถูกปิดโดยแอดมิน ไม่สามารถเปิดการขายได้ กรุณาติดต่อฝ่ายสนับสนุน",
+            status_code=403
+        )
+
     product.is_active = True
+    product.closed_by = None   # ✅ เคลียร์ค่า closed_by เมื่อเปิดการขาย
     db.commit()
     return success_response("เปิดการขายสินค้าสำเร็จ", {"product_id": str(product.product_id)})
