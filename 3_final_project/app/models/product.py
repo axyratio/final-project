@@ -29,7 +29,6 @@ class Product(Base):
     variant_name = Column(String(50), nullable=True)
     product_name = Column(String, nullable=False)
     base_price = Column(Float, nullable=False)
-    stock_quantity = Column(Integer, nullable=False)
     description = Column(TEXT, nullable=True)
     is_active = Column(Boolean, default=True)
     is_draft = Column(Boolean, default=True)

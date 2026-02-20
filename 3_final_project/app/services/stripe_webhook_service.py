@@ -47,11 +47,9 @@ class StripeWebhookService:
             raise HTTPException(status_code=404, detail="Orders not found")
 
         # Payment เดียวผูกกับ order แรก
-        payment: Payment = (
-            db.query(Payment)
-            .filter(Payment.order_id == orders[0].order_id)
-            .first()
-        )
+        payment = db.query(Payment).filter(
+            Payment.payment_id == orders[0].payment_id  # ✅ ใช้ order.payment_id FK
+        ).first()
 
         # Idempotent: ถ้า order ในชุดนี้ถูก mark PAID หมดแล้ว ก็ไม่ทำอะไร
         all_paid = all(o.status == "PAID" for o in orders)
@@ -60,10 +58,21 @@ class StripeWebhookService:
 
         now = now_utc()
 
-        # 1) อัปเดต Payment → SUCCESS
+        # 1) อัปเดต Payment → SUCCESS + บันทึก payment_intent_id และ charge_id
         if payment:
             payment.status = PaymentStatus.SUCCESS
             payment.paid_at = now
+            # ✅ save payment_intent_id จาก session (ใช้ตอน payout)
+            if not payment.payment_intent_id and session.get("payment_intent"):
+                payment.payment_intent_id = session["payment_intent"]
+            # ✅ save stripe_charge_id สำหรับใช้เป็น source_transaction ตอนโอนเงิน
+            if session.get("payment_intent"):
+                try:
+                    pi = stripe.PaymentIntent.retrieve(session["payment_intent"])
+                    if pi.get("latest_charge"):
+                        payment.stripe_charge_id = pi["latest_charge"]
+                except Exception as e:
+                    print(f"[WEBHOOK] ⚠️ Could not retrieve charge_id: {e}")
 
         # 2) loop ทุก order → mark PAID + หัก stock + ลบ reservation
         for order in orders:

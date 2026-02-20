@@ -15,7 +15,6 @@ def create_draft_product(db, store_id):
         store_id=store_id,
         product_name="",
         base_price=0.0,
-        stock_quantity=0,
         category="uncategorized",
         description="",
         is_draft=True,

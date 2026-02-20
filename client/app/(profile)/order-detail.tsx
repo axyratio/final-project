@@ -400,7 +400,7 @@ export default function OrderDetailScreen() {
             <OrderItemDetailRow
               key={item.order_item_id}
               item={item}
-              storeId={order.store_id}
+              storeId={order.store_id || ""}
               storeName={order.store_name}
               router={router}
             />

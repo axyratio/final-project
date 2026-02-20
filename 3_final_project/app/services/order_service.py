@@ -232,7 +232,7 @@ class OrderService:
                 joinedload(Order.store),
                 joinedload(Order.order_items).joinedload(OrderItem.product),
                 joinedload(Order.order_items).joinedload(OrderItem.variant),
-                joinedload(Order.payment)
+                joinedload(Order.payment),  # ✅ ต้องมีบรรทัดนี้
             )
             .filter(Order.order_id == order_id, Order.user_id == user_id)
             .first()

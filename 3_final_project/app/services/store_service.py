@@ -9,9 +9,9 @@ from app.models.user import User
 from app.repositories import store_application_repository, store_repository, user_repository
 from app.utils.file_util import save_file, update_file, delete_file, rollback_and_cleanup
 from app.utils.response_handler import success_response, error_response
+from app.core.config import settings
 
 UPLOAD_DIR = "app/uploads/store/logo"
-base_url = os.getenv("BASE_URL", "http://localhost:8000")
 
 
 def create_store_and_connect_stripe(
@@ -69,8 +69,8 @@ def create_store_and_connect_stripe(
 
         onboarding_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=f"{base_url}/store/connect/refresh/{store.store_id}",
-            return_url=f"{base_url}/store/connect/success/{store.store_id}",
+            refresh_url=f"{settings.BASE_URL}/store/connect/refresh/{store.store_id}",
+            return_url=f"{settings.BASE_URL}/store/connect/success/{store.store_id}",
             type="account_onboarding",
         )
 
@@ -295,8 +295,8 @@ def create_stripe_onboarding_link(db, user_id: str):
         # ✅ สร้างลิงก์ onboarding ใหม่จาก Stripe account เดิม
         onboarding_link = stripe.AccountLink.create(
             account=store.stripe_account_id,
-            refresh_url=f"{base_url}/store/connect/refresh/{store.store_id}",
-            return_url=f"{base_url}/store/connect/success/{store.store_id}",
+            refresh_url=f"{settings.BASE_URL}/store/connect/refresh/{store.store_id}",
+            return_url=f"{settings.BASE_URL}/store/connect/success/{store.store_id}",
             type="account_onboarding",
         )
 

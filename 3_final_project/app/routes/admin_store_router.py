@@ -13,9 +13,11 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, Form, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
+import stripe
 
 from app.db.database import get_db
 from app.core.authz import authorize_role
+from app.core.config import settings
 from app.models.store import Store
 from app.models.product import Product
 from app.models.user import User
@@ -186,11 +188,37 @@ def toggle_store_status(
         store = db.query(Store).filter(Store.store_id == store_id).first()
         if not store:
             return error_response("ไม่พบร้านค้า", {}, 404)
-        
+
         store.is_active = is_active
+        
         db.commit()
         db.refresh(store)
-        
+
+        # ✅ Sync Stripe capability ตาม is_active
+        if store.stripe_account_id:
+            try:
+                print(f"[ADMIN STORE] store status {is_active}")
+                if is_active:
+                    # เปิดร้าน
+                    stripe.Account.modify(
+                        store.stripe_account_id,
+                        capabilities={
+                            "transfers": {"requested": True},
+                            "card_payments": {"requested": True}
+                        }
+                    )
+                else:
+                    # ปิดร้าน
+                    stripe.Account.modify(
+                        store.stripe_account_id,
+                        capabilities={
+                            "transfers": {"requested": False},
+                            "card_payments": {"requested": False}
+                        }
+                    )
+            except Exception as stripe_err:
+                print(f"[ADMIN] ⚠️ Stripe capability sync failed: {stripe_err}")
+
         status_text = "เปิด" if is_active else "ปิด"
         return success_response(
             f"{status_text}ร้านค้าสำเร็จ",
@@ -200,7 +228,15 @@ def toggle_store_status(
                 "is_active": store.is_active
             }
         )
-        
+
+    except Exception as e:
+        db.rollback()
+        return error_response(
+            "เกิดข้อผิดพลาดขณะเปลี่ยนสถานะร้านค้า",
+            {"error": str(e)},
+            500
+        )
+
     except Exception as e:
         db.rollback()
         return error_response(
@@ -291,7 +327,7 @@ def get_store_products(
                 "product_id": str(product.product_id),
                 "product_name": product.product_name,
                 "base_price": product.base_price,
-                "stock_quantity": product.stock_quantity,
+                "stock_quantity": sum(v.stock for v in product.variants if v.is_active),
                 "category": product.category,
                 "is_active": product.is_active,
                 "is_draft": product.is_draft,

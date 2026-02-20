@@ -30,6 +30,7 @@ class Payment(Base):
     selected_cart_item_ids = Column(JSONB, nullable=True)
 
     payment_intent_id = Column(String(100), nullable=True, unique=True)
+    stripe_charge_id = Column(String(100), nullable=True)  # charge ID สำหรับ source_transaction ตอนโอนเงิน
     stripe_session_id = Column(String(100), nullable=True, unique=True)
 
     transaction_ref = Column(String(100), nullable=True)

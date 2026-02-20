@@ -22,7 +22,7 @@ import React, { useRef, useState } from "react";
 
 type OrderCardProps = {
   order: Order;
-  onConfirmReceived?: (orderId: string) => void;
+  // onConfirmReceived?: (orderId: string) => void;
   onReorder?: (orderId: string) => void;
   onReview?: (orderId: string, productId: string, variantId: string) => void;
   onReturn?: (orderId: string) => void;
@@ -106,7 +106,7 @@ function getStatusBadgeColor(status: string): string {
 
 const _OrderCard: React.FC<OrderCardProps> = ({
   order,
-  onConfirmReceived,
+  // onConfirmReceived,
   onReorder,
   onReview,
   onReturn,
@@ -160,7 +160,7 @@ const handleConfirmReceivedConfirm = async () => {
     });
 
     // เรียก callback
-    onConfirmReceived?.(order.order_id);
+    // onConfirmReceived?.(order.order_id);
 
   } catch (error: any) {
     console.error("❌ Error confirming order:", error);
@@ -349,7 +349,7 @@ const handleConfirmReceivedConfirm = async () => {
               colorScheme="violet"
               onPress={() => {
                 const firstProduct = order.order_items[0];
-                if (firstProduct) {
+                if (firstProduct && firstProduct.product_id && firstProduct.variant_id) {
                   onReview?.(
                     order.order_id,
                     firstProduct.product_id,

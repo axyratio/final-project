@@ -7,7 +7,6 @@ from typing import Optional
 class ProductBase(BaseModel):
     product_name: Optional[str]
     base_price: Optional[float]
-    stock_quantity: Optional[int]
     category: Optional[str]
     description: Optional[str]
     is_active: Optional[bool]

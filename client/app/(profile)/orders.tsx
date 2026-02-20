@@ -217,6 +217,7 @@ export default function OrdersScreen() {
       toast.show({ description: errorMessage, duration: 3000, bg: "red.500" });
     }
   };
+  
 
   // ----------------
   // Handle reorder
@@ -334,7 +335,7 @@ export default function OrdersScreen() {
           renderItem={({ item }) => (
             <OrderCard
               order={item}
-              onConfirmReceived={handleConfirmReceived}
+              // onConfirmReceived={handleConfirmReceived}
               onReorder={handleReorder}
               onReview={handleReview}
               onReturn={handleReturn}

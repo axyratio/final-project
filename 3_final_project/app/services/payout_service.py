@@ -70,15 +70,19 @@ class PayoutService:
 
         result = []
         for store_id, subtotal in store_groups:
+            # ✅ ถ้า store_id เป็น NULL (ร้านถูกลบ) ให้ข้ามไป ไม่ต้องโอนเงิน
+            if store_id is None:
+                print(f"[PAYOUT] ⚠️ Skipping items with deleted store (store_id=NULL), subtotal={subtotal}")
+                continue
+
             # ดึงข้อมูลร้าน
             store = db.query(Store).filter(Store.store_id == store_id).first()
-            
+
             if not store:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"ไม่พบร้านค้า ID: {store_id}"
-                )
-            
+                # ร้านถูกลบออกจาก DB แล้ว (ไม่ใช่แค่ SET NULL) → skip เหมือนกัน
+                print(f"[PAYOUT] ⚠️ Store {store_id} not found in DB, skipping payout")
+                continue
+
             if not store.stripe_account_id:
                 raise HTTPException(
                     status_code=400,
@@ -161,11 +165,15 @@ class PayoutService:
             )
 
         # 2. ตรวจสอบการชำระเงิน
-        payment = (
-            db.query(Payment)
-            .filter(Payment.payment_id == order.payment_id)
-            .first()
-        )
+# แทนที่บรรทัด 166
+        payment = db.query(Payment).filter(
+            Payment.payment_id == order.payment_id  # ✅ ถูกแล้ว แต่ต้อง load order พร้อม payment_id ก่อน
+        ).first()
+
+        # เพิ่ม print เพื่อ debug
+        print(f"[PAYOUT] order.payment_id = {order.payment_id}")
+        print(f"[PAYOUT] payment found = {payment}")
+        print(f"[PAYOUT] payment.status = {payment.status if payment else 'NOT FOUND'}")
         
         if not payment or payment.status != PaymentStatus.SUCCESS:
             raise HTTPException(
@@ -191,7 +199,7 @@ class PayoutService:
             print(f"    - Stripe Account: {store_data['stripe_account_id']}")
 
         # 4. ดึง transfer_group จาก PaymentIntent
-        transfer_group = f"order_{order_id}"
+        transfer_group = f"payment_{payment.payment_id}"  # ✅ ตรงกับที่ checkout ตั้งไว้
         print(f"\n[PAYOUT_SERVICE] 📦 Transfer Group: {transfer_group}")
 
         # 5. โอนเงินให้แต่ละร้าน
@@ -205,19 +213,23 @@ class PayoutService:
                 amount_cents = int(float(store_data['transfer_amount']) * 100)
                 
                 # สร้าง Stripe Transfer
-                transfer = stripe.Transfer.create(
-                    amount=amount_cents,
-                    currency="sgd",
-                    destination=store_data['stripe_account_id'],
-                    transfer_group=transfer_group,
-                    description=f"Payout for Order {order_id} - {store_data['store_name']}",
-                    metadata={
+                transfer_params = {
+                    "amount": amount_cents,
+                    "currency": "sgd",  # ✅ ใช้ currency เดียวกับที่ checkout ตั้ง
+                    "destination": store_data['stripe_account_id'],
+                    "transfer_group": transfer_group,
+                    "description": f"Payout for Order {order_id} - {store_data['store_name']}",
+                    "metadata": {
                         "order_id": str(order_id),
                         "store_id": str(store_data['store_id']),
                         "store_name": store_data['store_name'],
                         "platform_fee": str(store_data['platform_fee'])
                     }
-                )
+                }
+                # ✅ ใส่ source_transaction เพื่อให้ Stripe ดึงเงินจาก charge นั้นโดยตรง
+                if payment.stripe_charge_id:
+                    transfer_params["source_transaction"] = payment.stripe_charge_id
+                transfer = stripe.Transfer.create(**transfer_params)
                 
                 print(f"[PAYOUT_SERVICE] ✅ Transfer created: {transfer.id}")
                 
@@ -244,8 +256,11 @@ class PayoutService:
                     "status": "success"
                 })
                 
-            except stripe.error.StripeError as e:
-                print(f"[PAYOUT_SERVICE] ❌ Stripe error: {str(e)}")
+            except Exception as e:
+                import traceback
+                print(f"[PAYOUT_SERVICE] ❌ Transfer error type: {type(e).__name__}")
+                print(f"[PAYOUT_SERVICE] ❌ Transfer error: {repr(e)}")
+                print(f"[PAYOUT_SERVICE] ❌ Traceback:\n{traceback.format_exc()}")
                 
                 # บันทึกความล้มเหลว
                 payout_record = StorePayout(

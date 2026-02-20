@@ -279,7 +279,7 @@ def get_store_products_admin(
                 "product_id": str(product.product_id),
                 "product_name": product.product_name,
                 "base_price": product.base_price,
-                "stock_quantity": product.stock_quantity,
+                "stock_quantity": sum(v.stock for v in product.variants if v.is_active),
                 "category": product.category,
                 "is_active": product.is_active,
                 "is_draft": product.is_draft,

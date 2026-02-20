@@ -436,30 +436,7 @@ def get_low_stock_products(
     try:
         check_admin(auth_user)
 
-        # ✅ เปลี่ยนจาก join เป็น outerjoin Store
-        # เพื่อรองรับกรณี store_id เป็น NULL (ร้านถูกลบ แต่ product ยังอยู่)
-        # หา Product ที่ stock_quantity < threshold
-        low_stock_products = (
-            db.query(
-                Product.product_id,
-                Product.product_name,
-                Product.stock_quantity,
-                Store.name.label("store_name")
-            )
-            .outerjoin(Store, Product.store_id == Store.store_id)
-            .filter(
-                and_(
-                    Product.is_active == True,
-                    Product.is_draft == False,
-                    Product.stock_quantity < threshold
-                )
-            )
-            .order_by(Product.stock_quantity.asc())
-            .all()
-        )
-
-        # ✅ เปลี่ยนจาก join เป็น outerjoin Store เช่นกัน
-        # หา Variant ที่ stock < threshold
+        # ✅ ดึงเฉพาะ Variant ที่ stock < threshold (stock จริงอยู่ที่ variant)
         low_stock_variants = (
             db.query(
                 ProductVariant.variant_id,
@@ -472,6 +449,8 @@ def get_low_stock_products(
             .outerjoin(Store, Product.store_id == Store.store_id)
             .filter(
                 and_(
+                    Product.is_active == True,
+                    Product.is_draft == False,
                     ProductVariant.is_active == True,
                     ProductVariant.stock < threshold
                 )
@@ -479,17 +458,6 @@ def get_low_stock_products(
             .order_by(ProductVariant.stock.asc())
             .all()
         )
-
-        products_data = [
-            {
-                "type": "product",
-                "id": str(p.product_id),
-                "name": p.product_name,
-                "stock": p.stock_quantity,
-                "store_name": p.store_name or "ร้านค้าถูกลบออกจากระบบ"
-            }
-            for p in low_stock_products
-        ]
 
         variants_data = [
             {
@@ -504,9 +472,8 @@ def get_low_stock_products(
 
         return success_response("ดึงข้อมูลสินค้าเหลือน้อยสำเร็จ", {
             "threshold": threshold,
-            "products": products_data,
             "variants": variants_data,
-            "total_count": len(products_data) + len(variants_data)
+            "total_count": len(variants_data)
         })
 
     except ValueError as ve:

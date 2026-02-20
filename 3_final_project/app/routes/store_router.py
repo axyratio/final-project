@@ -3,6 +3,7 @@ import os
 from fastapi import APIRouter, Form, File, UploadFile, Depends
 from sqlalchemy.orm import Session
 from fastapi.responses import FileResponse, RedirectResponse
+from app.core.config import settings
 import stripe
 from app.models.store import Store
 from app.schemas.store_schema import StoreCreate, StoreUpdate
@@ -215,8 +216,8 @@ def stripe_connect_refresh(store_id: str, db: Session = Depends(get_db)):
 
         onboarding_link = stripe.AccountLink.create(
             account=store.stripe_account_id,
-            refresh_url=f"http://localhost:8000/store/connect/refresh/{store.store_id}",
-            return_url=f"http://localhost:8000/store/connect/success/{store.store_id}",
+            refresh_url=f"{settings.BASE_URL}/store/connect/refresh/{store.store_id}",
+            return_url=f"{settings.BASE_URL}/store/connect/success/{store.store_id}",
             type="account_onboarding",
         )
 

@@ -298,7 +298,7 @@ class CheckoutService:
                 line_items=line_items,
                 success_url=f"{settings.BASE_URL}/payment/success?session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{settings.BASE_URL}/payment/cancel?session_id={{CHECKOUT_SESSION_ID}}",
-                payment_intent_data={"transfer_group": str(payment.payment_id)},
+                payment_intent_data={"transfer_group": f"payment_{payment.payment_id}"},  # ✅ ตรงกับ payout_service
                 metadata={"app_payment_id": str(payment.payment_id)},
             )
 
