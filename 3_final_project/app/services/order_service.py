@@ -158,7 +158,7 @@ class OrderService:
             "can_confirm_received": OrderService.can_confirm_received(order.order_status),
             "can_return": OrderService.can_return(order.order_status),
             "can_review": OrderService.can_review(order.order_status),
-            # Issue #6: ส่ง stripe_checkout_url เฉพาะ UNPAID
+            # Issue #6: ส่ง stripe_checkout_url กลับมาเฉพาะ UNPAID เพื่อให้ user กลับไปจ่ายได้
             "stripe_checkout_url": (
                 order.payment.stripe_checkout_url
                 if order.order_status == "UNPAID" and order.payment and order.payment.stripe_checkout_url
@@ -254,7 +254,7 @@ class OrderService:
         if order.order_status != "DELIVERED":
             raise HTTPException(
                 status_code=400,
-                detail=f"ไม่สามารถยืนยันได้ สถานะปัจจุบัน: {OrderService.get_status_text(order.order_status)}"
+                detail=f"ไม่สามารถยืนยันได้ เนื่องจากระบบยืนยันการรับสินค้าอัตโนมัติแล้ว (สถานะ: {order.order_status})"
             )
 
         # 3. โอนเงินให้ร้านค้า (รองรับหลายร้าน)

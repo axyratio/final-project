@@ -81,7 +81,7 @@ export type Order = {
   can_return: boolean;
   can_review: boolean;
   return_info?: ReturnOrder | null;
-  stripe_checkout_url?: string | null;  // Issue #6
+  stripe_checkout_url?: string | null;  // Issue #6: URL สำหรับ UNPAID orders
 };
 
 export type OrderListResponse = {
@@ -148,6 +148,16 @@ export async function confirmOrderReceived(
       order: responseData,
     };
   } catch (error: any) {
+    // ถ้า 400 และ order เป็น COMPLETED แล้ว (auto-confirm ไปก่อน) → ถือว่า success
+    if (error.response?.status === 400) {
+      const detail = error.response?.data?.detail || "";
+      if (detail.includes("COMPLETED")) {
+        return {
+          message: "ระบบยืนยันการรับสินค้าอัตโนมัติแล้ว",
+          order: { ...error.response.data?.data, order_status: "COMPLETED" } as Order,
+        };
+      }
+    }
     console.error("❌ Error confirming order:", error.response?.data || error.message);
     throw error;
   }

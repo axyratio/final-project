@@ -45,7 +45,6 @@ const TABS: { key: TabType; label: string; statuses?: OrderStatus[] }[] = [
   { 
     key: "RETURNING", 
     label: "การคืนสินค้า", 
-    // ✅ รวมสถานะที่เกี่ยวกับการคืนทั้งหมดไว้ใน Tab เดียวกัน
     statuses: ["RETURNING", "APPROVED", "REJECTED", "RETURNED"] 
   },
   { key: "CANCELLED", label: "ยกเลิก", statuses: ["CANCELLED"] },
@@ -61,16 +60,23 @@ export default function OrdersScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
-  console.log("[OrdersScreen] orders:", orders);
   const [error, setError] = useState<string | null>(null);
   const [reviewedMap, setReviewedMap] = useState<Record<string, boolean>>({});
 
   // ✅ Issue #4: อัปเดตสถานะ order ใน list โดยไม่ต้องรีเฟรชหน้า
   const handleStatusChange = (orderId: string, newStatus: string) => {
     setOrders((prev) =>
-      prev.map((o) =>
-        o.order_id === orderId ? { ...o, order_status: newStatus as OrderStatus } : o
-      )
+      prev.map((o): Order => {
+        if (o.order_id !== orderId) return o;
+        const status = newStatus as OrderStatus;
+        return {
+          ...o,
+          order_status: status,
+          can_confirm_received: status === "DELIVERED",
+          can_return: status === "DELIVERED",
+          can_review: status === "COMPLETED",
+        };
+      })
     );
   };
   console.log("[Orders]", orders)

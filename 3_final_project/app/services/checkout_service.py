@@ -24,7 +24,7 @@ from app.core.config import settings
 from app.utils.order_task import check_order_timeout
 
 
-RESERVATION_MINUTES = 1
+RESERVATION_MINUTES = 5
 
 
 def _calc_shipping_fee(total_weight_grams: int) -> float:
