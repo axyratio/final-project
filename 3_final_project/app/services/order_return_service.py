@@ -244,7 +244,8 @@ class OrderReturnService:
                 image_urls=image_urls,
                 status=ReturnStatus.PENDING,
                 status_text="รอร้านค้าตรวจสอบ",
-                refund_amount=order.total_price
+                # refund_amount=order.total_price
+                refund_amount = float(order.total_price) - float(order.shipping_cost) 
             )
             
             db.add(return_order)

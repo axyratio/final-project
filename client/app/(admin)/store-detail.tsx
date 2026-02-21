@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -58,6 +59,7 @@ export default function StoreDetail() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [toggling, setToggling] = useState(false); // Issue #11: loading ขณะเปลี่ยนสถานะร้าน
   const [activeTab, setActiveTab] = useState<"info" | "products">("info");
 
   useEffect(() => {
@@ -135,6 +137,7 @@ export default function StoreDetail() {
           style: newStatus ? "default" : "destructive",
           onPress: async () => {
             try {
+              setToggling(true); // Issue #11: แสดง loading overlay
               const token = await getToken();
               const formData = new FormData();
               formData.append("is_active", newStatus.toString());
@@ -151,13 +154,18 @@ export default function StoreDetail() {
               );
               const result = await response.json();
               if (result.success) {
+                // Issue #10: อัปเดต state ทันทีจาก response ไม่ต้อง refetch ทั้งหน้า
+                setStore((prev) =>
+                  prev ? { ...prev, is_active: result.data.is_active } : prev
+                );
                 Alert.alert("สำเร็จ", result.message);
-                await fetchStoreDetail();
               } else {
                 Alert.alert("เกิดข้อผิดพลาด", result.message);
               }
             } catch (error) {
               Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถเปลี่ยนสถานะได้");
+            } finally {
+              setToggling(false); // Issue #11: ซ่อน loading overlay
             }
           },
         },
@@ -192,6 +200,7 @@ export default function StoreDetail() {
           text: "ยืนยัน",
           onPress: async () => {
             try {
+              setToggling(true); // Issue #11
               const token = await getToken();
               const formData = new FormData();
               formData.append("is_active", newStatus.toString());
@@ -208,13 +217,22 @@ export default function StoreDetail() {
               );
               const result = await response.json();
               if (result.success) {
+                // อัปเดต state ทันทีจาก response ไม่ต้อง refetch
+                setProducts((prev) =>
+                  prev.map((p) =>
+                    p.product_id === product.product_id
+                      ? { ...p, is_active: result.data.is_active }
+                      : p
+                  )
+                );
                 Alert.alert("สำเร็จ", result.message);
-                await fetchProducts();
               } else {
                 Alert.alert("เกิดข้อผิดพลาด", result.message);
               }
             } catch (error) {
               Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถเปลี่ยนสถานะได้");
+            } finally {
+              setToggling(false); // Issue #11
             }
           },
         },
@@ -258,6 +276,16 @@ export default function StoreDetail() {
 
   return (
     <View style={styles.container}>
+      {/* Issue #11: Loading overlay ขณะเปลี่ยนสถานะร้าน กดอะไรไม่ได้ */}
+      <Modal visible={toggling} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#7c3aed" />
+            <Text style={styles.loadingOverlayText}>กำลังดำเนินการ...</Text>
+          </View>
+        </View>
+      </Modal>
+
       {/* Header */}
       <Box safeAreaTop></Box>
 
@@ -729,5 +757,30 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  // Issue #11: Loading overlay styles
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingBox: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 40,
+    alignItems: "center",
+    gap: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loadingOverlayText: {
+    fontSize: 15,
+    color: "#374151",
+    fontWeight: "500",
   },
 });

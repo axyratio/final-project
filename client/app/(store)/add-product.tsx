@@ -610,11 +610,7 @@ const loadCategories = async () => {
         return;
       }
 
-      const minBuyNum = Number(minBuy);
-      if (!minBuy || Number.isNaN(minBuyNum) || minBuyNum <= 0) {
-        Alert.alert("ราคาซื้อขั้นต่ำต้องมากกว่า 0");
-        return;
-      }
+      const minBuyNum = 0; // Issue #8: ไม่ใช้ base_price แล้ว ใช้ lowest variant price แทน
 
       const totalStock =
         variant.options.reduce(
@@ -836,13 +832,7 @@ const loadCategories = async () => {
             route={categoryRoute}
           />
 
-          <UnifiedRow
-            type="number"
-            title="ราคาซื้อขั้นต่ำ"
-            required
-            value={minBuy}
-            onChangeText={handleChangeMinBuy}
-          />
+          {/* Issue #8: ลบช่อง "ราคาซื้อขั้นต่ำ" ออก ราคาจะแสดงจาก lowest variant price แทน */}
         </ScrollView>
       </KeyboardAvoidingView>
 

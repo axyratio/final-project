@@ -296,7 +296,7 @@ export default function ManageCategoriesScreen() {
     <View style={styles.categoryCard}>
       <View style={styles.categoryContent}>
         {/* Image */}
-        <View style={styles.categoryImageWrapper}>
+        {/* <View style={styles.categoryImageWrapper}>
           {item.image ? (
             <Image
               source={{ uri: item.image }}
@@ -308,7 +308,7 @@ export default function ManageCategoriesScreen() {
               <Ionicons name="image-outline" size={32} color="#9ca3af" />
             </View>
           )}
-        </View>
+        </View> */}
 
         {/* Info */}
         <View style={styles.categoryInfo}>
@@ -442,13 +442,13 @@ export default function ManageCategoriesScreen() {
 
           <ScrollView style={styles.modalContent}>
             {/* Image Picker */}
-            <Text style={styles.label}>รูปภาพหมวดหมู่ (1:1)</Text>
-            <TouchableOpacity
+            {/* <Text style={styles.label}>รูปภาพหมวดหมู่ (1:1)</Text> */}
+            {/* <TouchableOpacity
               style={styles.imagePicker}
               onPress={handlePickImage}
               disabled={submitting}
-            >
-              {formData.imageUri ? (
+            > */}
+              {/* {formData.imageUri ? (
                 <View style={styles.imagePreviewWrapper}>
                   <Image
                     source={{ uri: formData.imageUri }}
@@ -473,8 +473,8 @@ export default function ManageCategoriesScreen() {
                     Aspect Ratio: 1:1 (Square)
                   </Text>
                 </View>
-              )}
-            </TouchableOpacity>
+              )} */}
+            {/* </TouchableOpacity> */}
 
             {/* Name */}
             <Text style={styles.label}>

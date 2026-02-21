@@ -186,11 +186,19 @@ def get_product_detail_api(
             .scalar()
             or 0
         )
+    
+    # variant_prices = [v.price for v in product.variants if v.price is not None and v.is_active]
+    # lowest_price = min(variant_prices) if variant_prices else (product.base_price or 0.0)
 
+    lowest_price = min(
+    (v.price for v in product.variants if v.price is not None and v.is_active),
+    default=product.base_price or 0.0
+    )
+    
     detail_out = ProductDetailOut(
         product_id=product.product_id,
         product_name=product.product_name,
-        base_price=product.base_price,
+        base_price=lowest_price,
         original_price=None,           # ยังไม่ใช้ก็ใส่ None ไปก่อน
         discount_percent=None,
         description=product.description,

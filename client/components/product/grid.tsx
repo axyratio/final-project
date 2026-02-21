@@ -5,10 +5,10 @@ import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { HomeProduct } from "@/api/home";
-import { toggleWishlist, checkWishlist } from "@/api/wishlist";
+import { checkWishlist, toggleWishlist } from "@/api/wishlist";
 import ProductCard from "@/components/product/card";
-import { DOMAIN } from "@/้host";
 import { getToken } from "@/utils/secure-store";
+import { DOMAIN } from "@/้host";
 
 const API_BASE_URL = `${DOMAIN}`;
 
@@ -27,9 +27,11 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
 }) => {
   const router = useRouter();
   const toast = useToast();
-  
+
   // ✅ เก็บสถานะ wishlist ของแต่ละสินค้า
-  const [wishlistStates, setWishlistStates] = useState<Record<string, boolean>>({});
+  const [wishlistStates, setWishlistStates] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // ✅ โหลดสถานะ wishlist เมื่อ component mount
   useEffect(() => {
@@ -44,7 +46,7 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
       if (!token) return;
 
       const states: Record<string, boolean> = {};
-      
+
       // เช็คสถานะ wishlist ของแต่ละสินค้า
       await Promise.all(
         products.map(async (product) => {
@@ -55,7 +57,7 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
             console.error(`Error checking wishlist for ${product.id}:`, err);
             states[product.id] = false;
           }
-        })
+        }),
       );
 
       setWishlistStates(states);
@@ -75,19 +77,19 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
 
     // อัปเดต UI ทันที (ไม่ต้องรอ API)
     const newState = !wishlistStates[productId];
-    setWishlistStates(prev => ({
+    setWishlistStates((prev) => ({
       ...prev,
-      [productId]: newState
+      [productId]: newState,
     }));
 
     // ลบ toast เก่าทั้งหมดก่อนแสดงอันใหม่
     toast.closeAll();
-    
+
     // รอนิดนึงให้ toast เก่าหายสนิท แล้วค่อยแสดงอันใหม่
     setTimeout(() => {
       toast.show({
-        description: newState 
-          ? "เพิ่มในรายการโปรดแล้ว" 
+        description: newState
+          ? "เพิ่มในรายการโปรดแล้ว"
           : "ลบออกจากรายการโปรดแล้ว",
         duration: 1500,
         bg: newState ? "violet.600" : "gray.600",
@@ -95,7 +97,7 @@ export const HomeProductGrid: React.FC<HomeProductGridProps> = ({
     }, 100);
 
     // เรียก API ในพื้นหลัง (fire-and-forget)
-    toggleWishlist(token, productId).catch(err => {
+    toggleWishlist(token, productId).catch((err) => {
       console.error("Error toggling wishlist:", err);
     });
   };

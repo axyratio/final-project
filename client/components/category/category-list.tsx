@@ -1,142 +1,205 @@
-// File: components/category-list.tsx
+// File: components/category/category-list.tsx
+// Issue #12: Hardcode 5 หมวดหมู่ + SVG inline + ปุ่มดูทั้งหมด
 
-import { HomeCategory } from "@/api/home";
 import { useRouter } from "expo-router";
 import { Box, Text } from "native-base";
 import React from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
-import { SvgUri } from "react-native-svg";
+import { Pressable, View } from "react-native";
+import { Circle, Path, Svg } from "react-native-svg";
 
-// Default colors for categories (cycling through these colors)
-const defaultCategoryColors: string[] = [
-  "#E3F2FD", // Light Blue
-  "#FFF9C4", // Light Yellow
-  "#F3E5F5", // Light Purple
-  "#FCE4EC", // Light Pink
-  "#E8F5E9", // Light Green
-  "#FFF3E0", // Light Orange
-  "#F3E5F5", // Light Lavender
-  "#FFE0B2", // Light Peach
+// ─── SVG Icons ───────────────────────────────────────────────────────────────
+
+const TshirtIcon = ({ size = 36 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <Path
+      d="M20 8 L8 20 L16 24 L16 56 L48 56 L48 24 L56 20 L44 8 C44 8 40 14 32 14 C24 14 20 8 20 8Z"
+      fill="#7c3aed"
+      stroke="#5b21b6"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+const ShirtIcon = ({ size = 36 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <Path
+      d="M20 8 L8 20 L16 24 L16 56 L48 56 L48 24 L56 20 L44 8 C44 8 40 12 32 12 C24 12 20 8 20 8Z"
+      fill="#2563eb"
+      stroke="#1d4ed8"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <Path d="M32 12 L32 30" stroke="#1d4ed8" strokeWidth="2" />
+    <Path d="M28 14 L36 14" stroke="#1d4ed8" strokeWidth="1.5" />
+    <Path d="M27 18 L37 18" stroke="#1d4ed8" strokeWidth="1.5" />
+  </Svg>
+);
+
+const FormalIcon = ({ size = 36 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <Path
+      d="M20 6 L8 22 L16 26 L16 58 L48 58 L48 26 L56 22 L44 6 L38 14 L32 8 L26 14 Z"
+      fill="#1f2937"
+      stroke="#111827"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <Path d="M26 14 L32 8 L38 14 L35 30 L29 30 Z" fill="#fff" />
+    <Circle cx="32" cy="22" r="2" fill="#7c3aed" />
+    <Circle cx="32" cy="29" r="2" fill="#7c3aed" />
+  </Svg>
+);
+
+const CuteIcon = ({ size = 36 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <Path
+      d="M20 8 L8 20 L16 24 L16 56 L48 56 L48 24 L56 20 L44 8 C44 8 40 14 32 14 C24 14 20 8 20 8Z"
+      fill="#ec4899"
+      stroke="#db2777"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <Circle cx="24" cy="35" r="3" fill="#fce7f3" />
+    <Circle cx="40" cy="35" r="3" fill="#fce7f3" />
+    <Path
+      d="M27 44 Q32 49 37 44"
+      stroke="#fce7f3"
+      strokeWidth="2"
+      fill="none"
+      strokeLinecap="round"
+    />
+  </Svg>
+);
+
+const SportIcon = ({ size = 36 }: { size?: number }) => (
+  <Svg width={size} height={size} viewBox="0 0 64 64" fill="none">
+    <Path
+      d="M22 6 L8 18 L16 23 L16 56 L48 56 L48 23 L56 18 L42 6 C42 6 38 12 32 12 C26 12 22 6 22 6Z"
+      fill="#059669"
+      stroke="#047857"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <Path
+      d="M22 6 L28 22 L32 18 L36 22 L42 6"
+      stroke="#d1fae5"
+      strokeWidth="1.5"
+      fill="none"
+    />
+  </Svg>
+);
+
+// ─── Hardcoded Categories ─────────────────────────────────────────────────────
+
+const HARDCODED_CATEGORIES = [
+  {
+    slug: "tshirt",
+    name: "เสื้อยืด",
+    bg: "#ede9fe",
+    Icon: TshirtIcon,
+  },
+  {
+    slug: "shirt",
+    name: "เสื้อเชิ้ต",
+    bg: "#dbeafe",
+    Icon: ShirtIcon,
+  },
+  {
+    slug: "formal",
+    name: "เสื้อทางการ",
+    bg: "#f3f4f6",
+    Icon: FormalIcon,
+  },
+  {
+    slug: "cute",
+    name: "เสื้อน่ารัก",
+    bg: "#fce7f3",
+    Icon: CuteIcon,
+  },
+  {
+    slug: "sport",
+    name: "เสื้อกีฬา",
+    bg: "#d1fae5",
+    Icon: SportIcon,
+  },
 ];
 
+// ─── Component ────────────────────────────────────────────────────────────────
+
 type Props = {
-  categories: HomeCategory[];
+  categories?: any[]; // รับ prop เดิมไว้ก็ได้ แต่ไม่ใช้แล้ว
 };
 
-/**
- * Component สำหรับแสดงไอคอนหมวดหมู่
- * รองรับทั้ง SVG และรูปภาพปกติ (PNG, JPG)
- */
-const CategoryIcon: React.FC<{
-  iconUrl?: string;
-  categoryName: string;
-  size?: number;
-}> = ({ iconUrl, categoryName, size = 40 }) => {
-  // ไม่มีไอคอน → แสดงตัวอักษรแรก
-  if (!iconUrl) {
-    return (
-      <Text fontSize="2xl" fontWeight="bold" color="gray.600">
-        {categoryName.charAt(0)}
-      </Text>
-    );
-  }
-
-  // ตรวจสอบว่าเป็น SVG หรือไม่
-  const isSvg =
-    iconUrl.toLowerCase().endsWith(".svg") ||
-    iconUrl.includes("image/svg") ||
-    iconUrl.includes(".svg?");
-
-  // แสดง SVG
-  if (isSvg) {
-    return (
-      <SvgUri
-        uri={iconUrl}
-        width={size}
-        height={size}
-        onError={(error) => {
-          console.warn("SVG load error:", error);
-        }}
-      />
-    );
-  }
-
-  // แสดงรูปภาพปกติ (PNG, JPG, etc.)
-  return (
-    <Image
-      source={{ uri: iconUrl }}
-      style={{ width: size, height: size, resizeMode: "contain" }}
-      onError={(error) => {
-        console.warn("Image load error:", error);
-      }}
-    />
-  );
-};
-
-export const HomeCategoryList: React.FC<Props> = ({ categories }) => {
+export const HomeCategoryList: React.FC<Props> = () => {
   const router = useRouter();
-
-  const handlePressCategory = (category: HomeCategory) => {
-    router.push({
-      pathname: "/(home)/categories",
-      params: {
-        categoryId: category.id,
-        categoryName: category.name,
-      },
-    } as any);
-  };
-
-  if (!categories.length) return null;
 
   return (
     <Box mt={6}>
-      <Text px={4} mb={3} fontWeight="600" fontSize="md">
-        หมวดหมู่
-      </Text>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16 }}
+      {/* Header row */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          alignItems: "center",
+          paddingHorizontal: 16,
+          marginBottom: 12,
+        }}
       >
-        {categories.map((cat, index) => {
-          // Cycle through colors for variety
-          const bgColor =
-            defaultCategoryColors[index % defaultCategoryColors.length];
+        <Text fontWeight="600" fontSize="md">
+          หมวดหมู่
+        </Text>
+        <Pressable
+          onPress={() => router.push("/(home)/categories" as any)}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <Text fontSize="xs" color="violet.600" fontWeight="500">
+            ดูทั้งหมด →
+          </Text>
+        </Pressable>
+      </View>
 
-          return (
-            <Pressable
-              key={cat.id}
-              onPress={() => handlePressCategory(cat)}
-              style={{ marginRight: 16, alignItems: "center" }}
+      {/* Category icons row */}
+      <View
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          paddingHorizontal: 16,
+        }}
+      >
+        {HARDCODED_CATEGORIES.map((cat) => (
+          <Pressable
+            key={cat.slug}
+            onPress={() =>
+              router.push({
+                pathname: "/(home)/categories",
+                params: { categorySlug: cat.slug, categoryName: cat.name },
+              } as any)
+            }
+            style={({ pressed }) => ({
+              alignItems: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <View
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                backgroundColor: cat.bg,
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 6,
+              }}
             >
-              <Box
-                width={16}
-                height={16}
-                borderRadius={999}
-                bg={bgColor}
-                alignItems="center"
-                justifyContent="center"
-                overflow="hidden"
-              >
-                <CategoryIcon
-                  iconUrl={cat.iconUrl}
-                  categoryName={cat.name}
-                  size={40}
-                />
-              </Box>
-              <Text
-                mt={1}
-                fontSize="xs"
-                numberOfLines={1}
-                maxW={16}
-                textAlign="center"
-              >
-                {cat.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+              <cat.Icon size={34} />
+            </View>
+            <Text fontSize="2xs" numberOfLines={1} textAlign="center">
+              {cat.name}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </Box>
   );
 };

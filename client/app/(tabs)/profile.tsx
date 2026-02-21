@@ -130,13 +130,13 @@ export default function ProfileScreen() {
 
       {/* Header */}
       <Box bg="#7c3aed" borderBottomRadius={15} w="100%" py={4} px={4}>
-        <HStack width="100%" justifyContent="flex-end">
+        {/* <HStack width="100%" justifyContent="flex-end">
           <Feather
             name="shopping-cart"
             size={25}
             color={themeColors.contrast}
           />
-        </HStack>
+        </HStack> */}
 
         <HStack alignItems="center" style={{ gap: 5 }} mt={2}>
           {/* ✅ แสดงรูป profile picture */}
@@ -191,17 +191,7 @@ export default function ProfileScreen() {
             iconPosition="left"
           />
 
-          <CustomPressable
-            fontSize={12}
-            mx={1}
-            p={3}
-            justifyContent="flex-start"
-            title="ประวัติการซื้อ"
-            icon={
-              <MaterialCommunityIcons name="history" size={24} color="black" />
-            }
-            iconPosition="left"
-          />
+
 
           {/* ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
           <CustomPressable

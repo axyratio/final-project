@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from typing import Optional
 
 from app.db.database import get_db
-from app.models.product import ImageType, Product, ProductImage
+from app.models.product import ImageType, Product, ProductImage, ProductVariant
 from app.models.category import Category
 from app.models.store import Store
 from app.models.user import User
@@ -12,6 +12,15 @@ from app.utils.response_handler import success_response, error_response
 from app.core.authz import get_current_user_from_cookie
 
 router = APIRouter(prefix="/home", tags=["Home"])
+
+
+def get_lowest_variant_price(db: Session, product_id) -> float:
+    """Issue #8: ดึงราคาต่ำสุดจาก variants ของสินค้า"""
+    result = db.query(func.min(ProductVariant.price)).filter(
+        ProductVariant.product_id == product_id,
+        ProductVariant.is_active == True,
+    ).scalar()
+    return float(result) if result is not None else 0.0
 
 # =========================
 # TYPES (for reference)
@@ -78,14 +87,14 @@ def get_home_data(
                 "imageUrl": "/static/images/banners/vton_banner.png",
                 "route": "/try-on",
             },
-            {
-                "id": "banner-002",
-                "title": "ลดราคาสูงสุด 50%",
-                "subtitle": "สินค้าแฟชั่นชายและหญิง",
-                "buttonLabel": "ช้อปเลย",
-                "imageUrl": "/static/images/banners/sale_banner.png",
-                "route": "/products",
-            },
+            # {
+            #     "id": "banner-002",
+            #     "title": "ลดราคาสูงสุด 50%",
+            #     "subtitle": "สินค้าแฟชั่นชายและหญิง",
+            #     "buttonLabel": "ช้อปเลย",
+            #     "imageUrl": "/static/images/banners/sale_banner.png",
+            #     "route": "/products",
+            # },
         ]
 
         # 2. Categories (ดึงจาก Database)
@@ -150,7 +159,7 @@ def get_home_data(
             products.append({
                 "id": str(p.product_id),
                 "title": p.product_name,
-                "price": p.base_price,
+                "price": get_lowest_variant_price(db, p.product_id),  # Issue #8
                 "rating": p.average_rating or 0,
                 "imageUrl": img.image_url if img else None,
                 "imageId": str(img.image_id) if img else None,
@@ -249,7 +258,7 @@ def get_category_page_data(
                 {
                     "id": str(p.product_id),
                     "title": p.product_name,
-                    "price": p.base_price,
+                    "price": get_lowest_variant_price(db, p.product_id),  # Issue #8
                     "rating": p.average_rating or 0,
                     "imageUrl": img.image_url if img else None,
                     "imageId": str(img.image_id) if img else None,

@@ -1,30 +1,39 @@
 # app/routers/store_dashboard_router.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 
 from app.db.database import get_db
 from app.core.authz import authenticate_token
 from app.models.store import Store
-from app.models.product import Product, ProductImage
+from app.models.product import Product, ProductImage, ProductVariant
 from app.utils.response_handler import success_response, error_response
 
 router = APIRouter(prefix="/stores", tags=["Store Dashboard"])
 
 
-def _map_product_row(product: Product, image: ProductImage | None):
+def _get_lowest_variant_price(db: Session, product_id) -> float:
+    """Issue #8: ดึงราคา variant ต่ำสุดของสินค้า"""
+    result = db.query(func.min(ProductVariant.price)).filter(
+        ProductVariant.product_id == product_id,
+        ProductVariant.is_active == True,
+    ).scalar()
+    return float(result) if result is not None else 0.0
+
+
+def _map_product_row(product: Product, image: ProductImage | None, db: Session):
     image_id = str(image.image_id) if image else None
     image_url = image.image_url if image else None
     return {
         "product_id": str(product.product_id),
         "title": product.product_name,
-        "price": float(product.base_price or 0),
+        "price": _get_lowest_variant_price(db, product.product_id),  # Issue #8
         "star": float(product.average_rating or 0.0),
         "category": product.category,
         "image_id": image_id,
         "image_url": image_url,
         "is_active": bool(product.is_active),
-        "closed_by": product.closed_by,    # ✅ เพิ่ม: "admin" | "seller" | None
+        "closed_by": product.closed_by,  # "admin" | "seller" | None
     }
 
 
@@ -77,7 +86,7 @@ def get_my_store_dashboard(
                 rating_sum += star
                 rating_count += 1
 
-            products_data.append(_map_product_row(product, image))
+            products_data.append(_map_product_row(product, image, db))
 
         # ====== CLOSED PRODUCTS (ปิดการขาย)
         closed_rows = (
@@ -102,7 +111,7 @@ def get_my_store_dashboard(
 
         closed_products_data = []
         for product, image in closed_rows:
-            closed_products_data.append(_map_product_row(product, image))
+            closed_products_data.append(_map_product_row(product, image, db))
 
         # rating ร้าน (เฉลี่ยจากสินค้าที่กำลังขาย)
         store_rating = rating_sum / rating_count if rating_count > 0 else 0.0

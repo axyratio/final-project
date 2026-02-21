@@ -3,7 +3,7 @@ import { AppBarNoCheck } from "@/components/navbar";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -86,9 +86,13 @@ export default function ManageStores() {
     "all" | "active" | "inactive"
   >("all");
 
-  useEffect(() => {
-    fetchStores();
-  }, [statusFilter]);
+  // Issue #10: ใช้ useFocusEffect แทน useEffect เพื่อ re-fetch เมื่อกลับมาจาก store-detail
+  // ทำให้ list รับรู้สถานะร้านที่ถูกเปลี่ยนโดยไม่ต้อง pull-to-refresh
+  useFocusEffect(
+    useCallback(() => {
+      fetchStores();
+    }, [statusFilter])
+  );
 
   useEffect(() => {
     const filtered = stores.filter(
