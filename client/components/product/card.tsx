@@ -119,10 +119,10 @@ export default function ProductCard({
                 }}
                 style={styles.iconButton}
               >
-                <Ionicons 
-                  name={isWishlisted ? "heart" : "heart-outline"} 
-                  size={18} 
-                  color={isWishlisted ? "#ef4444" : "#6b7280"} 
+                <Ionicons
+                  name={isWishlisted ? "heart" : "heart-outline"}
+                  size={18}
+                  color={isWishlisted ? "#ef4444" : "#6b7280"}
                 />
               </Pressable>
             )}
@@ -139,7 +139,11 @@ export default function ProductCard({
                         }}
                         style={styles.iconButton}
                       >
-                        <Ionicons name="ban-outline" size={18} color="#6b7280" />
+                        <Ionicons
+                          name="ban-outline"
+                          size={18}
+                          color="#6b7280"
+                        />
                       </Pressable>
                     )
                   : onOpenSale && (
@@ -191,7 +195,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "white",
-    borderRadius: 12,
+    borderRadius: 3,
     overflow: "hidden",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -303,5 +307,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#6b7280",
   },
-
 });
