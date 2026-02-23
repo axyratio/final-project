@@ -528,3 +528,77 @@ def get_user_reviews_service(
     except Exception as e:
         print(f"❌ [get_user_reviews_service] Error: {e}")
         return None, f"เกิดข้อผิดพลาด: {str(e)}"
+
+def get_order_detail_service(
+    db: Session,
+    order_id: str
+) -> Tuple[Optional[Dict], Optional[str]]:
+    """
+    ดูรายละเอียด order แบบละเอียด (Admin only)
+    - ไม่จำกัดแค่ user_id → admin ดูได้ทุก order
+    - reuse OrderService.format_order_response เพื่อ format เหมือน user endpoint
+
+    Returns:
+        (order_data, error)
+    """
+    try:
+        from uuid import UUID
+        from sqlalchemy.orm import joinedload
+        from app.models.order import Order
+        from app.models.order_item import OrderItem
+        from app.services.order_service import OrderService
+
+        try:
+            order_uuid = UUID(order_id)
+        except ValueError:
+            return None, "order_id ไม่ถูกต้อง"
+
+        order = (
+            db.query(Order)
+            .options(
+                joinedload(Order.store),
+                joinedload(Order.order_items).joinedload(OrderItem.product),
+                joinedload(Order.order_items).joinedload(OrderItem.variant),
+                joinedload(Order.payment),
+                joinedload(Order.shipping_address),
+                joinedload(Order.return_requests),
+                joinedload(Order.user),
+            )
+            .filter(Order.order_id == order_uuid)
+            .first()
+        )
+
+        if not order:
+            return None, "ไม่พบ order"
+
+        data = OrderService.format_order_response(order)
+
+        # เพิ่มข้อมูล shipping_address และ user ที่ admin ควรเห็น
+        if order.shipping_address:
+            sa = order.shipping_address
+            data["shipping_address"] = {
+                "full_name": sa.full_name,
+                "phone_number": sa.phone_number,
+                "address_line": sa.address_line,
+                "sub_district": sa.sub_district,
+                "district": sa.district,
+                "province": sa.province,
+                "postal_code": sa.postal_code,
+            }
+        else:
+            data["shipping_address"] = None
+
+        if order.user:
+            data["user_info"] = {
+                "user_id": str(order.user.user_id),
+                "username": order.user.username,
+                "email": order.user.email,
+            }
+        else:
+            data["user_info"] = None
+
+        return data, None
+
+    except Exception as e:
+        print(f"❌ [get_order_detail_service] Error: {e}")
+        return None, f"เกิดข้อผิดพลาด: {str(e)}"

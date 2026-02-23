@@ -15,7 +15,6 @@ router = APIRouter(
     tags=["Orders"],
 )
 
-
 @router.get("/me")
 def get_user_orders(
     status: Optional[str] = Query(None, description="Filter by order status"),
@@ -35,7 +34,6 @@ def get_user_orders(
             "total": len(orders)
         }
     )
-
 
 @router.get("/{order_id}")
 def get_order_detail(

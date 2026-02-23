@@ -29,7 +29,8 @@ from app.services.user_management_service import (
     change_user_role_service,
     get_user_statistics_service,
     get_user_orders_service,
-    get_user_reviews_service
+    get_user_reviews_service,
+    get_order_detail_service
 )
 from app.utils.response_handler import success_response, error_response
 
@@ -352,4 +353,37 @@ def get_user_reviews(
         return error_response(str(ve), {}, 403)
     except Exception as e:
         print(f"❌ [get_user_reviews] Error: {e}")
+        return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
+
+@router.get(
+    "/orders/{order_id}",
+    summary="ดูรายละเอียด Order (Admin)",
+    description="Admin ดูรายละเอียด order ได้ทุก order โดยไม่จำกัด user"
+)
+def get_order_detail(
+    order_id: str,
+    db: Session = Depends(get_db),
+    auth_user: User = Depends(authenticate_token())
+):
+    """
+    **ดูรายละเอียด Order**
+
+    - Admin เข้าถึงได้ทุก order
+    - แสดง order_items, shipping_address, user_info ครบ
+    """
+    try:
+        check_admin(auth_user)
+
+        data, error = get_order_detail_service(db, order_id)
+
+        if error:
+            status_code = 404 if "ไม่พบ" in error else 400
+            return error_response(error, {}, status_code)
+
+        return success_response("ดึงรายละเอียด order สำเร็จ", data)
+
+    except ValueError as ve:
+        return error_response(str(ve), {}, 403)
+    except Exception as e:
+        print(f"❌ [get_order_detail] Error: {e}")
         return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
