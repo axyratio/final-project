@@ -91,60 +91,6 @@ def create_store_and_connect_stripe(
             "Failed to create store with Stripe connect", {"error": str(e)}
         )
 
-# ✅ สร้างร้านค้า
-# def create_store_service(db: Session, user_data, data: dict, logo: UploadFile = None):
-#     logo_path = None
-#     try:
-#         # ✅ ตรวจสอบว่า user มีใบสมัครเปิดร้านหรือยัง
-#         application = store_application_repository.get_application_by_user(db, user_data.user_id)
-#         if not application:
-#             return error_response(
-#                 "ไม่สามารถสร้างร้านค้าได้",
-#                 {"application": "คุณยังไม่ได้ส่งคำขอเปิดร้าน"},
-#                 status_code=403
-#             )
-
-#         # ✅ ตรวจสอบสถานะและการยืนยันบัตร
-#         if not application.card_is_verified:
-#             return error_response(
-#                 "ไม่สามารถสร้างร้านค้าได้",
-#                 {"verification": "บัญชียังไม่ผ่านการยืนยันบัตรประชาชน"},
-#                 status_code=403
-#             )
-
-#         if application.status != "APPROVED":
-#             return error_response(
-#                 "ไม่สามารถสร้างร้านค้าได้",
-#                 {"status": "ใบสมัครยังไม่ได้รับการอนุมัติ"},
-#                 status_code=403
-#             )
-        
-#         existing = store_repository.get_store_by_user(db, user_data.user_id)
-#         if existing:
-#             return error_response("ผู้ใช้นี้มีร้านค้าอยู่แล้ว", {"store": "ร้านค้านี้มีอยู่แล้ว"}, status_code=400)
-
-#         if logo:
-#             filename = f"{uuid.uuid4()}_{logo.filename}"
-#             logo_path = save_file(UPLOAD_DIR, logo, filename)
-
-#         new_store = Store(
-#             user_id=user_data.user_id,
-#             name=data["name"],
-#             description=data.get("description"),
-#             address=data.get("address"),
-#             logo_path=logo_path
-#         )
-
-#         db.add(new_store)
-#         db.commit()
-#         db.refresh(new_store)
-#         return success_response("สร้างร้านค้าสำเร็จ", new_store, status_code=201)
-
-#     except Exception as e:
-#         rollback_and_cleanup(db, logo_path)
-#         return error_response("เกิดข้อผิดพลาดขณะสร้างร้านค้า", {"error": str(e)}, status_code=500)
-
-
 # ✅ ดึงร้านของผู้ใช้
 def get_my_store_service(db: Session, user_data):
     store = store_repository.get_store_by_user(db, user_data.user_id)

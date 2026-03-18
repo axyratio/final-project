@@ -137,11 +137,14 @@ def get_store_products_service(
             elif product.category:
                 category_name = product.category
             
+            active_variants = [v for v in product.variants if v.is_active]
+            min_price = min((v.price for v in active_variants), default=float(product.base_price))
+            
             products_list.append({
                 'product_id': str(product.product_id),
                 'name': product.product_name,
                 'description': product.description,
-                'price': float(product.base_price),
+                'price': min_price,  # ← เปลี่ยนจาก float(product.base_price)
                 'image': main_image,
                 'category_id': str(product.category_id) if product.category_id else None,
                 'category_name': category_name,
@@ -229,12 +232,15 @@ def get_store_products_by_category_service(
                 category_name = product.category_rel.name
             elif product.category:
                 category_name = product.category
+                
+            active_variants = [v for v in product.variants if v.is_active]
+            min_price = min((v.price for v in active_variants), default=float(product.base_price))
             
             products_list.append({
                 'product_id': str(product.product_id),
                 'name': product.product_name,
                 'description': product.description,
-                'price': float(product.base_price),
+                'price': min_price,
                 'image': main_image,
                 'category_id': str(product.category_id) if product.category_id else None,
                 'category_name': category_name,

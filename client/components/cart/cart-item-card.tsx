@@ -96,7 +96,7 @@ const _CartItemCard: React.FC<Props> = ({
                   {item.product_name}
                 </Text>
                 <Text fontSize="xs" color="violet.600">
-                  ไซส์: {item.variant_name}
+                  ตัวเลือก: {item.variant_name}
                 </Text>
               </Pressable>
 

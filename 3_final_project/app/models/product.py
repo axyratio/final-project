@@ -26,7 +26,7 @@ class Product(Base):
     # เก็บ category แบบเก่าไว้ก่อน สำหรับ backward compatibility
     category = Column(String, nullable=True)
     
-    variant_name = Column(String(50), nullable=True)
+    variant_name = Column(String(50), nullable=True) #ไม่ได้เก็บนะ
     product_name = Column(String, nullable=False)
     base_price = Column(Float, nullable=False)
     description = Column(TEXT, nullable=True)

@@ -68,3 +68,55 @@ def cancel_reservation(
     db.commit()
     
     return success_response("ยกเลิกการจองสำเร็จ", {"order_id": str(order_id)})
+
+# ========================================================
+# เพิ่มต่อท้าย checkout_router.py (หลัง cancel_reservation)
+# ========================================================
+
+@router.post("/checkout/preview")
+def checkout_preview(
+    payload: CheckoutRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(authenticate_token()),
+):
+    """
+    คำนวณค่าส่งจากน้ำหนักจริง — ไม่สร้าง order / ไม่จอง stock
+    ใช้แสดง preview ก่อนกดชำระเงิน
+    """
+    from app.services.checkout_service import _calc_shipping_fee
+
+    # ดึงข้อมูลสินค้าเหมือน checkout จริง แต่ไม่สร้างอะไรเลย
+    if payload.checkout_type == "CART":
+        items, _, _ = CheckoutService._build_items_from_cart(
+            db, current_user, payload.cart_id, payload.selected_cart_item_ids,
+        )
+    elif payload.checkout_type == "DIRECT":
+        items, _, _ = CheckoutService._build_items_from_direct(db, payload.items)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid checkout_type")
+
+    # group by store
+    items_by_store = {}
+    for it in items:
+        sid = str(it["store"].store_id)
+        items_by_store.setdefault(sid, []).append(it)
+
+    shipping_fees = {}
+    items_total = 0.0
+
+    for sid, store_items in items_by_store.items():
+        total_weight = sum(
+            (i["variant"].weight_grams or 500) * i["quantity"]
+            for i in store_items
+        )
+        shipping_fees[sid] = _calc_shipping_fee(total_weight)
+        items_total += sum(i["unit_price"] * i["quantity"] for i in store_items)
+
+    shipping_total = sum(shipping_fees.values())
+
+    return success_response("Preview", {
+        "shipping_fees": shipping_fees,
+        "items_total": items_total,
+        "shipping_total": shipping_total,
+        "grand_total": items_total + shipping_total,
+    })

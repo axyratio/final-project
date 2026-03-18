@@ -8,7 +8,7 @@ from app.db.database import get_db
 from app.core.authz import authenticate_token
 from app.models.order import Order
 from app.models.return_order import ReturnOrder, ReturnStatus
-from app.models.seller_notification import SellerNotification
+# from app.models.seller_notification import SellerNotification
 from app.models.user import User
 from app.models.store import Store
 from app.services.order_service import OrderService
@@ -472,10 +472,10 @@ def get_badge_counts(db: Session, store_id: str):
     from app.models.chat_conversation import ChatConversation
     
     # 1. นับการแจ้งเตือนที่ยังไม่ได้อ่าน
-    unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
-        SellerNotification.store_id == store_id,
-        SellerNotification.is_read == False
-    ).scalar() or 0
+    # unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
+    #     SellerNotification.store_id == store_id,
+    #     SellerNotification.is_read == False
+    # ).scalar() or 0
     
     # 2. นับออเดอร์ที่กำลังเตรียม
     preparing_orders = db.query(func.count(Order.order_id)).filter(
@@ -499,7 +499,7 @@ def get_badge_counts(db: Session, store_id: str):
     ).scalar() or 0
     
     return {
-        'unread_notifications': unread_notifications,
+        # 'unread_notifications': unread_notifications,
         'preparing_orders': preparing_orders,
         'pending_returns': pending_returns,
         'unread_chats': unread_chats

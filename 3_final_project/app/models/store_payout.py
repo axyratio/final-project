@@ -39,7 +39,7 @@ class StorePayout(Base):
     
     # Amount Details
     amount = Column(Float, nullable=False)  # ยอดรวมของร้าน (ก่อนหักค่าธรรมเนียม)
-    platform_fee = Column(Float, nullable=False, default=0.0)  # ค่าธรรมเนียมแพลตฟอร์ม
+    platform_fee = Column(Float, nullable=False, default=0.0)  # ค่าธรรมเนียมของเราเอง
     net_amount = Column(Float, nullable=False)  # ยอดโอนจริง (หลังหักค่าธรรมเนียม)
     
     # Status

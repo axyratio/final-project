@@ -16,22 +16,20 @@ from app.schemas.user import UserLogin
 def register_service(db: Session, user_data):
     try:
         # 1) ตรวจ username
-        username_user = user_repository.get_user_by_username(db, user_data.username)
+        user_data_username = user_repository.get_user_by_username(db, user_data.username)
 
         
-        if username_user:
-            if username_user.is_active:
+        if user_data_username:
+            if user_data_username.is_active:
                 return None, {"username": "ชื่อผู้ใช้ถูกใช้ไปแล้ว", "ok": False}
             else:
                 return None, {"username": "ชื่อผู้ใช้ถูกใช้ไปแล้ว", "ok": False}
             
 
-        email_user = user_repository.get_user_by_email(db, user_data.email)
-        if email_user:
-            if email_user.is_active == True:
-                return None, {"email": "อีเมลนี้ถูกใช้ไปแล้ว", "ok": False}
+        user_data_email = user_repository.get_user_by_email(db, user_data.email)
+        if user_data_email:
+            return None, {"email": "อีเมลนี้ถูกใช้ไปแล้ว", "ok": False}
             # ถ้า pending ให้ reuse account เดิม
-            target_user = email_user
         else:
             # ถ้าไม่มี user นี้เลย → สร้างใหม่
             
@@ -85,11 +83,11 @@ def login_service(db: Session,  user_data):
             data={"sub": str(user.user_id), "username": user.username, "user_role": user.role.role_name}
         )
 
-        print(f"user is active in service: {user.is_active}")
+        # print(f"user is active in service: {user.is_active}")
         user.is_active = True
-        print(f"user is active ture in service: {user.is_active}")
+        # print(f"user is active ture in service: {user.is_active}")
 
-        print(f"service access_token: {access_token}")
+        # print(f"service access_token: {access_token}")
         
 
         db.commit()

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.models.wishlist import Wishlist
 from app.repositories import product_repository
 from app.schemas.product import (
     ProductDetailOut,
@@ -64,7 +65,7 @@ router = APIRouter(prefix="/products", tags=["products"])
 def get_product_detail_api(
     product_id: UUID,
     db: Session = Depends(get_db),
-    current_user = Depends(get_current_user_from_cookie),   # ต้อง login ถึงจะรู้ cart
+    current_user = Depends(authenticate_token()),   # ต้อง login ถึงจะรู้ cart
 ):
     product: Product | None = (
         db.query(Product)
@@ -164,8 +165,18 @@ def get_product_detail_api(
     # -------------------------
     cart_total_items = 0
     cart_product_quantity = 0
-
+    is_wishlisted = False
+    
     if current_user:
+
+        is_wishlisted = (
+        db.query(Wishlist)
+        .filter(
+            Wishlist.user_id == current_user.user_id,
+            Wishlist.product_id == product.product_id,
+        )
+        .first() is not None
+        )
         # ทั้งตะกร้า
         cart_total_items = (
             db.query(func.coalesce(func.sum(CartItem.quantity), 0))
@@ -174,6 +185,8 @@ def get_product_detail_api(
             .scalar()
             or 0
         )
+        
+
 
         # เฉพาะสินค้าตัวนี้
         cart_product_quantity = (
@@ -195,7 +208,10 @@ def get_product_detail_api(
     default=product.base_price or 0.0
     )
     
+    print(f"[WISHLIST ]", is_wishlisted)
+    
     detail_out = ProductDetailOut(
+        is_wishlisted=is_wishlisted,
         product_id=product.product_id,
         product_name=product.product_name,
         base_price=lowest_price,
@@ -214,6 +230,8 @@ def get_product_detail_api(
             product_quantity=cart_product_quantity,
         ),
     )
+    
+    print("[DETAIL_OUT]", detail_out.dict())
 
     return success_response(
         "ดึงข้อมูลสินค้าเรียบร้อย",

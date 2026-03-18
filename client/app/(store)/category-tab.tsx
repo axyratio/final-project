@@ -1,6 +1,6 @@
 // app/(store)/category-tab.tsx
-import ProductCard from "@/components/category/card";
 import { AppBarNoCheck } from "@/components/navbar";
+import ProductCard from "@/components/product/card";
 import { getToken } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
 import { useLocalSearchParams, useRouter } from "expo-router";

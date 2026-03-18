@@ -62,7 +62,7 @@ def simulate_delivery(order_id: str):
             print(f"[simulate_delivery] notify failed: {e}")
 
         # Issue #9: schedule auto-confirm ถ้าลูกค้าไม่กดเองใน 1 นาที
-        auto_confirm_received.apply_async(args=[order_id], countdown=604800)
+        auto_confirm_received.apply_async(args=[order_id], countdown=60)
         print(f"[simulate_delivery] ✅ scheduled auto_confirm in 60s for order {order_id}")
 
         return {

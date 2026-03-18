@@ -195,29 +195,29 @@ def toggle_store_status(
         db.refresh(store)
 
         # ✅ Sync Stripe capability ตาม is_active
-        if store.stripe_account_id:
-            try:
-                print(f"[ADMIN STORE] store status {is_active}")
-                if is_active:
-                    # เปิดร้าน
-                    stripe.Account.modify(
-                        store.stripe_account_id,
-                        capabilities={
-                            "transfers": {"requested": True},
-                            "card_payments": {"requested": True}
-                        }
-                    )
-                else:
-                    # ปิดร้าน
-                    stripe.Account.modify(
-                        store.stripe_account_id,
-                        capabilities={
-                            "transfers": {"requested": False},
-                            "card_payments": {"requested": False}
-                        }
-                    )
-            except Exception as stripe_err:
-                print(f"[ADMIN] ⚠️ Stripe capability sync failed: {stripe_err}")
+        # if store.stripe_account_id:
+        #     try:
+        #         print(f"[ADMIN STORE] store status {is_active}")
+        #         if is_active:
+        #             # เปิดร้าน
+        #             stripe.Account.modify(
+        #                 store.stripe_account_id,
+        #                 capabilities={
+        #                     "transfers": {"requested": True},
+        #                     "card_payments": {"requested": True}
+        #                 }
+        #             )
+        #         else:
+        #             # ปิดร้าน
+        #             stripe.Account.modify(
+        #                 store.stripe_account_id,
+        #                 capabilities={
+        #                     "transfers": {"requested": False},
+        #                     "card_payments": {"requested": False}
+        #                 }
+        #             )
+        #     except Exception as stripe_err:
+        #         print(f"[ADMIN] ⚠️ Stripe capability sync failed: {stripe_err}")
 
         status_text = "เปิด" if is_active else "ปิด"
         return success_response(
@@ -245,7 +245,7 @@ def toggle_store_status(
             500
         )
 
-
+# แก้ไขข้อมูลร้านค้า
 @router.patch("/{store_id}")
 def update_store_as_admin(
     store_id: str,

@@ -401,7 +401,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                           <Ionicons name="checkmark" size={10} color="white" />
                         </Box>
                       )}
-                      <Box
+                      {/* <Box
                         position="absolute"
                         bottom={1}
                         left={1}
@@ -414,7 +414,7 @@ export const OutfitSelector: React.FC<OutfitSelectorProps> = ({
                         <Text fontSize="2xs" color="white" numberOfLines={1}>
                           {garment.name}
                         </Text>
-                      </Box>
+                      </Box> */}
                     </Pressable>
 
                     <Pressable

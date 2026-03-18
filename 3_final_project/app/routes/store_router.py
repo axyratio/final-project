@@ -227,26 +227,35 @@ def stripe_connect_refresh(store_id: str, db: Session = Depends(get_db)):
     except Exception as e:
         return error_response("Failed to refresh Stripe onboarding link", {"error": str(e)})
 
+# print("[ROUTE] Registering /connect/success/{store_id}")
 
+# @router.get("/connect/success/{store_id}")
+# def stripe_connect_success(store_id: str, db: Session = Depends(get_db)):
+#     """
+#     Stripe จะเรียก endpoint นี้เมื่อผู้ใช้กรอก onboarding เสร็จสมบูรณ์.
+#     """
+#     print("[ROUTE] stripe_connect_success called!========================")
+#     try:
+#         store = db.query(Store).filter(Store.store_id == store_id).first()
+#         if not store:
+#             return error_response("Store not found", status_code=404)
+
+#         # อัปเดตสถานะร้านให้ active
+#         store.is_active = True
+#         store.is_stripe_verified = True
+#         db.commit()
+#         return success_response("Stripe onboarding completed successfully=========================================================", {
+#             "store_id": str(store.store_id),
+#             "stripe_account_id": store.stripe_account_id
+#         })
+
+#     except Exception as e:
+#         db.rollback()
+#         return error_response("Failed to finalize onboarding", {"error": str(e)}, status_code=500)
+    
+    
 @router.get("/connect/success/{store_id}")
-def stripe_connect_success(store_id: str, db: Session = Depends(get_db)):
-    """
-    Stripe จะเรียก endpoint นี้เมื่อผู้ใช้กรอก onboarding เสร็จสมบูรณ์.
-    """
-    try:
-        store = db.query(Store).filter(Store.store_id == store_id).first()
-        if not store:
-            return error_response("Store not found", status_code=404)
-
-        # อัปเดตสถานะร้านให้ active
-        store.is_active = True
-        store.is_stripe_verified = True
-        db.commit()
-        return success_response("Stripe onboarding completed successfully", {
-            "store_id": str(store.store_id),
-            "stripe_account_id": store.stripe_account_id
-        })
-
-    except Exception as e:
-        db.rollback()
-        return error_response("Failed to finalize onboarding", {"error": str(e)}, status_code=500)
+def stripe_connect_success(store_id: str):
+    print("[ROUTE] stripe_connect_success called!")
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url=f"client://store/onboarding-success?store_id={store_id}")

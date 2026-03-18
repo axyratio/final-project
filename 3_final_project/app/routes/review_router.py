@@ -42,34 +42,6 @@ async def get_reviews_by_product(
         )
 
 
-# @router.get("/{review_id}", status_code=status.HTTP_200_OK)
-# async def get_review_by_id(
-#     review_id: UUID,
-#     db: Session = Depends(get_db),
-# ):
-#     """
-#     ดึงรีวิวตาม ID
-#     """
-#     try:
-#         service = ReviewService(db)
-#         review = service.get_review_by_id(review_id)
-        
-#         if not review:
-#             return error_response(
-#                 message="ไม่พบรีวิว",
-#                 status_code=status.HTTP_404_NOT_FOUND
-#             )
-        
-#         return success_response(
-#             message="ดึงรีวิวสำเร็จ",
-#             data=review
-#         )
-#     except Exception as e:
-#         return error_response(
-#             message=f"เกิดข้อผิดพลาด: {str(e)}",
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
-#         )
-
 @router.get("/my-review", status_code=status.HTTP_200_OK)
 async def get_my_review_for_order(
     orderId: UUID,

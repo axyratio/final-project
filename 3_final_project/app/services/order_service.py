@@ -170,7 +170,13 @@ class OrderService:
     # CRUD
     # ─────────────────────────────────────────
     @staticmethod
-    def get_user_orders(db: Session, user_id: UUID, status: Optional[str] = None) -> List[Dict]:
+    def get_user_orders(
+        db: Session, 
+        user_id: UUID, 
+        status: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 10
+    ) -> List[Dict]:
         query = (
             db.query(Order)
             .options(
@@ -184,9 +190,36 @@ class OrderService:
         )
         if status:
             query = query.filter(Order.order_status == status)
-        orders = query.order_by(Order.created_at.desc()).all()
+        
+        orders = query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
         return [OrderService.format_order_response(order) for order in orders]
 
+    @staticmethod
+    def get_user_orders(
+        db: Session, 
+        user_id: UUID, 
+        status: Optional[List[str]] = None,  # ← เปลี่ยนเป็น List
+        skip: int = 0,
+        limit: int = 10
+    ) -> List[Dict]:
+        query = (
+            db.query(Order)
+            .options(
+                joinedload(Order.store),
+                joinedload(Order.order_items).joinedload(OrderItem.product),
+                joinedload(Order.order_items).joinedload(OrderItem.variant),
+                joinedload(Order.payment),
+                joinedload(Order.return_requests),
+            )
+            .filter(Order.user_id == user_id)
+        )
+        
+        if status:
+            query = query.filter(Order.order_status.in_(status))  # ← ใช้ in_()
+        
+        orders = query.order_by(Order.created_at.desc()).offset(skip).limit(limit).all()
+        return [OrderService.format_order_response(order) for order in orders]
+    
     @staticmethod
     def get_order_detail(db: Session, order_id: UUID, user_id: UUID) -> Optional[Dict]:
         order = (
@@ -196,8 +229,7 @@ class OrderService:
                 joinedload(Order.order_items).joinedload(OrderItem.product),
                 joinedload(Order.order_items).joinedload(OrderItem.variant),
                 joinedload(Order.payment),
-                joinedload(Order.shipping_address),
-                joinedload(Order.return_requests)
+                joinedload(Order.return_requests),
             )
             .filter(Order.order_id == order_id, Order.user_id == user_id)
             .first()
@@ -205,7 +237,7 @@ class OrderService:
         if not order:
             return None
         return OrderService.format_order_response(order)
-
+    
     @staticmethod
     async def confirm_order_received(db: Session, order_id: UUID, user_id: UUID) -> Dict:
         """
@@ -318,6 +350,7 @@ class OrderService:
             cart = Cart(user_id=user_id)
             db.add(cart)
             db.flush()
+            
         items_added = 0
         for order_item in order.order_items:
             # ถ้า product_id เป็น null (product ถูกลบ) ข้ามไป ไม่สามารถ reorder ได้
@@ -327,6 +360,8 @@ class OrderService:
             if not product or not product.is_active:
                 continue
             variant = None
+            
+            # ถ้าพบ variant ใน order item
             if order_item.variant_id:
                 variant = db.query(ProductVariant).filter(
                     ProductVariant.variant_id == order_item.variant_id
@@ -338,7 +373,10 @@ class OrderService:
                 CartItem.product_id == order_item.product_id,
                 CartItem.variant_id == order_item.variant_id
             ).first()
+            
+            # ถ้าพบว่ามีในตะกร้าจะเพิ่มจำนวน
             if existing:
+                # เพิ่มตะกร้า +1
                 existing.quantity += order_item.quantity
                 existing.updated_at = now_utc()
             else:

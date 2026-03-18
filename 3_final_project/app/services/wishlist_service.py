@@ -1,11 +1,11 @@
 # app/services/wishlist_service.py
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from uuid import UUID
 from typing import Optional
 
 from app.models.wishlist import Wishlist
-from app.models.product import Product, ProductImage, ImageType
+from app.models.product import Product, ProductImage, ImageType, ProductVariant
 from app.models.store import Store
 
 
@@ -38,13 +38,17 @@ class WishlistService:
 
     @staticmethod
     def get_user_wishlist(db: Session, user_id: UUID, limit: int = 50, offset: int = 0) -> dict:
-        """
-        ดึงรายการสินค้าที่ bookmark ไว้ พร้อมข้อมูลสินค้า + รูป
-        """
         query = (
-            db.query(Wishlist, Product, ProductImage, Store)
+            db.query(
+                Wishlist, Product, ProductImage, Store,
+                func.min(ProductVariant.price).label("min_price")  # เพิ่ม
+            )
             .join(Product, Wishlist.product_id == Product.product_id)
             .join(Store, Product.store_id == Store.store_id)
+            .outerjoin(ProductVariant, and_(                        # เพิ่ม
+                ProductVariant.product_id == Product.product_id,
+                ProductVariant.is_active == True,
+            ))
             .outerjoin(
                 ProductImage,
                 and_(
@@ -59,6 +63,12 @@ class WishlistService:
                 Product.is_active == True,
                 Product.is_draft == False,
             )
+            .group_by(                                              # เพิ่ม
+                Wishlist.wishlist_id,
+                Product.product_id,
+                ProductImage.image_id,
+                Store.store_id,
+            )
             .order_by(Wishlist.added_at.desc())
         )
 
@@ -66,12 +76,12 @@ class WishlistService:
         rows = query.limit(limit).offset(offset).all()
 
         items = []
-        for wish, product, img, store in rows:
+        for wish, product, img, store, min_price in rows:          # แก้ unpack
             items.append({
                 "wishlist_id": str(wish.wishlist_id),
                 "product_id": str(product.product_id),
                 "title": product.product_name,
-                "price": product.base_price,
+                "price": float(min_price or product.base_price or 0),  # แก้
                 "rating": product.average_rating or 0,
                 "image_url": img.image_url if img else None,
                 "image_id": str(img.image_id) if img else None,

@@ -4,7 +4,7 @@ from sqlalchemy import and_, or_, func
 from typing import Optional
 from uuid import UUID
 
-from app.models.product import Product, ProductImage, ImageType
+from app.models.product import Product, ProductImage, ImageType, ProductVariant
 from app.models.store import Store
 
 
@@ -24,6 +24,14 @@ class SearchService:
         base_query = (
             db.query(Product, ProductImage, Store)
             .join(Store, Product.store_id == Store.store_id)
+            .join(                                              # เพิ่ม
+                ProductVariant,
+                and_(
+                    ProductVariant.product_id == Product.product_id,
+                    ProductVariant.is_active == True,
+                    ProductVariant.stock > 0,
+                )
+            )
             .outerjoin(
                 ProductImage,
                 and_(
@@ -38,6 +46,7 @@ class SearchService:
                 Product.is_draft == False,
                 Store.is_active == True,
             )
+            .group_by(Product.product_id, ProductImage.image_id, Store.store_id)  # เพิ่ม
         )
 
         # กรอง store ของ user ตัวเองออก
@@ -65,7 +74,11 @@ class SearchService:
             products.append({
                 "id": str(p.product_id),
                 "title": p.product_name,
-                "price": p.base_price,
+                "price": float(
+                    db.query(func.min(ProductVariant.price))
+                    .filter(ProductVariant.product_id == p.product_id, ProductVariant.is_active == True)
+                    .scalar() or 0
+                ),
                 "rating": p.average_rating or 0,
                 "image_url": img.image_url if img else None,
                 "image_id": str(img.image_id) if img else None,

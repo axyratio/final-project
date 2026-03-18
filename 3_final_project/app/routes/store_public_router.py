@@ -47,9 +47,9 @@ def get_public_store_detail(
 @router.get("/{store_id}/products")
 def get_store_products(
     store_id: str,
-    category_id: Optional[str] = Query(None, description="กรองตามหมวดหมู่"),
+    category_id: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(10, ge=1, le=100),  # ← default 10
     db: Session = Depends(get_db)
 ):
     """
@@ -65,25 +65,19 @@ def get_store_products(
         - total: จำนวนสินค้าทั้งหมด
         - skip, limit
     """
-    try:
-        if category_id:
-            data, error = get_store_products_by_category_service(
-                db, store_id, category_id, skip, limit
-            )
-        else:
-            data, error = get_store_products_service(
-                db, store_id, skip, limit
-            )
-        
-        if error:
-            return error_response(error, {}, 400)
-        
-        return success_response("ดึงสินค้าสำเร็จ", data)
-        
-    except Exception as e:
-        print(f"❌ [get_store_products] Error: {e}")
-        return error_response(f"เกิดข้อผิดพลาด: {str(e)}", {}, 500)
+    if category_id:
+        data, error = get_store_products_by_category_service(
+            db, store_id, category_id, skip, limit
+        )
+    else:
+        data, error = get_store_products_service(
+            db, store_id, skip, limit
+        )
 
+    if error:
+        return error_response(error, {}, 400)
+
+    return success_response("ดึงสินค้าสำเร็จ", data)
 
 @router.get("/{store_id}/categories")
 def get_store_categories(

@@ -48,17 +48,13 @@ export type VariantOptionExtended = VariantOption & {
 
 async function uploadImageFile(
   uri: string,
-  imageType: "NORMAL" | "VTON"
+  imageType: "NORMAL" | "VTON",
 ): Promise<UploadResponseData> {
   const token = await getToken();
   const fileName = uri.split("/").pop() || "image.jpg";
   const ext = fileName.split(".").pop()?.toLowerCase();
   const mimeType =
-    ext === "png"
-      ? "image/png"
-      : ext === "webp"
-      ? "image/webp"
-      : "image/jpeg";
+    ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
 
   const formData = new FormData();
   formData.append("file", {
@@ -111,12 +107,9 @@ export default function OptionsScreen() {
   const [showOptionForm, setShowOptionForm] = useState(false);
 
   // helper เอาไว้ update field ของ option ตัวเดียว
-  const updateOption = (
-    id: string,
-    patch: Partial<VariantOptionExtended>
-  ) => {
+  const updateOption = (id: string, patch: Partial<VariantOptionExtended>) => {
     setOptions((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, ...patch } : o))
+      prev.map((o) => (o.id === id ? { ...o, ...patch } : o)),
     );
   };
 
@@ -128,7 +121,7 @@ export default function OptionsScreen() {
 
     if (params.variant) {
       console.log(
-        "OptionsScreen: skip fetchVariant because params.variant exists"
+        "OptionsScreen: skip fetchVariant because params.variant exists",
       );
       return;
     }
@@ -136,14 +129,11 @@ export default function OptionsScreen() {
     const fetchVariant = async () => {
       try {
         const token = await getToken();
-        const res = await fetch(
-          `${PRODUCT_API_BASE}/${productId}/variant`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await fetch(`${PRODUCT_API_BASE}/${productId}/variant`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         if (!res.ok) {
           console.log("get variant error", res.status);
@@ -169,7 +159,7 @@ export default function OptionsScreen() {
               : undefined;
 
             return {
-              id: opt.variant_id , // ✅ เพิ่ม fallback
+              id: opt.variant_id, // ✅ เพิ่ม fallback
               name: opt.name,
               displayImageUri: displayImageUrl,
               displayImageId: opt.display_image?.image_id,
@@ -179,12 +169,11 @@ export default function OptionsScreen() {
                 typeof opt.price_delta === "number"
                   ? opt.price_delta
                   : undefined,
-              stock:
-                typeof opt.stock === "number" ? opt.stock : undefined,
+              stock: typeof opt.stock === "number" ? opt.stock : undefined,
               weight_grams:
                 typeof opt.weight_grams === "number" ? opt.weight_grams : 500,
             };
-          }
+          },
         );
 
         setOptions(mappedOptions);
@@ -208,9 +197,7 @@ export default function OptionsScreen() {
       setVariantName(v.variantName || "");
       setEnableImages(!!v.enableImages);
 
-      const mappedOptions: VariantOptionExtended[] = Array.isArray(
-        v.options
-      )
+      const mappedOptions: VariantOptionExtended[] = Array.isArray(v.options)
         ? (v.options as VariantOptionExtended[]).map((opt) => ({
             ...opt,
             // ✅ ถ้าไม่มี id ให้สร้างใหม่
@@ -386,24 +373,33 @@ export default function OptionsScreen() {
     params.images,
   ]);
 
+  // ย้อนกลับ: ถ้ายังไม่ได้สร้าง variant หรือยังไม่มี option ให้ back ได้เลย ไม่ต้อง validate
+  const handleBack = useCallback(() => {
+    if (!variantCreated || options.length === 0) {
+      router.back();
+      return;
+    }
+    handleSave();
+  }, [variantCreated, options.length, handleSave, router]);
+
   useEffect(() => {
     const onBackPress = () => {
-      handleSave();
+      handleBack();
       return true;
     };
 
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
-      onBackPress
+      onBackPress,
     );
     return () => subscription.remove();
-  }, [handleSave]);
+  }, [handleBack]);
 
   console.log("OptionsScreen render, options:", options);
 
   return (
     <Box flex={1} bg="#f5efec">
-      <AppBarNoCheck title="ตัวเลือกสินค้า" onBackPress={handleSave} />
+      <AppBarNoCheck title="ตัวเลือกสินค้า" onBackPress={handleBack} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -434,7 +430,7 @@ export default function OptionsScreen() {
 
           {variantCreated && (
             <Box mt={6} bg="white" p={4} borderRadius={8}>
-              <Box flexDirection="row" justifyContent="space-between">
+              {/* <Box flexDirection="row" justifyContent="space-between">
                 <Box flex={1}>
                   <Text fontSize="xs" color="gray.500" mb={1}>
                     ชื่อตัวเลือก (เช่น ไซส์, สี)
@@ -464,7 +460,7 @@ export default function OptionsScreen() {
                     ลบ
                   </Text>
                 </Pressable>
-              </Box>
+              </Box> */}
 
               <Box mt={4} flexDirection="row" alignItems="center">
                 <Text flex={1}>เพิ่มรูปภาพสำหรับลองเสื้อ (VTON)</Text>
@@ -504,7 +500,21 @@ export default function OptionsScreen() {
                       justifyContent="space-between"
                       mb={2}
                     >
-                      <Text fontWeight="500">{opt.name}</Text>
+                      <TextInput
+                        value={opt.name}
+                        onChangeText={(text) =>
+                          updateOption(opt.id!, { name: text })
+                        }
+                        placeholder="ชื่อตัวเลือก"
+                        style={{
+                          flex: 1,
+                          fontWeight: "500",
+                          fontSize: 14,
+                          borderBottomWidth: 1,
+                          borderColor: "#eee",
+                          paddingVertical: 2,
+                        }}
+                      />
                       <Pressable onPress={() => handleRemoveOption(opt.id!)}>
                         <Text color="red.400" fontSize="xs">
                           ลบ
@@ -588,7 +598,7 @@ export default function OptionsScreen() {
                           onChangeText={(text) => {
                             const num = parseInt(text, 10);
                             updateOption(opt.id!, {
-                              weight_grams: isNaN(num) ? 500 : num,
+                              weight_grams: isNaN(num) ? undefined : num,
                             });
                           }}
                           style={{
@@ -603,9 +613,7 @@ export default function OptionsScreen() {
                       </Box>
                     </Box>
 
-                    <Pressable
-                      onPress={() => handlePickDisplayImage(opt.id!)}
-                    >
+                    <Pressable onPress={() => handlePickDisplayImage(opt.id!)}>
                       <Box
                         flexDirection="row"
                         alignItems="center"
@@ -635,9 +643,7 @@ export default function OptionsScreen() {
                     </Pressable>
 
                     {enableImages && (
-                      <Pressable
-                        onPress={() => handlePickTryOnImage(opt.id!)}
-                      >
+                      <Pressable onPress={() => handlePickTryOnImage(opt.id!)}>
                         <Box
                           flexDirection="row"
                           alignItems="center"
@@ -693,7 +699,7 @@ export default function OptionsScreen() {
               <TextInput
                 value={optionText}
                 onChangeText={setOptionText}
-                placeholder="เช่น S, M, L, XL"
+                placeholder="ตัวเลือก เช่น XL แดง"
                 style={{
                   borderWidth: 1,
                   borderColor: "#7c3aed",
@@ -742,9 +748,7 @@ export default function OptionsScreen() {
           disabled={!variantCreated || options.length === 0}
           style={{
             backgroundColor:
-              !variantCreated || options.length === 0
-                ? "#c4b5fd"
-                : "#7c3aed",
+              !variantCreated || options.length === 0 ? "#c4b5fd" : "#7c3aed",
             paddingVertical: 14,
             borderRadius: 10,
             alignItems: "center",

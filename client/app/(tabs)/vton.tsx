@@ -4,14 +4,14 @@ import type {
   Product,
   ProductVariant,
   UserTryOnImage,
-  VTONBackground,
+  // VTONBackground, // [BACKGROUND FEATURE - commented out]
   VTONSession,
 } from "@/api/closet";
 import { closetApi } from "@/api/closet";
-import { BackgroundSelector } from "@/components/closet/background-selector";
 import { ModelSelector } from "@/components/closet/model-selector";
 import { OutfitSelector } from "@/components/closet/outfit-selector";
 import { ResultSelector } from "@/components/closet/result-selector";
+// import { BackgroundSelector } from "@/components/closet/background-selector"; // [BACKGROUND FEATURE - commented out]
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -28,10 +28,10 @@ import {
 import React, { useEffect, useState } from "react";
 import { Alert } from "react-native";
 
-type MainTabId = "result" | "model" | "outfit" | "background";
+type MainTabId = "result" | "model" | "outfit"; // | "background"; // [BACKGROUND FEATURE - commented out]
 type OutfitTabId = "select" | "product";
 
-const MAIN_TAB_IDS: MainTabId[] = ["result", "model", "outfit", "background"];
+const MAIN_TAB_IDS: MainTabId[] = ["result", "model", "outfit"]; // "background" removed [BACKGROUND FEATURE]
 const OUTFIT_TAB_IDS: OutfitTabId[] = ["select", "product"];
 
 function mainTabIdToIndex(id?: string): number {
@@ -68,20 +68,20 @@ export default function VirtualTryOnPage() {
   const [selectedModel, setSelectedModel] = useState<UserTryOnImage | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [selectedGarment, setSelectedGarment] = useState<GarmentImage | null>(null);
-  const [selectedBackground, setSelectedBackground] = useState<VTONBackground | null>(null);
+  // const [selectedBackground, setSelectedBackground] = useState<VTONBackground | null>(null); // [BACKGROUND FEATURE - commented out]
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null);
 
   const [userImages, setUserImages] = useState<UserTryOnImage[]>([]);
   const [garments, setGarments] = useState<GarmentImage[]>([]);
   const [product, setProduct] = useState<Product | null>(null);
-  const [backgrounds, setBackgrounds] = useState<VTONBackground[]>([]);
+  // const [backgrounds, setBackgrounds] = useState<VTONBackground[]>([]); // [BACKGROUND FEATURE - commented out]
 
   const [productGarments, setProductGarments] = useState<ProductVariant[]>([]);
   const [selectedProductGarment, setSelectedProductGarment] = useState<ProductVariant | null>(null);
 
   const [vtonSessions, setVtonSessions] = useState<VTONSession[]>([]);
 
-  const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด"];
+  const tabs = ["ผลลัพธ์ AI", "เลือกโมเดล", "เลือกชุด"]; // "เลือกพื้นหลัง" removed [BACKGROUND FEATURE]
 
   const setRouteParams = (next: { tab?: MainTabId; outfitTab?: OutfitTabId }) => {
     (router as any).setParams?.({
@@ -97,13 +97,6 @@ export default function VirtualTryOnPage() {
 
     const outfitIdx = outfitTabIdToIndex(params.outfitTab);
     setOutfitTabIndex(outfitIdx);
-
-    console.log("🔄 [VTON] Syncing params:", {
-      tab: params.tab,
-      outfitTab: params.outfitTab,
-      tabIdx,
-      outfitIdx,
-    });
   }, [params.tab, params.outfitTab]);
 
   // Load ข้อมูลทั้งหมดตอนเริ่มต้น + เมื่อมี _refresh
@@ -114,12 +107,11 @@ export default function VirtualTryOnPage() {
   const loadInitialData = async () => {
     try {
       setInitialLoading(true);
-      console.log("🔄 Loading initial data...");
 
       const [
         userImagesData,
         garmentsData,
-        backgroundsData,
+        // backgroundsData, // [BACKGROUND FEATURE - commented out]
         productGarmentsData,
         sessionsData,
       ] = await Promise.all([
@@ -131,10 +123,10 @@ export default function VirtualTryOnPage() {
           console.error("❌ Failed to load garments:", err);
           return [];
         }),
-        closetApi.getVTONBackgrounds().catch((err) => {
-          console.error("❌ Failed to load backgrounds:", err);
-          return [];
-        }),
+        // closetApi.getVTONBackgrounds().catch((err) => { // [BACKGROUND FEATURE - commented out]
+        //   console.error("❌ Failed to load backgrounds:", err);
+        //   return [];
+        // }),
         closetApi.getProductGarments().catch((err) => {
           console.error("❌ Failed to load product garments:", err);
           return [];
@@ -145,17 +137,9 @@ export default function VirtualTryOnPage() {
         }),
       ]);
 
-      console.log("✅ Data loaded:", {
-        userImages: userImagesData.length,
-        garments: garmentsData.length,
-        backgrounds: backgroundsData.length,
-        productGarments: productGarmentsData.length,
-        sessions: sessionsData.length,
-      });
-
       setUserImages(userImagesData);
       setGarments(garmentsData);
-      setBackgrounds(backgroundsData);
+      // setBackgrounds(backgroundsData); // [BACKGROUND FEATURE - commented out]
       setProductGarments(productGarmentsData);
       setVtonSessions(sessionsData);
     } catch (error) {
@@ -192,18 +176,11 @@ export default function VirtualTryOnPage() {
     setLoading(true);
     (async () => {
       try {
-        console.log("📤 Starting model upload...");
         const newImage = await closetApi.uploadUserTryOnImage(fileUri as string);
         setUserImages((prev) => [newImage, ...prev]);
-
         toast.closeAll();
-        toast.show({
-          title: "✅ อัปโหลดสำเร็จ",
-          placement: "top",
-          duration: 2000,
-        });
+        toast.show({ title: "✅ อัปโหลดสำเร็จ", placement: "top", duration: 2000 });
       } catch (error: any) {
-        console.error("❌ Upload failed:", error);
         toast.closeAll();
         toast.show({
           title: "❌ อัปโหลดล้มเหลว",
@@ -219,21 +196,13 @@ export default function VirtualTryOnPage() {
 
   const handleAddOutfit = async (fileUri: string) => {
     try {
-      console.log("📤 Starting garment upload...");
       setLoading(true);
       const garmentName = "เสื้อใหม่_" + Date.now();
-
       const newGarment = await closetApi.uploadGarmentImage(fileUri, garmentName);
       setGarments((prev) => [newGarment, ...prev]);
-
       toast.closeAll();
-      toast.show({
-        title: "✅ เพิ่มเสื้อสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
+      toast.show({ title: "✅ เพิ่มเสื้อสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
-      console.error("❌ Exception in handleAddOutfit:", error);
       toast.closeAll();
       toast.show({
         title: "❌ เพิ่มเสื้อล้มเหลว",
@@ -246,41 +215,28 @@ export default function VirtualTryOnPage() {
     }
   };
 
-  const handleAddBackground = async (fileUri: string) => {
-    try {
-      console.log("📤 [BACKGROUND] Starting upload...");
-      setLoading(true);
-      const bgName = `BG_${Date.now()}`;
-
-      const newBackground = await closetApi.uploadVTONBackground(fileUri, bgName);
-      setBackgrounds((prev) => [newBackground, ...prev]);
-
-      toast.closeAll();
-      toast.show({
-        title: "✅ เพิ่มพื้นหลังสำเร็จ",
-        placement: "top",
-        duration: 2000,
-      });
-    } catch (error: any) {
-      console.error("❌ [BACKGROUND] Failed:", error);
-      toast.closeAll();
-      toast.show({
-        title: "❌ เพิ่มพื้นหลังล้มเหลว",
-        description: error.message,
-        placement: "top",
-        duration: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // [BACKGROUND FEATURE - commented out]
+  // const handleAddBackground = async (fileUri: string) => {
+  //   try {
+  //     setLoading(true);
+  //     const bgName = `BG_${Date.now()}`;
+  //     const newBackground = await closetApi.uploadVTONBackground(fileUri, bgName);
+  //     setBackgrounds((prev) => [newBackground, ...prev]);
+  //     toast.closeAll();
+  //     toast.show({ title: "✅ เพิ่มพื้นหลังสำเร็จ", placement: "top", duration: 2000 });
+  //   } catch (error: any) {
+  //     toast.closeAll();
+  //     toast.show({ title: "❌ เพิ่มพื้นหลังล้มเหลว", description: error.message, placement: "top", duration: 3000 });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleDeleteModel = async (imageId: string) => {
     try {
       await closetApi.deleteUserTryOnImage(imageId);
       setUserImages((prev) => prev.filter((img) => img.user_image_id !== imageId));
       if (selectedModel?.user_image_id === imageId) setSelectedModel(null);
-
       toast.closeAll();
       toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
@@ -294,7 +250,6 @@ export default function VirtualTryOnPage() {
       await closetApi.deleteGarmentImage(garmentId);
       setGarments((prev) => prev.filter((g) => g.garment_id !== garmentId));
       if (selectedGarment?.garment_id === garmentId) setSelectedGarment(null);
-
       toast.closeAll();
       toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
@@ -312,7 +267,6 @@ export default function VirtualTryOnPage() {
       await closetApi.deleteProductGarment(variantId);
       setProductGarments((prev) => prev.filter((v) => v.variant_id !== variantId));
       if (selectedProductGarment?.variant_id === variantId) setSelectedProductGarment(null);
-
       toast.closeAll();
       toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
@@ -321,25 +275,24 @@ export default function VirtualTryOnPage() {
     }
   };
 
-  const handleDeleteBackground = async (backgroundId: string) => {
-    try {
-      await closetApi.deleteVTONBackground(backgroundId);
-      setBackgrounds((prev) => prev.filter((bg) => bg.background_id !== backgroundId));
-      if (selectedBackground?.background_id === backgroundId) setSelectedBackground(null);
-
-      toast.closeAll();
-      toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
-    } catch (error: any) {
-      toast.closeAll();
-      toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
-    }
-  };
+  // [BACKGROUND FEATURE - commented out]
+  // const handleDeleteBackground = async (backgroundId: string) => {
+  //   try {
+  //     await closetApi.deleteVTONBackground(backgroundId);
+  //     setBackgrounds((prev) => prev.filter((bg) => bg.background_id !== backgroundId));
+  //     if (selectedBackground?.background_id === backgroundId) setSelectedBackground(null);
+  //     toast.closeAll();
+  //     toast.show({ title: "ลบสำเร็จ", placement: "top", duration: 2000 });
+  //   } catch (error: any) {
+  //     toast.closeAll();
+  //     toast.show({ title: "ลบล้มเหลว", description: error.message, placement: "top", duration: 3000 });
+  //   }
+  // };
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
       await closetApi.deleteVTONSession(sessionId);
       setVtonSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
-
       toast.closeAll();
       toast.show({ title: "ลบรูปผลลัพธ์สำเร็จ", placement: "top", duration: 2000 });
     } catch (error: any) {
@@ -362,7 +315,7 @@ export default function VirtualTryOnPage() {
       setLoading(true);
       const request: CreateVTONSessionRequest = {
         user_image_id: selectedModel.user_image_id,
-        background_id: selectedBackground?.background_id,
+        // background_id: selectedBackground?.background_id, // [BACKGROUND FEATURE - commented out]
       };
 
       if (selectedVariant) {
@@ -475,7 +428,6 @@ export default function VirtualTryOnPage() {
 
         {currentTab === 1 && (
           <Box flex={1}>
-            {/* ModelSelector จัดการ preview modal ภายในตัวเอง */}
             <ModelSelector
               userImages={userImages}
               selectedModel={selectedModel}
@@ -543,7 +495,8 @@ export default function VirtualTryOnPage() {
               >
                 ย้อนกลับ
               </Button>
-              <Button
+              {/* ปุ่มถัดไปไปหน้า background ถูกลบออก [BACKGROUND FEATURE - commented out] */}
+              {/* <Button
                 flex={1}
                 bg="violet.600"
                 onPress={() => {
@@ -554,12 +507,22 @@ export default function VirtualTryOnPage() {
                 isLoading={loading}
               >
                 ถัดไป
+              </Button> */}
+              <Button
+                flex={1}
+                bg="violet.600"
+                onPress={handleSubmit}
+                isDisabled={!selectedVariant && !selectedGarment && !selectedProductGarment}
+                isLoading={loading}
+              >
+                ลองชุด
               </Button>
             </HStack>
           </Box>
         )}
 
-        {currentTab === 3 && (
+        {/* Tab 3 - Background [BACKGROUND FEATURE - commented out] */}
+        {/* {currentTab === 3 && (
           <Box flex={1}>
             <BackgroundSelector
               backgrounds={backgrounds}
@@ -589,7 +552,7 @@ export default function VirtualTryOnPage() {
               </Button>
             </HStack>
           </Box>
-        )}
+        )} */}
       </Box>
     </Box>
   );

@@ -2,29 +2,31 @@
 import { Avartar } from "@/components/avartar";
 import { CustomPressable } from "@/components/profile/pressable";
 import { Colors } from "@/constants/theme";
-import { globalUserId, logout } from "@/utils/fetch-interceptor";
+import { logout } from "@/utils/fetch-interceptor";
 import { getToken, saveRole } from "@/utils/secure-store";
 import { DOMAIN } from "@/้host";
-import Feather from "@expo/vector-icons/Feather";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import axios from "axios";
 import { router } from "expo-router";
 import {
   Box,
   Center,
+  Divider,
   Flex,
   HStack,
   Spinner,
   StatusBar,
   Text,
+  VStack,
 } from "native-base";
 import React, { useEffect, useState } from "react";
 import { useColorScheme } from "react-native";
 
 type UserProfile = {
   username: string;
+  email?: string;
   image_url?: string;
-  profile_picture?: string; // ✅ เพิ่ม profile_picture
+  profile_picture?: string;
 };
 
 export default function ProfileScreen() {
@@ -34,39 +36,26 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile>({ username: "Ku" });
 
-  // -------------------
-  // Fetch user profile
-  // -------------------
   useEffect(() => {
     let mounted = true;
 
     const fetchProfile = async () => {
       try {
         setLoading(true);
-
         const token = await getToken();
-        // if (!token) {
-        //   router.replace("/login");
-        //   return;
-        // }
 
         const res = await axios.get(`${DOMAIN}/profile/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
-        console.log("📸 Profile data:", res.data);
 
         if (mounted) {
           setUser({
             username: res.data.username,
-            // ✅ ใช้ profile_picture ก่อน ถ้าไม่มีค่อยใช้ image_url
+            email: res.data.email,
             image_url: res.data.profile_picture || res.data.image_url,
             profile_picture: res.data.profile_picture,
           });
 
-          // Save user role to secure store
           if (res.data.user_role) {
             await saveRole(res.data.user_role);
           }
@@ -84,12 +73,8 @@ export default function ProfileScreen() {
     };
   }, []);
 
-  // -------------------
-  // Handle logout
-  // -------------------
   const handleLogout = async () => {
     try {
-      console.log("[LOGOUT] global user id", globalUserId);
       setLoading(true);
       await logout();
     } catch (err) {
@@ -99,156 +84,159 @@ export default function ProfileScreen() {
     }
   };
 
-  // ✅ สร้าง full URL สำหรับรูป
   const getImageUrl = () => {
     const imageUrl = user.profile_picture || user.image_url;
-
     if (!imageUrl) return undefined;
-
-    // ถ้าเป็น URL เต็มอยู่แล้ว (http:// หรือ https://)
-    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"))
       return imageUrl;
-    }
-
-    // ถ้าเป็น path แบบ /uploads/... ให้ต่อกับ DOMAIN
-    if (imageUrl.startsWith("/")) {
-      return `${DOMAIN}${imageUrl}`;
-    }
-
-    // ถ้าเป็น path แบบ uploads/... ให้ต่อกับ DOMAIN/
+    if (imageUrl.startsWith("/")) return `${DOMAIN}${imageUrl}`;
     return `${DOMAIN}/${imageUrl}`;
   };
 
   const profileImageUrl = getImageUrl();
 
-  console.log("🖼️ Profile image URL:", profileImageUrl);
-
   return (
-    <Flex flex={1}>
-      <StatusBar backgroundColor="#fff" />
+    <Flex flex={1} bg="purple.50">
+      <StatusBar backgroundColor="#7c3aed" />
       <Box safeAreaTop bg="#7c3aed" />
 
       {/* Header */}
-      <Box bg="#7c3aed" borderBottomRadius={15} w="100%" py={4} px={4}>
-        {/* <HStack width="100%" justifyContent="flex-end">
-          <Feather
-            name="shopping-cart"
-            size={25}
-            color={themeColors.contrast}
-          />
-        </HStack> */}
-
-        <HStack alignItems="center" style={{ gap: 5 }} mt={2}>
-          {/* ✅ แสดงรูป profile picture */}
+      <Box bg="#7c3aed" borderBottomRadius={20} w="100%" pb={6} pt={2} px={4}>
+        <HStack alignItems="center" space={3}>
           <Avartar
-            size="md"
+            size="lg"
             bg="#995ffd"
-            imageUrl={profileImageUrl} // ← ใช้ URL ที่ปรับแล้ว
+            imageUrl={profileImageUrl}
             name={user.username}
           />
-          <Text color={themeColors.contrast} fontSize="md">
-            {user.username || "ไม่มีชื่อผู้ใช้"}
-          </Text>
+          <VStack>
+            <Text color="white" fontSize="lg" fontWeight="bold">
+              {user.username || "ไม่มีชื่อผู้ใช้"}
+            </Text>
+            {user.email ? (
+              <Text color="purple.200" fontSize="xs">
+                {user.email}
+              </Text>
+            ) : null}
+          </VStack>
         </HStack>
       </Box>
 
-      {/* Content */}
-      <Flex flex={1} justifyContent="space-between" my={4}>
-        {/* ปุ่มบน */}
-        <Box style={{ gap: 5 }}>
+      {/* Menu */}
+      <Flex flex={1} justifyContent="space-between" px={4} pt={4} pb={4}>
+        <VStack
+          space={0}
+          bg="white"
+          borderRadius={12}
+          borderWidth={1}
+          borderColor="gray.200"
+          overflow="hidden"
+        >
+          {/* แก้ไขโปรไฟล์ */}
           <CustomPressable
             onPress={() => router.push("/me")}
-            fontSize={12}
-            p={3}
-            mx={1}
+            fontSize={14}
+            p={4}
             justifyContent="flex-start"
             title="แก้ไขโปรไฟล์"
             icon={
               <MaterialCommunityIcons
                 name="account-edit"
-                size={24}
-                color="black"
+                size={22}
+                color="#7c3aed"
               />
             }
             iconPosition="left"
           />
+          <Divider />
 
-          {/* ปุ่มการซื้อของฉัน */}
+          {/* การซื้อของฉัน */}
           <CustomPressable
             onPress={() => router.push("/(profile)/orders" as any)}
-            fontSize={12}
-            mx={1}
-            p={3}
+            fontSize={14}
+            p={4}
             justifyContent="flex-start"
             title="การซื้อของฉัน"
             icon={
               <MaterialCommunityIcons
                 name="package-variant-closed"
-                size={24}
-                color="black"
+                size={22}
+                color="#7c3aed"
               />
             }
             iconPosition="left"
           />
+          <Divider />
 
-
-
-          {/* ปุ่มถูกใจ - เชื่อมไปหน้า wishlist */}
+          {/* ถูกใจ */}
           <CustomPressable
             onPress={() => router.push("/(profile)/wishlist" as any)}
-            mx={1}
-            p={3}
+            p={4}
             justifyContent="flex-start"
-            fontSize={12}
+            fontSize={14}
             title="ถูกใจ"
             icon={
-              <MaterialCommunityIcons name="heart" size={24} color="black" />
+              <MaterialCommunityIcons name="heart" size={22} color="#7c3aed" />
             }
             iconPosition="left"
           />
+          <Divider />
 
+          {/* สมัครเป็นร้านค้า (เฉพาะ role: user) */}
           <CustomPressable
             onPress={() => router.push("/(store)/create-store")}
-            mx={1}
-            p={3}
+            p={4}
             justifyContent="flex-start"
-            fontSize={12}
+            fontSize={14}
             title="สมัครเป็นร้านค้า"
             icon={
-              <MaterialCommunityIcons name="store" size={24} color="black" />
+              <MaterialCommunityIcons
+                name="store-plus"
+                size={22}
+                color="#7c3aed"
+              />
             }
             iconPosition="left"
             rolesAllowed={["user"]}
           />
 
+          {/* ร้านค้าของฉัน (เฉพาะ role: seller) */}
           <CustomPressable
             onPress={() => router.push("/(seller)/seller-menu")}
-            mx={1}
-            p={3}
+            p={4}
             justifyContent="flex-start"
-            fontSize={12}
+            fontSize={14}
             title="ร้านค้าของฉัน"
             icon={
-              <MaterialCommunityIcons name="store" size={24} color="black" />
+              <MaterialCommunityIcons name="store" size={22} color="#7c3aed" />
             }
             iconPosition="left"
             rolesAllowed={["seller"]}
           />
-        </Box>
+        </VStack>
 
-        {/* Logout ปุ่มล่างสุด */}
-        <CustomPressable
-          fontSize={12}
-          onPress={handleLogout}
-          mx={1}
-          p={3}
-          justifyContent="flex-start"
-          title="ออกจากระบบ"
-          icon={
-            <MaterialCommunityIcons name="logout" size={24} color="purple" />
-          }
-          iconPosition="left"
-        />
+        {/* Logout */}
+        <Box
+          mt={4}
+          bg="white"
+          borderRadius={12}
+          borderWidth={1}
+          borderColor="gray.200"
+          overflow="hidden"
+        >
+          <CustomPressable
+            fontSize={14}
+            onPress={handleLogout}
+            p={4}
+            justifyContent="flex-start"
+            title="ออกจากระบบ"
+            icon={
+              <MaterialCommunityIcons name="logout" size={22} color="#ef4444" />
+            }
+            iconPosition="left"
+            color="red.500"
+          />
+        </Box>
       </Flex>
 
       {/* Loading overlay */}

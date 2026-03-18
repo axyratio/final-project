@@ -80,6 +80,7 @@ class CartSummaryOut(BaseModel):
 class ProductDetailOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    is_wishlisted: bool = False
     product_id: UUID
     product_name: str
     base_price: float

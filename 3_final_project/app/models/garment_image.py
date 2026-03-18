@@ -24,7 +24,8 @@ class GarmentImage(Base):
     garment_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     # ❌ ไม่ใส่ ondelete="CASCADE" ตามที่พี่ต้องการครับ
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id"), nullable=False)
+    # GarmentImage
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)
     
     name = Column(String(200), nullable=True)  # ชื่อที่ผู้ใช้ตั้ง เช่น "เสื้อยืดสีดำ"
     image_url = Column(String(500), nullable=False)
@@ -33,8 +34,8 @@ class GarmentImage(Base):
     uploaded_at = Column(DateTime(timezone=True), default=now_utc)
     
     # Relationships
-    user = relationship("User", backref="garment_images")
-    vton_sessions = relationship("VTONSession", back_populates="garment")
+    user = relationship("User", back_populates="garment_images")  # เอา backref ออก
+    vton_sessions = relationship("VTONSession", back_populates="garment", passive_deletes=True)
     
     
 # app/models/user_product_garment.py

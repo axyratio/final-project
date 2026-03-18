@@ -349,6 +349,7 @@ def get_order_status_distribution(
             'COMPLETED': 'สำเร็จ',
             'RETURNING': 'กำลังคืนสินค้า',
             'RETURNED': 'คืนสินค้าแล้ว',
+            'REJECTED' : 'ปฏิเสธการคืนสินค้า',
             'CANCELLED': 'ยกเลิก',
             'FAILED': 'ล้มเหลว'
         }

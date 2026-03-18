@@ -3,7 +3,7 @@ import { HomeBanner } from "@/api/home";
 import { useRouter } from "expo-router";
 import { Box, Button, Text } from "native-base";
 import React from "react";
-import { Dimensions, Image, ScrollView, View } from "react-native";
+import { Dimensions, ScrollView, View } from "react-native";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32; // margin ซ้ายขวา
@@ -17,7 +17,7 @@ export const HomeBannerSlider: React.FC<Props> = ({ banners }) => {
 
   const handlePress = (banner: HomeBanner) => {
     if (banner.route) {
-      router.push(banner.route as any);
+      router.push("/(tabs)/vton.tsx" as any);
     }
   };
 
@@ -41,13 +41,14 @@ export const HomeBannerSlider: React.FC<Props> = ({ banners }) => {
           >
             <Box
               bg="#f5e9ff"
+              h={180}
               borderRadius={16}
               p={4}
               flexDirection="row"
               alignItems="center"
             >
               {/* ฝั่งซ้าย: รูปภาพ */}
-              <Image
+              {/* <Image
                 source={{ uri: banner.imageUrl }}
                 style={{
                   width: 110,
@@ -55,7 +56,7 @@ export const HomeBannerSlider: React.FC<Props> = ({ banners }) => {
                   borderRadius: 12,
                 }}
                 resizeMode="cover"
-              />
+              /> */}
 
               {/* ฝั่งขวา: content + button แนวตั้ง */}
               <Box flex={1} ml={4} justifyContent="space-between">

@@ -113,6 +113,7 @@ export default function TabLayout() {
         options={{
           title: "ลองชุด",
           tabBarLabel: "ลองชุด",
+          href: "/vton",
           tabBarIcon: ({ focused, color, size }) => (
             <Ionicons
               name={focused ? "shirt" : "shirt-outline"}

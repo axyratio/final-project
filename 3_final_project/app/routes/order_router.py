@@ -1,7 +1,7 @@
 # app/routes/order_router.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 from app.db.database import get_db
@@ -17,15 +17,13 @@ router = APIRouter(
 
 @router.get("/me")
 def get_user_orders(
-    status: Optional[str] = Query(None, description="Filter by order status"),
+    status: Optional[List[str]] = Query(None, description="Filter by order status"),  # ← เปลี่ยนตรงนี้
+    skip: int = Query(0, description="จำนวนที่ข้าม"),
+    limit: int = Query(10, description="จำนวนที่ดึง"),
     db: Session = Depends(get_db),
     current_user: User = Depends(authenticate_token()),
 ):
-    """
-    ดึงรายการคำสั่งซื้อทั้งหมดของผู้ใช้
-    - สามารถกรองตาม status ได้
-    """
-    orders = OrderService.get_user_orders(db, current_user.user_id, status)
+    orders = OrderService.get_user_orders(db, current_user.user_id, status, skip, limit)
     
     return success_response(
         message="ดึงรายการคำสั่งซื้อสำเร็จ",

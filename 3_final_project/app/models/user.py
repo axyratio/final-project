@@ -45,3 +45,5 @@ class User(Base):
     shipping_addresses = relationship("ShippingAddress", back_populates="user", cascade="all, delete-orphan")
     uploaded_backgrounds = relationship("VTONBackground", back_populates="user", cascade="all, delete-orphan")
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    # User — เพิ่ม cascade ใน backref หรือกำหนด relationship ใน User โดยตรง
+    garment_images = relationship("GarmentImage", back_populates="user", cascade="all, delete-orphan")

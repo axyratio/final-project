@@ -106,7 +106,6 @@ class StripeWebhookService:
         db.commit()
         
 
-
     @staticmethod
     def handle_payment_intent_failed(db: Session, event):
         """

@@ -2,17 +2,8 @@
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import {
-  Box,
-  HStack,
-  Icon,
-  IconButton,
-  Text,
-  useToast,
-  View,
-} from "native-base";
+import { Box, HStack, Icon, IconButton, Text, View } from "native-base";
 import React, { useEffect } from "react";
-
 
 type AppBarAction = {
   iconName: React.ComponentProps<typeof MaterialIcons>["name"];
@@ -118,7 +109,6 @@ export const AppBarNoCheck = ({
   );
 };
 
-
 // components/home/HomeNavbar.tsx
 import { Ionicons } from "@expo/vector-icons";
 import { StyleSheet, TextInput, TouchableOpacity } from "react-native";
@@ -173,14 +163,6 @@ export const HomeNavbar: React.FC<HomeNavbarProps> = ({
       {/* ส่วนค้นหา */}
       <HStack space={2} alignItems="center">
         <View style={styles.searchSection}>
-          <TouchableOpacity
-            onPress={handleSearchSubmit}
-            style={styles.searchIconButton}
-            activeOpacity={0.6}
-          >
-            <Ionicons name="search-outline" size={20} color="#999" />
-          </TouchableOpacity>
-
           <TextInput
             style={styles.input}
             placeholder="ค้นหาเสื้อผ้า"
@@ -191,15 +173,23 @@ export const HomeNavbar: React.FC<HomeNavbarProps> = ({
             returnKeyType="search"
             underlineColorAndroid="transparent"
           />
+
+          <TouchableOpacity
+            onPress={handleSearchSubmit}
+            style={styles.searchIconButton}
+            activeOpacity={0.6}
+          >
+            <Ionicons name="search-outline" size={20} color="#999" />
+          </TouchableOpacity>
         </View>
 
         {/* ปุ่ม Filter */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           onPress={handlePressFilter}
           style={styles.filterButton}
         >
           <Ionicons name="options-outline" size={24} color="#7c3aed" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </HStack>
     </Box>
   );
@@ -217,15 +207,16 @@ const styles = StyleSheet.create({
   },
   searchIconButton: {
     padding: 5,
-    marginRight: 3,
-    marginLeft: 0,
+    marginRight: 0,
+    marginLeft: 3,
   },
   input: {
     flex: 1,
-    height: "100%",
+    height: "90%",
     color: "#000",
-    fontSize: 16,
+    fontSize: 13,
     paddingVertical: 0,
+    paddingLeft: 10,
   },
   filterButton: {
     backgroundColor: "#fff",

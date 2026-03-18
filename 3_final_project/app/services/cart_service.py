@@ -18,18 +18,18 @@ from app.models.cart import CartItem
 from app.models.product import ProductVariant, Product
 from app.models.store import Store
 
-
 def build_cart_item_out(item: CartItem) -> CartItemOut:
     variant: ProductVariant = item.variant
     product: Product = variant.product
     store: Store = product.store
 
-    # เลือกรูปจาก variant ก่อน ถ้าไม่มีค่อย fallback ไป product
     variant_images = getattr(variant, "images", []) or []
     image_url = pick_main_image(variant_images)
 
-    subtotal = float(item.quantity) * float(item.price_at_addition)
-    stock_available = int(variant.stock or 0) #แก้ทีหลังค่อยมาดูบัคตรงนี้
+    # ← ดึงราคาปัจจุบันจาก variant แทน price_at_addition
+    current_price = float(variant.price if variant.price is not None else product.base_price)
+    subtotal = float(item.quantity) * current_price
+    stock_available = int(variant.stock or 0)
 
     return CartItemOut(
         cart_item_id=item.cart_item_id,
@@ -39,7 +39,7 @@ def build_cart_item_out(item: CartItem) -> CartItemOut:
         variant_sku=variant.sku,
         variant_name=variant.name_option,
         quantity=item.quantity,
-        price_at_addition=item.price_at_addition,
+        price_at_addition=current_price,  # ← ส่งราคาปัจจุบันแทน
         subtotal=subtotal,
         image_url=image_url,
         store={
@@ -47,8 +47,8 @@ def build_cart_item_out(item: CartItem) -> CartItemOut:
             "store_name": store.name,
         },
         stock_available=stock_available,
+        
     )
-
 
 def get_cart_for_user(db: Session, user_id: UUID) -> CartListResponse:
     cart, items = cart_repository.get_cart_with_items_with_relations(db, user_id)

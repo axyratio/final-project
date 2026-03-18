@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from app.models.order import Order, OrderStatus
 from app.models.order_item import OrderItem
 from app.models.return_order import ReturnOrder, ReturnStatus
-from app.models.seller_notification import SellerNotification, NotificationType
+# from app.models.seller_notification import SellerNotification, NotificationType
 from app.models.product import Product, ProductImage
 from app.models.user import User
 from app.models.shipping_address import ShippingAddress
@@ -45,10 +45,10 @@ class SellerService:
         from app.models.chat_conversation import ChatConversation
         
         # 1. นับการแจ้งเตือนที่ยังไม่ได้อ่าน
-        unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
-            SellerNotification.store_id == store_id,
-            SellerNotification.is_read == False
-        ).scalar() or 0
+        # unread_notifications = db.query(func.count(SellerNotification.notification_id)).filter(
+        #     SellerNotification.store_id == store_id,
+        #     SellerNotification.is_read == False
+        # ).scalar() or 0
         
         # 2. นับออเดอร์ที่กำลังเตรียม (สถานะ PREPARING)
         preparing_orders = db.query(func.count(Order.order_id)).filter(
@@ -72,7 +72,7 @@ class SellerService:
         ).scalar() or 0
         
         return {
-            'unread_notifications': unread_notifications,
+            # 'unread_notifications': unread_notifications,
             'preparing_orders': preparing_orders,
             'pending_returns': pending_returns,
             'unread_chats': unread_chats
@@ -577,36 +577,36 @@ class SellerService:
                 return {'message': f'อนุมัติการคืนสินค้าสำเร็จ — {refund_status}'}
             return {'message': 'ปฏิเสธการคืนสินค้าสำเร็จ'}
     
-    @staticmethod
-    def get_seller_notifications(db: Session, store_id: str):
-        """ดึงการแจ้งเตือนของร้าน"""
-        notifications = db.query(SellerNotification).filter(
-            SellerNotification.store_id == store_id
-        ).order_by(SellerNotification.created_at.desc()).limit(50).all()
+    # @staticmethod
+    # def get_seller_notifications(db: Session, store_id: str):
+    #     """ดึงการแจ้งเตือนของร้าน"""
+    #     notifications = db.query(SellerNotification).filter(
+    #         SellerNotification.store_id == store_id
+    #     ).order_by(SellerNotification.created_at.desc()).limit(50).all()
         
-        return [
-            {
-                'notification_id': str(n.notification_id),
-                'type': n.type.value,
-                'title': n.title,
-                'message': n.message,
-                'order_id': str(n.order_id) if n.order_id else None,
-                'is_read': n.is_read,
-                'created_at': n.created_at.isoformat()
-            } for n in notifications
-        ]
+    #     return [
+    #         {
+    #             'notification_id': str(n.notification_id),
+    #             'type': n.type.value,
+    #             'title': n.title,
+    #             'message': n.message,
+    #             'order_id': str(n.order_id) if n.order_id else None,
+    #             'is_read': n.is_read,
+    #             'created_at': n.created_at.isoformat()
+    #         } for n in notifications
+    #     ]
     
-    @staticmethod
-    def mark_notification_as_read(db: Session, store_id: str, notification_id: str):
-        """อ่านการแจ้งเตือน"""
-        notification = db.query(SellerNotification).filter(
-            SellerNotification.notification_id == notification_id,
-            SellerNotification.store_id == store_id
-        ).first()
+    # @staticmethod
+    # def mark_notification_as_read(db: Session, store_id: str, notification_id: str):
+    #     """อ่านการแจ้งเตือน"""
+    #     notification = db.query(SellerNotification).filter(
+    #         SellerNotification.notification_id == notification_id,
+    #         SellerNotification.store_id == store_id
+    #     ).first()
         
-        if not notification:
-            raise HTTPException(status_code=404, detail="Notification not found")
+    #     if not notification:
+    #         raise HTTPException(status_code=404, detail="Notification not found")
         
-        notification.is_read = True
-        notification.read_at = now_utc()
-        db.commit()
+    #     notification.is_read = True
+    #     notification.read_at = now_utc()
+    #     db.commit()
