@@ -256,6 +256,74 @@ def stripe_connect_refresh(store_id: str, db: Session = Depends(get_db)):
     
 @router.get("/connect/success/{store_id}")
 def stripe_connect_success(store_id: str):
-    print("[ROUTE] stripe_connect_success called!")
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url=f"client://store/onboarding-success?store_id={store_id}")
+    from fastapi.responses import HTMLResponse
+    html = """<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>สมัครสำเร็จ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 40px;
+      text-align: center;
+      max-width: 380px;
+      width: 90%;
+      box-shadow: 0 8px 32px rgba(124, 58, 237, 0.12);
+    }
+    .icon-wrap {
+      width: 88px;
+      height: 88px;
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+    }
+    .icon-wrap svg {
+      width: 44px;
+      height: 44px;
+      stroke: white;
+      stroke-width: 2.5;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 12px;
+    }
+    p {
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">
+      <svg viewBox="0 0 24 24">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+    <h1>สมัครร้านค้าสำเร็จ</h1>
+    <p>ขอบคุณที่สมัครร้านค้ากับเรา<br/>คุณสามารถปิดหน้านี้และกลับสู่แอปได้เลย</p>
+  </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html)

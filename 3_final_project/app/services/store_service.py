@@ -27,11 +27,11 @@ def create_store_and_connect_stripe(
 
         existing_store = db.query(Store).filter(Store.user_id == user_id).first()
         if existing_store:
-            return error_response("User already has a store", status_code=400)
+            return error_response("มีร้านค้าอยู่แล้ว", status_code=400)
 
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
-            return error_response("User not found", status_code=404)
+            return error_response("ไม่พบผู้ใช้งาน", status_code=404)
 
         # ✅ สร้าง Stripe Connected Account
         account = stripe.Account.create(
@@ -60,7 +60,7 @@ def create_store_and_connect_stripe(
             is_active=True,
             stripe_account_id=account.id,
         )
-
+        # เปลี่ยนเป็น seller 
         user.role_id = 2
 
         db.add(store)
