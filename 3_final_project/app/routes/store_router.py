@@ -228,41 +228,33 @@ def stripe_connect_refresh(store_id: str, db: Session = Depends(get_db)):
         return error_response("Failed to refresh Stripe onboarding link", {"error": str(e)})
 
 # print("[ROUTE] Registering /connect/success/{store_id}")
-
-# @router.get("/connect/success/{store_id}")
-# def stripe_connect_success(store_id: str, db: Session = Depends(get_db)):
-#     """
-#     Stripe จะเรียก endpoint นี้เมื่อผู้ใช้กรอก onboarding เสร็จสมบูรณ์.
-#     """
-#     print("[ROUTE] stripe_connect_success called!========================")
-#     try:
-#         store = db.query(Store).filter(Store.store_id == store_id).first()
-#         if not store:
-#             return error_response("Store not found", status_code=404)
-
-#         # อัปเดตสถานะร้านให้ active
-#         store.is_active = True
-#         store.is_stripe_verified = True
-#         db.commit()
-#         return success_response("Stripe onboarding completed successfully=========================================================", {
-#             "store_id": str(store.store_id),
-#             "stripe_account_id": store.stripe_account_id
-#         })
-
-#     except Exception as e:
-#         db.rollback()
-#         return error_response("Failed to finalize onboarding", {"error": str(e)}, status_code=500)
-    
-    
 @router.get("/connect/success/{store_id}")
-def stripe_connect_success(store_id: str):
+def stripe_connect_success(store_id: str, db: Session = Depends(get_db)):
     from fastapi.responses import HTMLResponse
+
+    print("[ROUTE] stripe_connect_success called!")
+
+    try:
+        store = db.query(Store).filter(Store.store_id == store_id).first()
+        if not store:
+            return HTMLResponse(content="<h1>Store not found</h1>", status_code=404)
+
+        store.is_active = True
+        store.is_stripe_verified = True
+        db.commit()
+
+        print(f"[ROUTE] Store {store_id} activated successfully")
+
+    except Exception as e:
+        db.rollback()
+        print(f"[ROUTE] Failed to activate store: {e}")
+
     html = """<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>สมัครสำเร็จ</title>
+  <title>สมัครสําเร็จ</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -321,7 +313,7 @@ def stripe_connect_success(store_id: str):
         <polyline points="20 6 9 17 4 12"/>
       </svg>
     </div>
-    <h1>สมัครร้านค้าสำเร็จ</h1>
+    <h1>สมัครร้านค้าสําเร็จ</h1>
     <p>ขอบคุณที่สมัครร้านค้ากับเรา<br/>คุณสามารถปิดหน้านี้และกลับสู่แอปได้เลย</p>
   </div>
 </body>
